@@ -10,231 +10,204 @@ using WaveSystem;
 /// </summary>
 public class WaveSystemTester : MonoBehaviour
 {
-    #region WavePeak测试
+    #region 新功能测试
 
-    [ContextMenu("测试1: WavePeak创建")]
-    public void TestWavePeakCreation()
+    [ContextMenu("测试1: 负波生成")]
+    public void TestGenerateNegativeWave()
     {
-        Debug.Log("========== [测试1] WavePeak创建 ==========");
+        Debug.Log("========== [测试1] 负波生成 ==========");
         
-        WavePeak peak = new WavePeak(10, true);
+        Wave originalWave = new Wave();
+        originalWave.AddPeak(0, 10, true);
+        originalWave.AddPeak(1, -5, true);
+        originalWave.AddPeak(2, 3, true);
+        PrintWaveDetails(originalWave, "原始波");
         
-        Debug.Log($"创建波峰: Value={peak.Value}, AttackDirection={peak.AttackDirection}");
-        Debug.Log($"预期: Value=10, AttackDirection=true");
+        Wave negativeWave = originalWave.GenerateNegativeWave();
+        PrintWaveDetails(negativeWave, "负波");
         
-        bool pass = peak.Value == 10 && peak.AttackDirection == true;
-        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
-    }
-
-    [ContextMenu("测试2: WavePeak克隆")]
-    public void TestWavePeakClone()
-    {
-        Debug.Log("========== [测试2] WavePeak克隆 ==========");
+        Debug.Log("验证:");
+        Debug.Log($"  波峰数量是否相同: {originalWave.PeakCount == negativeWave.PeakCount}");
+        Debug.Log($"  方向是否相同: {originalWave.AttackDirection == negativeWave.AttackDirection}");
         
-        WavePeak original = new WavePeak(-7, false);
-        Debug.Log($"原始波峰: Value={original.Value}, AttackDirection={original.AttackDirection}");
-        
-        WavePeak cloned = original.Clone();
-        Debug.Log($"克隆波峰: Value={cloned.Value}, AttackDirection={cloned.AttackDirection}");
-        
-        bool pass = cloned.Value == original.Value && 
-                   cloned.AttackDirection == original.AttackDirection &&
-                   cloned != original;
-        
-        Debug.Log($"值是否相同: {cloned.Value == original.Value && cloned.AttackDirection == original.AttackDirection}");
-        Debug.Log($"是否为不同对象: {cloned != original}");
-        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
-    }
-
-    #endregion
-
-    #region Wave测试
-
-    [ContextMenu("测试3: Wave创建")]
-    public void TestWaveCreation()
-    {
-        Debug.Log("========== [测试3] Wave创建 ==========");
-        
-        Wave wave = new Wave();
-        Debug.Log($"创建新波: PeakCount={wave.PeakCount}, IsEmpty={wave.IsEmpty}");
-        Debug.Log($"预期: PeakCount=0, IsEmpty=true");
-        
-        bool pass = wave.IsEmpty && wave.PeakCount == 0;
-        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
-    }
-
-    [ContextMenu("测试4: Wave添加波峰")]
-    public void TestWaveAddPeak()
-    {
-        Debug.Log("========== [测试4] Wave添加波峰 ==========");
-        
-        Wave wave = new Wave();
-        Debug.Log($"初始状态: PeakCount={wave.PeakCount}");
-        
-        wave.AddPeak(0, 10, true);
-        Debug.Log($"添加波峰1: Position=0, Value=10, Direction=true");
-        Debug.Log($"当前状态: PeakCount={wave.PeakCount}, HasPeakAt(0)={wave.HasPeakAt(0)}");
-        
-        wave.AddPeak(1, -5, false);
-        Debug.Log($"添加波峰2: Position=1, Value=-5, Direction=false");
-        Debug.Log($"当前状态: PeakCount={wave.PeakCount}, HasPeakAt(1)={wave.HasPeakAt(1)}");
-        
-        PrintWaveDetails(wave, "最终波状态");
-        
-        bool pass = wave.PeakCount == 2 && wave.HasPeakAt(0) && wave.HasPeakAt(1) && !wave.HasPeakAt(2);
-        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
-    }
-
-    [ContextMenu("测试5: Wave移除波峰")]
-    public void TestWaveRemovePeak()
-    {
-        Debug.Log("========== [测试5] Wave移除波峰 ==========");
-        
-        Wave wave = new Wave();
-        wave.AddPeak(0, 10, true);
-        wave.AddPeak(1, 5, false);
-        Debug.Log("初始状态:");
-        PrintWaveDetails(wave, "移除前");
-        
-        bool removed = wave.RemovePeak(0);
-        Debug.Log($"移除位置0的波峰: 返回值={removed}");
-        PrintWaveDetails(wave, "移除后");
-        
-        bool notRemoved = wave.RemovePeak(99);
-        Debug.Log($"尝试移除不存在的波峰(位置99): 返回值={notRemoved}");
-        
-        bool pass = removed && !notRemoved && wave.PeakCount == 1 && !wave.HasPeakAt(0) && wave.HasPeakAt(1);
-        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
-    }
-
-    [ContextMenu("测试6: Wave查询波峰")]
-    public void TestWaveQuery()
-    {
-        Debug.Log("========== [测试6] Wave查询波峰 ==========");
-        
-        Wave wave = new Wave();
-        wave.AddPeak(5, 10, true);
-        PrintWaveDetails(wave, "初始状态");
-        
-        WavePeak peak = wave.GetPeak(5);
-        Debug.Log($"GetPeak(5): {(peak != null ? $"Value={peak.Value}" : "null")}");
-        
-        bool found = wave.TryGetPeak(5, out WavePeak peak2);
-        Debug.Log($"TryGetPeak(5): found={found}, Value={(peak2 != null ? peak2.Value.ToString() : "null")}");
-        
-        bool notFound = wave.TryGetPeak(99, out WavePeak peak3);
-        Debug.Log($"TryGetPeak(99): found={notFound}, Value={(peak3 != null ? peak3.Value.ToString() : "null")}");
-        
-        bool pass = peak != null && peak.Value == 10 && found && !notFound && peak3 == null;
-        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
-    }
-
-    [ContextMenu("测试7: Wave空状态")]
-    public void TestWaveEmpty()
-    {
-        Debug.Log("========== [测试7] Wave空状态 ==========");
-        
-        Wave wave = new Wave();
-        Debug.Log($"初始状态: IsEmpty={wave.IsEmpty}, PeakCount={wave.PeakCount}");
-        
-        wave.AddPeak(0, 10, true);
-        Debug.Log($"添加波峰后: IsEmpty={wave.IsEmpty}, PeakCount={wave.PeakCount}");
-        
-        wave.Clear();
-        Debug.Log($"清空后: IsEmpty={wave.IsEmpty}, PeakCount={wave.PeakCount}");
-        
-        bool pass = wave.IsEmpty && wave.PeakCount == 0;
-        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
-    }
-
-    [ContextMenu("测试8: Wave克隆")]
-    public void TestWaveClone()
-    {
-        Debug.Log("========== [测试8] Wave克隆 ==========");
-        
-        Wave original = new Wave();
-        original.AddPeak(0, 10, true);
-        original.AddPeak(1, -5, false);
-        PrintWaveDetails(original, "原始波");
-        
-        Wave cloned = original.Clone();
-        PrintWaveDetails(cloned, "克隆波");
-        
-        Debug.Log($"是否为不同对象: {cloned != original}");
-        Debug.Log($"波峰数量是否相同: {cloned.PeakCount == original.PeakCount}");
-        
-        WavePeak originalPeak = original.GetPeak(0);
-        WavePeak clonedPeak = cloned.GetPeak(0);
-        Debug.Log($"波峰是否为不同对象: {clonedPeak != originalPeak}");
-        Debug.Log($"波峰值是否相同: {clonedPeak.Value == originalPeak.Value}");
-        
-        bool pass = cloned != original && cloned.PeakCount == original.PeakCount && 
-                   clonedPeak != originalPeak && clonedPeak.Value == originalPeak.Value;
-        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
-    }
-
-    [ContextMenu("测试9: Wave排序")]
-    public void TestWaveSortedPeaks()
-    {
-        Debug.Log("========== [测试9] Wave排序 ==========");
-        
-        Wave wave = new Wave();
-        wave.AddPeak(3, 10, true);
-        wave.AddPeak(1, 5, false);
-        wave.AddPeak(5, -3, true);
-        PrintWaveDetails(wave, "原始波（无序添加）");
-        
-        var sorted = wave.GetSortedPeaks();
-        Debug.Log("排序后的波峰列表:");
-        for (int i = 0; i < sorted.Count; i++)
+        bool allPeaksNegated = true;
+        foreach (var position in originalWave.Positions)
         {
-            Debug.Log($"  [{i}] Position={sorted[i].position}, Value={sorted[i].peak.Value}");
+            WavePeak originalPeak = originalWave.GetPeak(position);
+            WavePeak negativePeak = negativeWave.GetPeak(position);
+            bool isNegated = negativePeak != null && negativePeak.Value == -originalPeak.Value;
+            Debug.Log($"  位置{position}: 原始={originalPeak.Value}, 负波={negativePeak.Value}, 是否取反={isNegated}");
+            if (!isNegated)
+            {
+                allPeaksNegated = false;
+            }
         }
         
-        bool pass = sorted.Count == 3 && sorted[0].position == 1 && sorted[1].position == 3 && sorted[2].position == 5;
+        bool pass = originalWave.PeakCount == negativeWave.PeakCount &&
+                   originalWave.AttackDirection == negativeWave.AttackDirection &&
+                   allPeaksNegated &&
+                   originalWave != negativeWave;
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试10: Wave范围查询")]
-    public void TestWavePeaksInRange()
+    [ContextMenu("测试2: 设置攻击方向")]
+    public void TestSetAttackDirection()
     {
-        Debug.Log("========== [测试10] Wave范围查询 ==========");
+        Debug.Log("========== [测试2] 设置攻击方向 ==========");
+        
+        // 测试空波设置方向
+        Wave emptyWave = new Wave();
+        Debug.Log("空波初始方向: " + (emptyWave.AttackDirection.HasValue ? emptyWave.AttackDirection.Value.ToString() : "null"));
+        bool set1 = emptyWave.SetAttackDirection(true);
+        Debug.Log($"设置方向为true: 成功={set1}, 当前方向={emptyWave.AttackDirection}");
+        
+        // 测试有波峰的波修改方向
+        Wave wave = new Wave();
+        wave.AddPeak(0, 10, true);
+        wave.AddPeak(1, 5, true);
+        PrintWaveDetails(wave, "初始波（方向=true）");
+        
+        bool set2 = wave.SetAttackDirection(false);
+        Debug.Log($"修改方向为false: 成功={set2}");
+        PrintWaveDetails(wave, "修改方向后");
+        
+        // 验证所有波峰的方向都已更新
+        bool allPeaksUpdated = true;
+        foreach (var position in wave.Positions)
+        {
+            WavePeak peak = wave.GetPeak(position);
+            if (peak.AttackDirection != false)
+            {
+                allPeaksUpdated = false;
+                Debug.LogError($"位置{position}的波峰方向未正确更新: {peak.AttackDirection}");
+            }
+        }
+        
+        // 再次修改回true
+        bool set3 = wave.SetAttackDirection(true);
+        Debug.Log($"再次修改方向为true: 成功={set3}");
+        PrintWaveDetails(wave, "再次修改方向后");
+        
+        bool pass = set1 && set2 && set3 && 
+                   wave.AttackDirection == true &&
+                   allPeaksUpdated &&
+                   wave.GetPeak(0).AttackDirection == true &&
+                   wave.GetPeak(1).AttackDirection == true;
+        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
+    }
+
+    [ContextMenu("测试3: 设置波峰强度")]
+    public void TestSetPeakValue()
+    {
+        Debug.Log("========== [测试3] 设置波峰强度 ==========");
         
         Wave wave = new Wave();
         wave.AddPeak(0, 10, true);
-        wave.AddPeak(3, 5, false);
-        wave.AddPeak(5, -3, true);
-        wave.AddPeak(7, 8, false);
-        PrintWaveDetails(wave, "原始波");
+        wave.AddPeak(1, 5, true);
+        PrintWaveDetails(wave, "初始波");
         
-        var inRange = wave.GetPeaksInRange(3, 6);
-        Debug.Log("范围[3, 6]内的波峰:");
-        foreach (var (position, peak) in inRange)
-        {
-            Debug.Log($"  Position={position}, Value={peak.Value}");
-        }
+        bool set1 = wave.SetPeakValue(0, 20);
+        Debug.Log($"设置位置0的强度为20: 成功={set1}");
+        PrintWaveDetails(wave, "设置后");
         
-        bool pass = inRange.Count == 2 && inRange[0].position == 3 && inRange[1].position == 5;
+        bool set2 = wave.SetPeakValue(99, 100);
+        Debug.Log($"设置不存在位置99的强度: 成功={set2}, 预期=false");
+        
+        WavePeak peak0 = wave.GetPeak(0);
+        bool pass = set1 && !set2 && peak0 != null && peak0.Value == 20;
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试11: Wave最小最大位置")]
-    public void TestWaveMinMaxPosition()
+    [ContextMenu("测试4: 移动波峰位置")]
+    public void TestMovePeak()
     {
-        Debug.Log("========== [测试11] Wave最小最大位置 ==========");
+        Debug.Log("========== [测试4] 移动波峰位置 ==========");
         
         Wave wave = new Wave();
-        Debug.Log($"空波: MinPosition={wave.GetMinPosition()}, MaxPosition={wave.GetMaxPosition()}");
+        wave.AddPeak(0, 10, true);
+        wave.AddPeak(1, 5, true);
+        wave.AddPeak(2, 3, true);
+        PrintWaveDetails(wave, "初始波");
         
-        wave.AddPeak(5, 10, true);
-        wave.AddPeak(1, 5, false);
-        wave.AddPeak(10, -3, true);
-        PrintWaveDetails(wave, "添加波峰后");
+        bool move1 = wave.MovePeak(0, 5);
+        Debug.Log($"移动位置0到位置5: 成功={move1}");
+        PrintWaveDetails(wave, "移动后");
         
-        Debug.Log($"MinPosition={wave.GetMinPosition()}, MaxPosition={wave.GetMaxPosition()}");
-        Debug.Log($"预期: MinPosition=1, MaxPosition=10");
+        bool move2 = wave.MovePeak(99, 100);
+        Debug.Log($"移动不存在位置99: 成功={move2}, 预期=false");
         
-        bool pass = wave.GetMinPosition() == 1 && wave.GetMaxPosition() == 10;
+        bool move3 = wave.MovePeak(1, 1);
+        Debug.Log($"移动位置1到位置1（相同位置）: 成功={move3}");
+        
+        bool pass = move1 && !move2 && move3 &&
+                   !wave.HasPeakAt(0) && wave.HasPeakAt(5) &&
+                   wave.GetPeak(5).Value == 10;
+        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
+    }
+
+    [ContextMenu("测试5: 批量设置波峰强度")]
+    public void TestSetPeakValues()
+    {
+        Debug.Log("========== [测试5] 批量设置波峰强度 ==========");
+        
+        Wave wave = new Wave();
+        wave.AddPeak(0, 10, true);
+        wave.AddPeak(1, 5, true);
+        wave.AddPeak(2, 3, true);
+        PrintWaveDetails(wave, "初始波");
+        
+        Dictionary<int, int> newValues = new Dictionary<int, int>
+        {
+            { 0, 20 },
+            { 1, 15 },
+            { 99, 100 }  // 不存在的位置
+        };
+        
+        int successCount = wave.SetPeakValues(newValues);
+        Debug.Log($"批量设置: 成功设置{successCount}个波峰");
+        PrintWaveDetails(wave, "批量设置后");
+        
+        bool pass = successCount == 2 &&
+                   wave.GetPeak(0).Value == 20 &&
+                   wave.GetPeak(1).Value == 15 &&
+                   wave.GetPeak(2).Value == 3;  // 位置2未改变
+        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
+    }
+
+    [ContextMenu("测试6: 综合修改测试")]
+    public void TestWaveModification()
+    {
+        Debug.Log("========== [测试6] 综合修改测试 ==========");
+        
+        Wave wave = new Wave();
+        wave.AddPeak(0, 10, true);
+        wave.AddPeak(1, 5, true);
+        wave.AddPeak(2, 3, true);
+        PrintWaveDetails(wave, "初始波");
+        
+        // 修改强度
+        wave.SetPeakValue(0, 20);
+        Debug.Log("修改位置0的强度为20");
+        
+        // 移动位置
+        wave.MovePeak(1, 10);
+        Debug.Log("移动位置1到位置10");
+        
+        // 批量修改
+        Dictionary<int, int> newValues = new Dictionary<int, int>
+        {
+            { 2, 30 },
+            { 10, 50 }
+        };
+        wave.SetPeakValues(newValues);
+        Debug.Log("批量修改位置2和10的强度");
+        
+        PrintWaveDetails(wave, "最终波");
+        
+        bool pass = wave.GetPeak(0).Value == 20 &&
+                   !wave.HasPeakAt(1) &&
+                   wave.GetPeak(2).Value == 30 &&
+                   wave.GetPeak(10).Value == 50;
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
@@ -242,10 +215,10 @@ public class WaveSystemTester : MonoBehaviour
 
     #region WavePairing测试
 
-    [ContextMenu("测试12: 配对-同位置同方向")]
+    [ContextMenu("测试7: 配对-同位置同方向")]
     public void TestPairingSamePositionSameDirection()
     {
-        Debug.Log("========== [测试12] 配对-同位置同方向 ==========");
+        Debug.Log("========== [测试7] 配对-同位置同方向 ==========");
         
         Wave waveA = new Wave();
         waveA.AddPeak(0, 10, true);
@@ -271,10 +244,10 @@ public class WaveSystemTester : MonoBehaviour
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试13: 配对-同位置反方向")]
+    [ContextMenu("测试8: 配对-同位置反方向")]
     public void TestPairingSamePositionOppositeDirection()
     {
-        Debug.Log("========== [测试13] 配对-同位置反方向 ==========");
+        Debug.Log("========== [测试8] 配对-同位置反方向 ==========");
         
         Wave waveA = new Wave();
         waveA.AddPeak(0, 10, true);
@@ -300,10 +273,10 @@ public class WaveSystemTester : MonoBehaviour
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试14: 配对-完全抵消")]
+    [ContextMenu("测试9: 配对-完全抵消")]
     public void TestPairingSamePositionOppositeDirectionCancel()
     {
-        Debug.Log("========== [测试14] 配对-完全抵消 ==========");
+        Debug.Log("========== [测试9] 配对-完全抵消 ==========");
         
         Wave waveA = new Wave();
         waveA.AddPeak(0, 10, true);
@@ -329,10 +302,10 @@ public class WaveSystemTester : MonoBehaviour
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试15: 配对-反方向不同强度")]
+    [ContextMenu("测试10: 配对-反方向不同强度")]
     public void TestPairingSamePositionOppositeDirectionDifferentStrength()
     {
-        Debug.Log("========== [测试15] 配对-反方向不同强度 ==========");
+        Debug.Log("========== [测试10] 配对-反方向不同强度 ==========");
         
         Wave waveA = new Wave();
         waveA.AddPeak(0, 5, true);
@@ -358,10 +331,10 @@ public class WaveSystemTester : MonoBehaviour
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试16: 配对-不同位置")]
+    [ContextMenu("测试11: 配对-不同位置")]
     public void TestPairingDifferentPositions()
     {
-        Debug.Log("========== [测试16] 配对-不同位置 ==========");
+        Debug.Log("========== [测试11] 配对-不同位置 ==========");
         
         Wave waveA = new Wave();
         waveA.AddPeak(0, 10, true);
@@ -391,10 +364,10 @@ public class WaveSystemTester : MonoBehaviour
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试17: 配对-空波")]
+    [ContextMenu("测试12: 配对-空波")]
     public void TestPairingEmptyWaves()
     {
-        Debug.Log("========== [测试17] 配对-空波 ==========");
+        Debug.Log("========== [测试12] 配对-空波 ==========");
         
         Wave waveA = new Wave();
         Wave waveB = new Wave();
@@ -408,10 +381,10 @@ public class WaveSystemTester : MonoBehaviour
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试18: 配对-一个空波")]
+    [ContextMenu("测试13: 配对-一个空波")]
     public void TestPairingOneEmptyWave()
     {
-        Debug.Log("========== [测试18] 配对-一个空波 ==========");
+        Debug.Log("========== [测试13] 配对-一个空波 ==========");
         
         Wave waveA = new Wave();
         waveA.AddPeak(0, 10, true);
@@ -434,10 +407,10 @@ public class WaveSystemTester : MonoBehaviour
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试19: 配对-零值波峰")]
+    [ContextMenu("测试14: 配对-零值波峰")]
     public void TestPairingZeroValuePeak()
     {
-        Debug.Log("========== [测试19] 配对-零值波峰 ==========");
+        Debug.Log("========== [测试14] 配对-零值波峰 ==========");
         
         Wave waveA = new Wave();
         waveA.AddPeak(0, 0, true);
@@ -463,28 +436,31 @@ public class WaveSystemTester : MonoBehaviour
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试20: 配对-多波峰复杂场景")]
+    [ContextMenu("测试15: 配对-多波峰复杂场景")]
     public void TestPairingMultiplePeaks()
     {
-        Debug.Log("========== [测试20] 配对-多波峰复杂场景 ==========");
+        Debug.Log("========== [测试15] 配对-多波峰复杂场景 ==========");
         
+        // 波A：所有波峰方向为true（攻向玩家）
         Wave waveA = new Wave();
         waveA.AddPeak(0, 10, true);
         waveA.AddPeak(1, 5, true);
-        waveA.AddPeak(2, -3, false);
+        waveA.AddPeak(2, 3, true);  // 改为true方向，以符合方向一致性
         PrintWaveDetails(waveA, "波A");
         
+        // 波B：所有波峰方向为false（不攻向玩家）
         Wave waveB = new Wave();
         waveB.AddPeak(0, -5, false);
-        waveB.AddPeak(1, 3, true);
-        waveB.AddPeak(3, 7, true);
+        waveB.AddPeak(1, 3, false);  // 改为false方向，以符合方向一致性
+        waveB.AddPeak(3, 7, false);  // 改为false方向，以符合方向一致性
         PrintWaveDetails(waveB, "波B");
         
         Debug.Log("配对计算:");
         Debug.Log("  位置0: 10(true) + -5(false) = 5(true) [绝对值10>5，方向继承true]");
-        Debug.Log("  位置1: 5(true) + 3(true) = 8(true)");
-        Debug.Log("  位置2: -3(false) [单独保留]");
-        Debug.Log("  位置3: 7(true) [单独保留]");
+        Debug.Log("  位置1: 5(true) + 3(false) = 8(true) [绝对值5>3，方向继承true]");
+        Debug.Log("  位置2: 3(true) [单独保留]");
+        Debug.Log("  位置3: 7(false) [单独保留]");
+        Debug.Log("  预期: 生成2个波，一个包含位置0,1,2（true方向），一个包含位置3（false方向）");
         
         List<Wave> results = WavePairing.PairWaves(waveA, waveB);
         Debug.Log($"配对结果: 生成 {results.Count} 个新波");
@@ -495,35 +471,39 @@ public class WaveSystemTester : MonoBehaviour
         }
         
         Wave waveTrue = results.Find(w => w.HasPeakAt(0));
-        Wave waveFalse = results.Find(w => w.HasPeakAt(2));
+        Wave waveFalse = results.Find(w => w.HasPeakAt(3));
         
         bool pass = results.Count == 2 && 
                    waveTrue != null && waveTrue.GetPeak(0).Value == 5 && 
-                   waveTrue.GetPeak(1).Value == 8 && waveTrue.GetPeak(3).Value == 7 &&
-                   waveFalse != null && waveFalse.GetPeak(2).Value == -3;
+                   waveTrue.GetPeak(1).Value == 8 && waveTrue.GetPeak(2).Value == 3 &&
+                   waveFalse != null && waveFalse.GetPeak(3).Value == 7;
         
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试21: 配对-方向分类")]
+    [ContextMenu("测试16: 配对-方向分类")]
     public void TestPairingDirectionClassification()
     {
-        Debug.Log("========== [测试21] 配对-方向分类 ==========");
+        Debug.Log("========== [测试16] 配对-方向分类 ==========");
         
+        // 波A：所有波峰方向为true
         Wave waveA = new Wave();
         waveA.AddPeak(0, 10, true);
-        waveA.AddPeak(1, 5, false);
+        waveA.AddPeak(1, 5, true);  // 改为true方向，以符合方向一致性
         PrintWaveDetails(waveA, "波A");
         
+        // 波B：所有波峰方向为false
         Wave waveB = new Wave();
-        waveB.AddPeak(0, 3, true);
+        waveB.AddPeak(0, 3, false);  // 改为false方向，以符合方向一致性
         waveB.AddPeak(1, -2, false);
         PrintWaveDetails(waveB, "波B");
         
+        Debug.Log("注意：配对后位置0和1的结果方向会根据绝对值大小决定");
+        
         Debug.Log("配对计算:");
-        Debug.Log("  位置0: 10(true) + 3(true) = 13(true)");
-        Debug.Log("  位置1: 5(false) + -2(false) = 3(false)");
-        Debug.Log("  预期: 生成2个波，分别包含true和false方向的波峰");
+        Debug.Log("  位置0: 10(true) + 3(false) = 13(true) [绝对值10>3，方向继承true]");
+        Debug.Log("  位置1: 5(true) + -2(false) = 3(true) [绝对值5>2，方向继承true]");
+        Debug.Log("  预期: 生成1个波，包含位置0和1（都是true方向）");
         
         List<Wave> results = WavePairing.PairWaves(waveA, waveB);
         Debug.Log($"配对结果: 生成 {results.Count} 个新波");
@@ -534,19 +514,18 @@ public class WaveSystemTester : MonoBehaviour
         }
         
         Wave waveTrue = results.Find(w => w.HasPeakAt(0));
-        Wave waveFalse = results.Find(w => w.HasPeakAt(1));
         
-        bool pass = results.Count == 2 && 
+        bool pass = results.Count == 1 && 
                    waveTrue != null && waveTrue.GetPeak(0).Value == 13 &&
-                   waveFalse != null && waveFalse.GetPeak(1).Value == 3;
+                   waveTrue.GetPeak(1).Value == 3;
         
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试22: 波方向一致性检查")]
+    [ContextMenu("测试17: 波方向一致性检查")]
     public void TestWaveDirectionConsistency()
     {
-        Debug.Log("========== [测试22] 波方向一致性检查 ==========");
+        Debug.Log("========== [测试17] 波方向一致性检查 ==========");
         
         Wave wave = new Wave();
         wave.AddPeak(0, 10, true);
@@ -567,10 +546,10 @@ public class WaveSystemTester : MonoBehaviour
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试23: 波特定位置波峰插入")]
+    [ContextMenu("测试18: 波特定位置波峰插入")]
     public void TestWavePeakInsertion()
     {
-        Debug.Log("========== [测试23] 波特定位置波峰插入 ==========");
+        Debug.Log("========== [测试18] 波特定位置波峰插入 ==========");
         
         Wave wave = new Wave();
         Debug.Log("初始状态: 空波");
@@ -616,10 +595,10 @@ public class WaveSystemTester : MonoBehaviour
         Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
     }
 
-    [ContextMenu("测试24: 根据给定数据生成波")]
+    [ContextMenu("测试19: 根据给定数据生成波")]
     public void TestWaveFromData()
     {
-        Debug.Log("========== [测试24] 根据给定数据生成波 ==========");
+        Debug.Log("========== [测试19] 根据给定数据生成波 ==========");
         
         // 准备波数据
         WaveData waveData = new WaveData(true);

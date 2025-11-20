@@ -234,6 +234,122 @@ namespace WaveSystem
                        .ToList();
         }
 
+        /// <summary>
+        /// 生成负波 - 生成一个当前波除了波峰强度符号相反以外其他一切相同的波
+        /// </summary>
+        /// <returns>新的负波实例</returns>
+        public Wave GenerateNegativeWave()
+        {
+            Wave negativeWave = new Wave();
+            negativeWave.AttackDirection = AttackDirection;
+
+            foreach (var kvp in peaks)
+            {
+                int position = kvp.Key;
+                WavePeak originalPeak = kvp.Value;
+                // 强度取反，方向保持不变
+                WavePeak negativePeak = new WavePeak(-originalPeak.Value, originalPeak.AttackDirection);
+                negativeWave.peaks[position] = negativePeak;
+            }
+
+            return negativeWave;
+        }
+
+        /// <summary>
+        /// 设置波的攻击方向
+        /// 如果波中已有波峰，会同时更新所有波峰的方向
+        /// </summary>
+        /// <param name="attackDirection">新的攻击方向</param>
+        /// <returns>是否成功设置</returns>
+        public bool SetAttackDirection(bool attackDirection)
+        {
+            // 如果波为空，直接设置
+            if (peaks.Count == 0)
+            {
+                AttackDirection = attackDirection;
+                return true;
+            }
+
+            // 更新所有波峰的方向
+            foreach (var peak in peaks.Values)
+            {
+                peak.AttackDirection = attackDirection;
+            }
+
+            AttackDirection = attackDirection;
+            return true;
+        }
+
+        /// <summary>
+        /// 设置指定位置波峰的强度值
+        /// </summary>
+        /// <param name="position">位置</param>
+        /// <param name="value">新的强度值</param>
+        /// <returns>是否成功设置（如果位置不存在则返回false）</returns>
+        public bool SetPeakValue(int position, int value)
+        {
+            if (!peaks.TryGetValue(position, out WavePeak peak))
+            {
+                Debug.LogWarning($"[Wave] 尝试设置不存在位置的波峰强度: 位置{position}");
+                return false;
+            }
+
+            peak.Value = value;
+            return true;
+        }
+
+        /// <summary>
+        /// 移动波峰位置
+        /// 将指定位置的波峰移动到新位置
+        /// </summary>
+        /// <param name="oldPosition">原位置</param>
+        /// <param name="newPosition">新位置</param>
+        /// <returns>是否成功移动</returns>
+        public bool MovePeak(int oldPosition, int newPosition)
+        {
+            if (!peaks.TryGetValue(oldPosition, out WavePeak peak))
+            {
+                Debug.LogWarning($"[Wave] 尝试移动不存在位置的波峰: 位置{oldPosition}");
+                return false;
+            }
+
+            if (oldPosition == newPosition)
+            {
+                // 位置相同，无需移动
+                return true;
+            }
+
+            // 如果新位置已有波峰，会被替换
+            peaks[newPosition] = peak;
+            peaks.Remove(oldPosition);
+            return true;
+        }
+
+        /// <summary>
+        /// 批量设置波峰强度
+        /// </summary>
+        /// <param name="peakValues">位置到强度值的字典</param>
+        /// <returns>成功设置的数量</returns>
+        public int SetPeakValues(Dictionary<int, int> peakValues)
+        {
+            if (peakValues == null)
+            {
+                Debug.LogWarning("[Wave] SetPeakValues: 传入的字典为null");
+                return 0;
+            }
+
+            int successCount = 0;
+            foreach (var kvp in peakValues)
+            {
+                if (SetPeakValue(kvp.Key, kvp.Value))
+                {
+                    successCount++;
+                }
+            }
+
+            return successCount;
+        }
+
         public override string ToString()
         {
             if (peaks.Count == 0)
