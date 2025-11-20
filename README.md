@@ -243,3 +243,340 @@ void RemoveCardFromDeck(GameObject cardPrefab)
 - 支持卡牌效果系统
 - 添加卡牌动画和音效
 - 实现卡牌筛选和搜索功能
+
+---
+
+## 波系统 (Wave System)
+
+### 概述
+
+波系统是游戏的核心数值模型，用于表示和计算波的交互。波由多个波峰组成，波峰可以位于波的任意位置，波中可以有空位。系统支持两个波之间的配对计算，根据波峰的位置、强度和攻击方向生成新的波。
+
+### 系统架构
+
+#### 核心类
+
+1. **WavePeak** (`Assets/Scripts/WaveSystem/WavePeak.cs`)
+   - 表示波的最小单位 - 波峰
+   - 包含位置（Position）、强度值（Value）、攻击方向（AttackDirection）属性
+   - 强度值为整数，可正可负，正负只表示数值符号，不表示方向
+   - 攻击方向使用bool表示（true=攻向玩家，false=不攻向玩家）
+
+2. **Wave** (`Assets/Scripts/WaveSystem/Wave.cs`)
+   - 管理波峰集合的容器
+   - 使用Dictionary<int, WavePeak>存储波峰，key为位置，支持空位
+   - **重要特性**：同一个波中的所有波峰必须具有相同的攻击方向
+   - 提供AttackDirection属性，表示波的整体攻击方向
+   - 如果尝试添加不同方向的波峰，会报错并拒绝添加
+   - 提供FromPeaks静态方法，从波峰列表/数组直接创建波
+   - 提供丰富的访问接口，支持UI显示需求
+   - 支持添加、删除、查询波峰等操作
+
+3. **WavePairing** (`Assets/Scripts/WaveSystem/WavePairing.cs`)
+   - 静态工具类，处理两个波之间的配对逻辑
+   - 相同位置的波峰会进行配对计算
+   - 返回配对后生成的新波列表（可能包含1个或2个波）
+
+### 基本概念
+
+#### 波峰 (WavePeak)
+
+波峰是波的最小单位，具有以下属性：
+- **位置 (Position)**: 波峰在波中的位置（整数）
+- **强度 (Value)**: 波峰的强度值（整数，可正可负）
+- **攻击方向 (AttackDirection)**: 攻击方向（bool，true=攻向玩家）
+
+#### 波 (Wave)
+
+波是由多个波峰组成的集合：
+- 波峰可以位于任意位置
+- 波中可以有空位（某些位置没有波峰）
+- **重要约束**：同一个波中的所有波峰必须具有相同的攻击方向
+- 如果尝试添加不同方向的波峰，会报错并拒绝添加
+- 使用Dictionary存储，以位置为key，支持高效查询
+- 波具有AttackDirection属性，表示波的整体攻击方向（null表示空波）
+
+#### 配对规则
+
+当两个波进行配对时：
+1. **位置匹配**: 相同位置的波峰会同时进行配对
+2. **强度计算**: 两个波峰的强度相加（正负波会相互抵消，同号波会相互叠加）
+3. **方向继承**: 
+   - 如果攻击方向相同，直接继承该方向
+   - 如果攻击方向相反，继承绝对值更大的波峰的攻击方向
+   - 如果绝对值相等，默认使用第一个波峰的方向
+4. **结果生成**: 根据攻击方向分类，生成1个或2个新波（不同方向的波峰会分开）
+
+### 使用方法
+
+#### 1. 创建波和波峰
+
+```csharp
+using WaveSystem;
+using UnityEngine;
+
+public class WaveExample : MonoBehaviour
+{
+    void Start()
+    {
+        // 创建一个波
+        Wave wave = new Wave();
+
+        // 方法1：直接添加波峰对象
+        WavePeak peak1 = new WavePeak(position: 0, value: 10, attackDirection: true);
+        wave.AddPeak(peak1);
+
+        // 方法2：使用便捷方法添加
+        wave.AddPeak(position: 1, value: -5, attackDirection: false);
+        wave.AddPeak(position: 3, value: 8, attackDirection: true);
+
+        // 注意：位置2是空位，波中可以有空位
+    }
+}
+```
+
+#### 2. 查询和访问波峰
+
+```csharp
+// 检查指定位置是否有波峰
+if (wave.HasPeakAt(1))
+{
+    // 获取波峰
+    WavePeak peak = wave.GetPeak(1);
+    Debug.Log($"位置1的波峰强度: {peak.Value}");
+}
+
+// 使用TryGetPeak方法（推荐）
+if (wave.TryGetPeak(1, out WavePeak peak))
+{
+    Debug.Log($"位置1的波峰强度: {peak.Value}");
+}
+
+// 获取所有波峰（按位置排序）
+List<WavePeak> sortedPeaks = wave.GetSortedPeaks();
+
+// 获取指定范围内的波峰
+List<WavePeak> peaksInRange = wave.GetPeaksInRange(minPosition: 0, maxPosition: 5);
+
+// 遍历所有波峰
+foreach (var peak in wave.Peaks)
+{
+    Debug.Log($"位置: {peak.Position}, 强度: {peak.Value}");
+}
+
+// 从波峰列表/数组创建波
+List<WavePeak> peaksList = new List<WavePeak>
+{
+    new WavePeak(0, 10, true),
+    new WavePeak(1, 5, true),
+    new WavePeak(2, 8, true)
+};
+Wave waveFromList = Wave.FromPeaks(peaksList);
+
+// 从数组创建
+WavePeak[] peaksArray = peaksList.ToArray();
+Wave waveFromArray = Wave.FromPeaks(peaksArray);
+
+// 检查波的方向
+if (wave.AttackDirection.HasValue)
+{
+    Debug.Log($"波的方向: {(wave.AttackDirection.Value ? "攻向玩家" : "不攻向玩家")}");
+}
+
+// 注意：尝试添加不同方向的波峰会报错
+Wave wave2 = new Wave();
+wave2.AddPeak(0, 10, true);  // 成功
+wave2.AddPeak(1, 5, false);  // 失败！会报错并拒绝添加
+```
+
+#### 3. 配对两个波
+
+```csharp
+// 创建两个波
+Wave waveA = new Wave();
+waveA.AddPeak(0, 10, true);   // 位置0，强度10，攻向玩家
+waveA.AddPeak(1, 5, true);    // 位置1，强度5，攻向玩家
+
+Wave waveB = new Wave();
+waveB.AddPeak(0, -8, false);  // 位置0，强度-8，不攻向玩家
+waveB.AddPeak(2, 3, true);    // 位置2，强度3，攻向玩家
+
+// 配对两个波
+List<Wave> resultWaves = WavePairing.PairWaves(waveA, waveB);
+
+// 结果可能包含1个或2个波（根据攻击方向分类）
+foreach (Wave resultWave in resultWaves)
+{
+    Debug.Log($"结果波: {resultWave}");
+    // 遍历结果波中的波峰
+    foreach (var peak in resultWave.GetSortedPeaks())
+    {
+        Debug.Log($"  位置{peak.Position}: 强度{peak.Value}, 方向{(peak.AttackDirection ? "玩家" : "其他")}");
+    }
+}
+```
+
+#### 4. 配对计算示例
+
+**示例1：相同位置，方向相同**
+- 波A: 位置0，强度10，攻向玩家
+- 波B: 位置0，强度5，攻向玩家
+- 结果: 位置0，强度15（10+5），攻向玩家
+
+**示例2：相同位置，方向相反，强度抵消**
+- 波A: 位置0，强度10，攻向玩家
+- 波B: 位置0，强度-10，不攻向玩家
+- 结果: 位置0，强度0（10+(-10)），该波峰会保留在新波中（强度为0的波峰也会被存储）
+
+**示例3：相同位置，方向相反，强度不抵消**
+- 波A: 位置0，强度10，攻向玩家
+- 波B: 位置0，强度-5，不攻向玩家
+- 结果: 位置0，强度5（10+(-5)），攻向玩家（因为10的绝对值大于5）
+
+**示例4：不同位置**
+- 波A: 位置0，强度10，攻向玩家
+- 波B: 位置1，强度5，不攻向玩家
+- 结果: 两个波峰分别保留，生成2个波（一个包含位置0，一个包含位置1）
+
+### API 文档
+
+#### WavePeak 主要属性
+
+- `int Position`: 波峰的位置
+- `int Value`: 波峰的强度值（整数，可正可负）
+- `bool AttackDirection`: 攻击方向（true=攻向玩家，false=不攻向玩家）
+
+#### WavePeak 主要方法
+
+- `WavePeak(int position, int value, bool attackDirection)`: 构造函数
+- `WavePeak Clone()`: 创建波峰的副本
+
+#### Wave 主要属性
+
+- `int PeakCount`: 获取波中波峰的数量
+- `bool IsEmpty`: 检查波是否为空
+- `bool? AttackDirection`: 波的攻击方向（null=空波，true=攻向玩家，false=不攻向玩家）
+- `IReadOnlyCollection<int> Positions`: 获取所有波峰的位置
+- `IReadOnlyCollection<WavePeak> Peaks`: 获取所有波峰
+- `IReadOnlyDictionary<int, WavePeak> PeakDictionary`: 获取所有波峰的键值对
+
+#### Wave 主要方法
+
+**添加和删除：**
+- `void AddPeak(WavePeak peak)`: 添加波峰到波中（如果方向不一致会报错并拒绝添加）
+- `void AddPeak(int position, int value, bool attackDirection)`: 在指定位置添加波峰（如果方向不一致会报错并拒绝添加）
+- `bool RemovePeak(int position)`: 移除指定位置的波峰
+- `void Clear()`: 清空所有波峰
+
+**查询：**
+- `bool HasPeakAt(int position)`: 检查指定位置是否存在波峰
+- `WavePeak GetPeak(int position)`: 获取指定位置的波峰（不存在返回null）
+- `bool TryGetPeak(int position, out WavePeak peak)`: 尝试获取指定位置的波峰
+- `int GetMinPosition()`: 获取波的最小位置
+- `int GetMaxPosition()`: 获取波的最大位置
+
+**访问接口（用于UI显示）：**
+- `List<WavePeak> GetSortedPeaks()`: 获取所有波峰的列表（按位置排序）
+- `List<WavePeak> GetPeaksInRange(int minPosition, int maxPosition)`: 获取指定范围内的所有波峰（按位置排序）
+
+**其他：**
+- `Wave Clone()`: 创建波的副本
+- `static Wave FromPeaks(IEnumerable<WavePeak> peaks)`: 从波峰列表创建波
+- `static Wave FromPeaks(WavePeak[] peaks)`: 从波峰数组创建波
+
+#### WavePairing 主要方法
+
+- `List<Wave> PairWaves(Wave waveA, Wave waveB)`: 配对两个波，返回生成的新波列表
+
+### 特性
+
+- **稀疏存储**: 使用Dictionary存储波峰，支持空位，节省内存
+- **高效查询**: 基于位置的O(1)查询性能
+- **灵活配对**: 支持任意两个波的配对计算
+- **方向分类**: 自动根据攻击方向分类生成新波
+- **UI友好**: 提供丰富的访问接口，方便UI显示
+- **数据安全**: 提供只读集合接口，防止意外修改
+
+### 注意事项
+
+1. **方向一致性约束**: 同一个波中的所有波峰必须具有相同的攻击方向。如果尝试添加不同方向的波峰，系统会报错并拒绝添加。这是为什么配对后根据方向生成新波的原因。
+2. **配对计算粒度**: 所有判定都在最小单位（波峰）层面进行，不是作为一整条波计算
+3. **强度为0的波峰**: 配对后如果波峰强度为0，该波峰仍会保留在新波中（强度为0的波峰也会被存储）
+4. **方向相反时的规则**: 当两个波峰方向相反时，继承绝对值更大的波峰的方向；如果绝对值相等，使用第一个波峰的方向
+5. **结果波数量**: 配对后可能生成1个或2个新波，取决于结果波峰的攻击方向是否一致
+6. **空位处理**: 波中可以有空位，只有存在波峰的位置才会参与配对计算
+7. **不进行碰撞检测**: 本系统只负责数据结构管理和配对计算，不包含碰撞检测逻辑，碰撞检测由其他系统负责调用配对逻辑
+
+### 快速测试
+
+**使用测试脚本（推荐）**
+
+1. 在场景中创建一个空的GameObject，命名为 "WaveSystemTester"
+2. 添加 `WaveSystemTester` 组件
+3. 在Inspector中右键点击组件，可以看到所有可用的测试方法
+4. 每个测试都可以单独运行，查看详细的数值变化和运行过程
+5. 查看Console窗口的测试结果，每个测试都会显示：
+   - 测试前的初始状态
+   - 操作过程
+   - 测试后的结果状态
+   - 预期值和实际值的对比
+   - 测试是否通过
+
+**测试覆盖范围（共24个测试）**
+
+**WavePeak测试（2个）：**
+- 测试1: WavePeak创建 - 验证波峰的基本属性
+- 测试2: WavePeak克隆 - 验证克隆功能
+
+**Wave测试（11个）：**
+- 测试3: Wave创建 - 验证波的初始状态
+- 测试4: Wave添加波峰 - 验证添加功能和状态变化
+- 测试5: Wave移除波峰 - 验证移除功能和状态变化
+- 测试6: Wave查询波峰 - 验证各种查询方法
+- 测试7: Wave空状态 - 验证空状态检查
+- 测试8: Wave克隆 - 验证波的克隆功能
+- 测试9: Wave排序 - 验证排序功能
+- 测试10: Wave范围查询 - 验证范围查询功能
+- 测试11: Wave最小最大位置 - 验证位置计算
+- 测试22: 波方向一致性检查 - 验证方向一致性约束
+- 测试23: 波特定位置波峰插入 - 验证在不同位置插入波峰
+
+**WavePairing测试（10个）：**
+- 测试12: 配对-同位置同方向 - 验证相同方向波峰的叠加
+- 测试13: 配对-同位置反方向 - 验证相反方向波峰的计算
+- 测试14: 配对-完全抵消 - 验证强度为0的波峰保留
+- 测试15: 配对-反方向不同强度 - 验证方向继承规则
+- 测试16: 配对-不同位置 - 验证不同位置波峰的处理
+- 测试17: 配对-空波 - 验证空波的处理
+- 测试18: 配对-一个空波 - 验证单空波的处理
+- 测试19: 配对-零值波峰 - 验证零值波峰的处理
+- 测试20: 配对-多波峰复杂场景 - 验证复杂场景的配对
+- 测试21: 配对-方向分类 - 验证方向分类功能
+
+**Wave创建测试（1个）：**
+- 测试24: 根据给定数据生成波 - 验证FromPeaks静态方法
+
+**测试输出说明**
+
+每个测试都会详细显示：
+- 测试前的数据状态（使用 `PrintWaveDetails` 方法显示波的完整信息）
+- 操作步骤和中间结果
+- 测试后的数据状态
+- 预期值和实际值的对比
+- 测试通过/失败的结果（绿色=通过，红色=失败）
+
+**使用建议**
+
+- 建议按顺序运行测试，从简单的WavePeak测试开始
+- 每个测试都是独立的，可以单独运行和调试
+- 通过查看Console输出，可以直观地看到每个操作对数据的影响
+- 如果某个测试失败，可以查看详细的数值变化来定位问题
+
+### 扩展建议
+
+如果需要扩展功能，可以考虑：
+- 添加波的运动和传播逻辑
+- 实现波的碰撞检测系统
+- 添加波的视觉效果和动画
+- 支持波的持久化和序列化
+- 实现波的合并和拆分功能
