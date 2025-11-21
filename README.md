@@ -572,6 +572,143 @@ foreach (Wave resultWave in resultWaves)
 - 通过查看Console输出，可以直观地看到每个操作对数据的影响
 - 如果某个测试失败，可以查看详细的数值变化来定位问题
 
+### 手牌波格表系统 (Hand Wave Grid System)
+
+#### 概述
+
+手牌波格表系统用于在Unity中可视化和管理手牌波的合成。系统包含以下组件：
+
+- **HandWaveGridManager**: 管理手牌波和格表系统的主控制器
+- **WaveCardComponent**: 波牌组件，可以挂载到GameObject/Prefab上
+- **WaveGridSlot**: 格子组件，处理波牌的放置和移除
+
+#### 系统架构
+
+1. **HandWaveGridManager** (`Assets/Scripts/WaveSystem/HandWaveGridManager.cs`)
+   - 管理手牌波和格表系统
+   - 处理波牌的放置、撤回和发出
+   - 维护格子字典，管理所有格子的状态
+
+2. **WaveCardComponent** (`Assets/Scripts/WaveSystem/WaveCardComponent.cs`)
+   - 波牌组件，可以挂载到GameObject/Prefab上
+   - 承载波牌数据（WaveData格式）
+   - 在Awake时从WaveData创建Wave对象
+
+3. **WaveGridSlot** (`Assets/Scripts/WaveSystem/WaveGridSlot.cs`)
+   - 格子组件，挂载到格子的GameObject上
+   - 处理波牌的放置和移除
+   - 维护格子的占用状态
+
+#### 使用方法
+
+##### 1. 设置场景
+
+**步骤1：创建格表管理器**
+1. 在场景中创建一个GameObject，命名为 "HandWaveGridManager"
+2. 添加 `HandWaveGridManager` 组件
+3. 设置 `Min Grid Position` 和 `Max Grid Position`（例如：-10 到 10）
+
+**步骤2：创建格表容器**
+1. 创建一个空的GameObject作为格表容器，命名为 "GridContainer"
+2. 将容器拖拽到 `HandWaveGridManager` 组件的 `Grid Container` 字段
+3. 在容器下创建多个子GameObject作为格子（可以使用Unity的Grid Layout Group自动排列）
+
+**步骤3：设置格子**
+1. 为每个格子GameObject添加 `WaveGridSlot` 组件
+2. 在Inspector中设置每个格子的 `Grid Position`（必须与手牌波的位置对应，例如：-10, -9, ..., 0, ..., 9, 10）
+3. 调整 `Card Placement Offset` 来设置波牌放置时的位置偏移
+
+**步骤4：创建波牌Prefab**
+1. 创建一个GameObject作为波牌Prefab
+2. 添加 `WaveCardComponent` 组件
+3. 在Inspector中设置 `Wave Data`：
+   - `Attack Direction`: 设置为 `true`（朝向敌人）
+   - `Peak Data`: 添加波峰数据（位置和强度值）
+4. 保存为Prefab
+
+##### 2. 代码使用示例
+
+```csharp
+using WaveSystem;
+using UnityEngine;
+
+public class GameController : MonoBehaviour
+{
+    [SerializeField] private HandWaveGridManager gridManager;
+    [SerializeField] private WaveCardComponent cardPrefab;
+    
+    void Start()
+    {
+        // 获取手牌波
+        Wave handWave = gridManager.HandWave;
+        
+        // 在指定位置放置波牌
+        WaveCardComponent card = Instantiate(cardPrefab);
+        int gridPosition = 5;  // 格子位置
+        bool success = gridManager.PlaceCardAtPosition(card, gridPosition);
+        
+        if (success)
+        {
+            Debug.Log("波牌放置成功");
+        }
+    }
+    
+    void OnCardClicked(WaveCardComponent card, int gridPosition)
+    {
+        // 放置波牌
+        gridManager.PlaceCardAtPosition(card, gridPosition);
+    }
+    
+    void OnCardRemoved(int gridPosition)
+    {
+        // 撤回波牌
+        gridManager.WithdrawCardFromPosition(gridPosition);
+    }
+    
+    void OnEmitWave()
+    {
+        // 发出手牌波
+        Wave emittedWave = gridManager.EmitHandWave();
+        Debug.Log($"发出的波包含 {emittedWave.PeakCount} 个波峰");
+    }
+    
+    void OnReset()
+    {
+        // 重置手牌波
+        gridManager.ResetHandWave();
+    }
+}
+```
+
+##### 3. 重要说明
+
+- **手牌波方向**: 手牌波永远是朝向敌人的（AttackDirection = true）
+- **波牌方向**: 波牌的方向也应该是朝向敌人的（true）
+- **格子位置**: 格子的位置必须与手牌波的位置对应，例如如果手牌波的位置范围是 -10 到 10，那么格子也应该有对应的位置
+- **最尾端位置**: 当波牌放置在格子中时，使用格子的位置作为波牌的最尾端位置（TailEndPosition）与手牌波配对
+- **手牌波不偏移**: 在合成过程中，手牌波本身不进行任何偏移，只有波牌会根据格子位置进行偏移
+- **发出波**: 发出波时，会将手牌波的首个波峰对齐到0号位
+
+##### 4. Unity侧设置（无需代码）
+
+以下操作可以在Unity Inspector中直接完成：
+
+1. **创建格表布局**:
+   - 使用Unity的 `Grid Layout Group` 组件自动排列格子
+   - 或者手动排列格子GameObject
+
+2. **设置波牌Prefab**:
+   - 在Inspector中直接编辑 `WaveCardComponent` 的 `Wave Data`
+   - 添加波峰数据（位置和强度值）
+
+3. **调整格子位置**:
+   - 在Inspector中设置每个 `WaveGridSlot` 的 `Grid Position`
+   - 调整 `Card Placement Offset` 来微调波牌放置位置
+
+4. **调试**:
+   - 启用 `Debug Print Wave Details` 来在控制台打印手牌波详情
+   - 使用 `Refresh Grid` 上下文菜单来手动刷新格表
+
 ### 扩展建议
 
 如果需要扩展功能，可以考虑：
@@ -580,3 +717,5 @@ foreach (Wave resultWave in resultWaves)
 - 添加波的视觉效果和动画
 - 支持波的持久化和序列化
 - 实现波的合并和拆分功能
+- 添加波牌的拖拽放置功能
+- 实现格表的动态生成

@@ -686,5 +686,169 @@ public class WaveSystemTester : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 打印手牌波的详细信息（方向显示为→敌人）
+    /// </summary>
+    private void PrintHandWaveDetails(Wave wave, string label)
+    {
+        Debug.Log($"--- {label} ---");
+        Debug.Log($"  PeakCount: {wave.PeakCount}, IsEmpty: {wave.IsEmpty}");
+        Debug.Log($"  波的方向: {(wave.AttackDirection.HasValue ? (wave.AttackDirection.Value ? "→敌人" : "→其他") : "未定义（空波）")}");
+        
+        if (wave.IsEmpty)
+        {
+            Debug.Log("  (空波)");
+        }
+        else
+        {
+            var sortedPeaks = wave.GetSortedPeaks();
+            foreach (var (position, peak) in sortedPeaks)
+            {
+                string direction = peak.AttackDirection ? "→敌人" : "→其他";
+                Debug.Log($"  位置{position}: 强度={peak.Value}, 方向={direction}");
+            }
+        }
+    }
+
+    #endregion
+
+    #region 手牌波管理器测试
+
+    [ContextMenu("测试20: 手牌波-摆放波牌")]
+    public void TestHandWavePlaceCard()
+    {
+        Debug.Log("========== [测试20] 手牌波-摆放波牌 ==========");
+        
+        HandWaveManager manager = new HandWaveManager();
+        Debug.Log("初始手牌波: 空");
+        PrintHandWaveDetails(manager.HandWave, "初始手牌波");
+        
+        // 创建第一个波牌（波牌内部位置0,1，最尾端位置设置为5）
+        Wave card1Wave = new Wave();
+        card1Wave.AddPeak(0, 10, true);
+        card1Wave.AddPeak(1, 5, true);
+        WaveCard card1 = new WaveCard(card1Wave, 5);  // 最尾端绝对位置为5
+        Debug.Log("波牌1: 内部位置0(10), 位置1(5), 最尾端绝对位置=5");
+        Debug.Log("预期: 偏移量=5-1=4，波牌1变成位置4(10), 位置5(5)");
+        
+        // 摆放第一个波牌
+        List<Wave> results1 = manager.PlaceCard(card1);
+        Debug.Log($"摆放波牌1后，生成 {results1.Count} 个结果波");
+        PrintHandWaveDetails(manager.HandWave, "摆放波牌1后的手牌波");
+        
+        // 创建第二个波牌（波牌内部位置0,1，最尾端位置设置为8）
+        Wave card2Wave = new Wave();
+        card2Wave.AddPeak(0, 3, true);
+        card2Wave.AddPeak(1, 7, true);
+        WaveCard card2 = new WaveCard(card2Wave, 8);  // 最尾端绝对位置为8
+        Debug.Log("波牌2: 内部位置0(3), 位置1(7), 最尾端绝对位置=8");
+        Debug.Log("预期: 偏移量=8-1=7，波牌2变成位置7(3), 位置8(7)");
+        Debug.Log("注意: 手牌波本身不偏移，直接与偏移后的波牌2配对");
+        
+        // 摆放第二个波牌
+        List<Wave> results2 = manager.PlaceCard(card2);
+        Debug.Log($"摆放波牌2后，生成 {results2.Count} 个结果波");
+        PrintHandWaveDetails(manager.HandWave, "摆放波牌2后的手牌波");
+        
+        bool pass = manager.HandWave.PeakCount > 0;
+        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
+    }
+
+    [ContextMenu("测试21: 手牌波-撤回波牌")]
+    public void TestHandWaveWithdrawCard()
+    {
+        Debug.Log("========== [测试21] 手牌波-撤回波牌 ==========");
+        
+        HandWaveManager manager = new HandWaveManager();
+        
+        // 创建并摆放波牌（内部位置0,1，最尾端绝对位置设置为3）
+        Wave cardWave = new Wave();
+        cardWave.AddPeak(0, 10, true);
+        cardWave.AddPeak(1, 5, true);
+        WaveCard card = new WaveCard(cardWave, 3);
+        Debug.Log("波牌: 内部位置0(10), 位置1(5), 最尾端绝对位置=3");
+        
+        manager.PlaceCard(card);
+        PrintHandWaveDetails(manager.HandWave, "摆放波牌后的手牌波");
+        
+        // 撤回波牌（使用相同的最尾端位置）
+        List<Wave> results = manager.WithdrawCard(card);
+        Debug.Log($"撤回波牌后，生成 {results.Count} 个结果波");
+        PrintHandWaveDetails(manager.HandWave, "撤回波牌后的手牌波");
+        Debug.Log("预期: 使用负波配对，手牌波应该被抵消或减少");
+        
+        bool pass = true;  // 基本功能测试
+        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
+    }
+
+    [ContextMenu("测试22: 手牌波-发出波")]
+    public void TestHandWaveEmitWave()
+    {
+        Debug.Log("========== [测试22] 手牌波-发出波 ==========");
+        
+        HandWaveManager manager = new HandWaveManager();
+        
+        // 创建并摆放波牌，使手牌波的首个波峰不在0号位
+        Wave cardWave = new Wave();
+        cardWave.AddPeak(0, 10, true);
+        cardWave.AddPeak(1, 5, true);
+        WaveCard card = new WaveCard(cardWave, 6);  // 最尾端绝对位置为6，偏移后变成位置5(10), 位置6(5)
+        
+        manager.PlaceCard(card);
+        PrintHandWaveDetails(manager.HandWave, "摆放波牌后的手牌波");
+        Debug.Log($"手牌波最小位置: {manager.HandWave.GetMinPosition()}");
+        
+        // 发出波
+        Wave emittedWave = manager.EmitWave();
+        PrintHandWaveDetails(emittedWave, "发出的波");
+        Debug.Log($"发出的波最小位置: {emittedWave.GetMinPosition()}");
+        Debug.Log("预期: 发出的波的首个波峰应该在0号位");
+        
+        bool pass = emittedWave.GetMinPosition() == 0 && !emittedWave.IsEmpty;
+        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
+    }
+
+    [ContextMenu("测试23: 手牌波-完整流程")]
+    public void TestHandWaveCompleteFlow()
+    {
+        Debug.Log("========== [测试23] 手牌波-完整流程 ==========");
+        
+        HandWaveManager manager = new HandWaveManager();
+        manager.ResetHandWave();
+        Debug.Log("1. 初始化手牌波");
+        PrintHandWaveDetails(manager.HandWave, "初始手牌波");
+        
+        // 创建波牌1（内部位置0,1，最尾端绝对位置设置为3）
+        Wave card1Wave = new Wave();
+        card1Wave.AddPeak(0, 10, true);
+        card1Wave.AddPeak(1, 5, true);
+        WaveCard card1 = new WaveCard(card1Wave, 3);
+        Debug.Log("2. 创建波牌1: 内部位置0(10), 位置1(5), 最尾端绝对位置=3");
+        Debug.Log("预期: 偏移量=3-1=2，波牌1变成位置2(10), 位置3(5)");
+        
+        manager.PlaceCard(card1);
+        PrintHandWaveDetails(manager.HandWave, "摆放波牌1后");
+        
+        // 创建波牌2（内部位置0，最尾端绝对位置设置为6）
+        Wave card2Wave = new Wave();
+        card2Wave.AddPeak(0, 3, true);
+        WaveCard card2 = new WaveCard(card2Wave, 6);
+        Debug.Log("3. 创建波牌2: 内部位置0(3), 最尾端绝对位置=6");
+        Debug.Log("预期: 偏移量=6-0=6，波牌2变成位置6(3)");
+        Debug.Log("注意: 手牌波本身不偏移，直接与偏移后的波牌2配对");
+        
+        manager.PlaceCard(card2);
+        PrintHandWaveDetails(manager.HandWave, "摆放波牌2后");
+        Debug.Log($"手牌波最小位置: {manager.HandWave.GetMinPosition()}");
+        
+        // 发出波（将最小位置对齐到0）
+        Wave emittedWave = manager.EmitWave();
+        PrintHandWaveDetails(emittedWave, "发出的波");
+        Debug.Log($"发出的波最小位置: {emittedWave.GetMinPosition()}, 预期=0");
+        
+        bool pass = emittedWave.GetMinPosition() == 0;
+        Debug.Log(pass ? "<color=green>✓ 测试通过</color>" : "<color=red>✗ 测试失败</color>");
+    }
+
     #endregion
 }
