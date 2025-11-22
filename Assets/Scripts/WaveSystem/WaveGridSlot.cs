@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace WaveSystem
@@ -12,6 +13,15 @@ namespace WaveSystem
         [Tooltip("格子在格表中的位置（必须与手牌波的位置对应）")]
         [SerializeField] private int gridPosition = 0;
 
+        /// <summary>
+        /// 设置格子位置（用于动态生成时）
+        /// </summary>
+        /// <param name="position">位置</param>
+        public void SetGridPosition(int position)
+        {
+            gridPosition = position;
+        }
+
         [Header("显示设置")]
         [Tooltip("放置波牌时的目标位置（相对于格子中心）")]
         [SerializeField] private Vector3 cardPlacementOffset = Vector3.zero;
@@ -22,9 +32,9 @@ namespace WaveSystem
         private HandWaveGridManager gridManager;
 
         /// <summary>
-        /// 当前放置的波牌组件
+        /// 当前放置的波牌组件列表（支持多个波牌）
         /// </summary>
-        private WaveCardComponent currentCard;
+        private List<WaveCardComponent> cards = new List<WaveCardComponent>();
 
         /// <summary>
         /// 格子在格表中的位置
@@ -34,7 +44,12 @@ namespace WaveSystem
         /// <summary>
         /// 格子是否被占用
         /// </summary>
-        public bool IsOccupied => currentCard != null;
+        public bool IsOccupied => cards.Count > 0;
+
+        /// <summary>
+        /// 格子中的波牌数量
+        /// </summary>
+        public int CardCount => cards.Count;
 
         /// <summary>
         /// 初始化格子
@@ -46,7 +61,7 @@ namespace WaveSystem
         }
 
         /// <summary>
-        /// 放置波牌到格子
+        /// 放置波牌到格子（支持多个波牌）
         /// </summary>
         /// <param name="cardComponent">波牌组件</param>
         public void PlaceCard(WaveCardComponent cardComponent)
@@ -57,26 +72,36 @@ namespace WaveSystem
                 return;
             }
 
-            if (IsOccupied)
+            if (cards.Contains(cardComponent))
             {
-                Debug.LogWarning($"[WaveGridSlot] 位置 {gridPosition} 已被占用，无法放置波牌");
+                Debug.LogWarning($"[WaveGridSlot] 位置 {gridPosition} 已包含该波牌");
                 return;
             }
 
-            currentCard = cardComponent;
+            cards.Add(cardComponent);
             
             // 设置波牌的位置和父对象
             cardComponent.transform.SetParent(transform);
-            cardComponent.transform.localPosition = cardPlacementOffset;
+            
+            // 计算偏移位置（多个波牌时，可以堆叠显示）
+            Vector3 offset = cardPlacementOffset;
+            if (cards.Count > 1)
+            {
+                // 简单的堆叠偏移（可以根据需要调整）
+                offset += Vector3.up * (cards.Count - 1) * 0.1f;
+            }
+            
+            cardComponent.transform.localPosition = offset;
             cardComponent.transform.localRotation = Quaternion.identity;
 
-            Debug.Log($"[WaveGridSlot] 位置 {gridPosition} 已放置波牌: {cardComponent.gameObject.name}");
+            Debug.Log($"[WaveGridSlot] 位置 {gridPosition} 已放置波牌: {cardComponent.gameObject.name}（当前共 {cards.Count} 个波牌）");
         }
 
         /// <summary>
         /// 从格子移除波牌
         /// </summary>
-        public void RemoveCard()
+        /// <param name="cardComponent">要移除的波牌组件（如果为null，则移除第一个）</param>
+        public void RemoveCard(WaveCardComponent cardComponent = null)
         {
             if (!IsOccupied)
             {
@@ -84,22 +109,66 @@ namespace WaveSystem
                 return;
             }
 
-            WaveCardComponent card = currentCard;
-            currentCard = null;
+            if (cardComponent == null)
+            {
+                cardComponent = cards[0];
+            }
+
+            if (!cards.Contains(cardComponent))
+            {
+                Debug.LogWarning($"[WaveGridSlot] 位置 {gridPosition} 不包含该波牌");
+                return;
+            }
+
+            cards.Remove(cardComponent);
 
             // 从父对象移除（但不销毁，可能还需要放回手牌）
-            card.transform.SetParent(null);
+            cardComponent.transform.SetParent(null);
 
-            Debug.Log($"[WaveGridSlot] 位置 {gridPosition} 已移除波牌: {card.gameObject.name}");
+            // 重新排列剩余波牌的位置
+            for (int i = 0; i < cards.Count; i++)
+            {
+                Vector3 offset = cardPlacementOffset;
+                if (cards.Count > 1)
+                {
+                    offset += Vector3.up * i * 0.1f;
+                }
+                cards[i].transform.localPosition = offset;
+            }
+
+            Debug.Log($"[WaveGridSlot] 位置 {gridPosition} 已移除波牌: {cardComponent.gameObject.name}（剩余 {cards.Count} 个波牌）");
         }
 
         /// <summary>
-        /// 获取当前放置的波牌组件
+        /// 获取第一个波牌组件
         /// </summary>
         /// <returns>波牌组件，如果未被占用则返回null</returns>
-        public WaveCardComponent GetCard()
+        public WaveCardComponent GetFirstCard()
         {
-            return currentCard;
+            return cards.Count > 0 ? cards[0] : null;
+        }
+
+        /// <summary>
+        /// 获取所有波牌组件
+        /// </summary>
+        /// <returns>波牌组件列表</returns>
+        public List<WaveCardComponent> GetAllCards()
+        {
+            return new List<WaveCardComponent>(cards);
+        }
+
+        /// <summary>
+        /// 获取指定索引的波牌组件
+        /// </summary>
+        /// <param name="index">索引</param>
+        /// <returns>波牌组件，如果索引无效则返回null</returns>
+        public WaveCardComponent GetCard(int index)
+        {
+            if (index >= 0 && index < cards.Count)
+            {
+                return cards[index];
+            }
+            return null;
         }
 
         /// <summary>

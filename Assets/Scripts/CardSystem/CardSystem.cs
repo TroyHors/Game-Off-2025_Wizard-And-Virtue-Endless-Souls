@@ -10,8 +10,15 @@ namespace CardSystem
     public class CardSystem : MonoBehaviour
     {
         [Header("卡组设置")]
-        [Tooltip("局外卡组")]
+        [Tooltip("局外卡组（传统方式：直接存储Prefab引用）")]
         [SerializeField] private CardDeck deck = new CardDeck();
+
+        [Header("动态卡组设置")]
+        [Tooltip("卡牌Prefab注册表（ID到Prefab的映射）")]
+        [SerializeField] private CardPrefabRegistry cardRegistry;
+
+        [Tooltip("卡组数据（运行时根据此数据动态构建卡组）")]
+        [SerializeField] private CardDeckData deckData;
 
         [Header("牌堆管理器")]
         [Tooltip("牌堆管理器组件")]
@@ -56,6 +63,7 @@ namespace CardSystem
 
         /// <summary>
         /// 初始化游戏，将卡组洗入牌堆
+        /// 如果设置了deckData，则使用动态卡组；否则使用传统的deck
         /// </summary>
         public void InitializeGame()
         {
@@ -65,17 +73,91 @@ namespace CardSystem
                 return;
             }
 
-            if (deck.IsEmpty())
+            List<GameObject> deckCards;
+
+            // 优先使用动态卡组数据
+            if (deckData != null)
             {
-                Debug.LogWarning("[CardSystem] 卡组为空，无法初始化游戏");
-                return;
+                deckCards = BuildDeckFromData(deckData);
+                if (deckCards == null || deckCards.Count == 0)
+                {
+                    Debug.LogWarning("[CardSystem] 无法从卡组数据构建卡组，请检查CardPrefabRegistry和CardDeckData设置");
+                    return;
+                }
+                Debug.Log($"[CardSystem] 使用动态卡组数据初始化，卡组大小：{deckCards.Count}");
+            }
+            else
+            {
+                // 使用传统卡组
+                if (deck.IsEmpty())
+                {
+                    Debug.LogWarning("[CardSystem] 卡组为空，无法初始化游戏");
+                    return;
+                }
+                deckCards = deck.CreateCopy();
+                Debug.Log($"[CardSystem] 使用传统卡组初始化，卡组大小：{deckCards.Count}");
             }
 
             // 将卡组洗入牌堆
-            List<GameObject> deckCopy = deck.CreateCopy();
-            pileManager.InitializeDrawPile(deckCopy);
+            pileManager.InitializeDrawPile(deckCards);
 
-            Debug.Log($"[CardSystem] 游戏初始化完成，卡组大小：{deck.Count}");
+            Debug.Log($"[CardSystem] 游戏初始化完成，卡组大小：{deckCards.Count}");
+        }
+
+        /// <summary>
+        /// 根据卡组数据动态构建卡组（Prefab列表）
+        /// </summary>
+        /// <param name="data">卡组数据</param>
+        /// <returns>构建的卡组Prefab列表</returns>
+        public List<GameObject> BuildDeckFromData(CardDeckData data)
+        {
+            if (data == null)
+            {
+                Debug.LogError("[CardSystem] 卡组数据为空");
+                return new List<GameObject>();
+            }
+
+            if (cardRegistry == null)
+            {
+                Debug.LogError("[CardSystem] 卡牌Prefab注册表未设置，无法构建卡组");
+                return new List<GameObject>();
+            }
+
+            List<GameObject> deckCards = new List<GameObject>();
+
+            foreach (var entry in data.cards)
+            {
+                if (entry == null || string.IsNullOrEmpty(entry.cardId))
+                {
+                    continue;
+                }
+
+                GameObject cardPrefab = cardRegistry.GetCardPrefab(entry.cardId);
+                if (cardPrefab == null)
+                {
+                    Debug.LogWarning($"[CardSystem] 无法找到ID为 '{entry.cardId}' 的卡牌Prefab，已跳过");
+                    continue;
+                }
+
+                // 根据数量添加多张卡牌
+                for (int i = 0; i < entry.count; i++)
+                {
+                    deckCards.Add(cardPrefab);
+                }
+            }
+
+            Debug.Log($"[CardSystem] 从卡组数据 '{data.deckName}' 构建了 {deckCards.Count} 张卡牌（{data.UniqueCardCount} 种）");
+            return deckCards;
+        }
+
+        /// <summary>
+        /// 使用指定的卡组数据初始化游戏
+        /// </summary>
+        /// <param name="data">卡组数据</param>
+        public void InitializeGameWithDeckData(CardDeckData data)
+        {
+            deckData = data;
+            InitializeGame();
         }
 
         /// <summary>
@@ -344,6 +426,40 @@ namespace CardSystem
         public int GetDiscardPileCount()
         {
             return pileManager != null ? pileManager.DiscardPileCount : 0;
+        }
+
+        /// <summary>
+        /// 设置卡牌Prefab注册表
+        /// </summary>
+        /// <param name="registry">注册表</param>
+        public void SetCardRegistry(CardPrefabRegistry registry)
+        {
+            cardRegistry = registry;
+        }
+
+        /// <summary>
+        /// 设置卡组数据
+        /// </summary>
+        /// <param name="data">卡组数据</param>
+        public void SetDeckData(CardDeckData data)
+        {
+            deckData = data;
+        }
+
+        /// <summary>
+        /// 获取当前使用的卡组数据
+        /// </summary>
+        public CardDeckData GetDeckData()
+        {
+            return deckData;
+        }
+
+        /// <summary>
+        /// 获取卡牌Prefab注册表
+        /// </summary>
+        public CardPrefabRegistry GetCardRegistry()
+        {
+            return cardRegistry;
         }
     }
 }

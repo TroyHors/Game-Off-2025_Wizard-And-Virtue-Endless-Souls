@@ -18,7 +18,7 @@ this is a 2D game***
 #### 核心类
 
 1. **CardDeck** (`Assets/Scripts/CardSystem/CardDeck.cs`)
-   - 管理局外卡组
+   - 管理局外卡组（传统方式：直接存储Prefab引用）
    - 支持添加、删除、清空卡牌
    - 提供卡组副本创建功能
 
@@ -31,6 +31,17 @@ this is a 2D game***
    - 主控制器，协调卡组和牌堆管理器
    - 处理游戏初始化、回合抽牌等核心逻辑
    - 提供统一的API接口
+   - 支持传统卡组和动态卡组数据两种方式
+
+4. **CardPrefabRegistry** (`Assets/Scripts/CardSystem/CardPrefabRegistry.cs`) - 新增
+   - 卡牌Prefab注册表（ScriptableObject）
+   - 将卡牌ID映射到对应的Prefab
+   - 支持在Inspector中编辑ID和Prefab的对应关系
+
+5. **CardDeckData** (`Assets/Scripts/CardSystem/CardDeckData.cs`) - 新增
+   - 卡组数据（ScriptableObject）
+   - 存储卡牌ID和数量，而不是直接存储Prefab引用
+   - 运行时根据此数据动态构建卡组
 
 ### 使用方法
 
@@ -54,6 +65,23 @@ this is a 2D game***
 - 使用 `InitializeDeckFromList()` 或 `InitializeDeckFromArray()` 从列表/数组初始化卡组
 - 使用 `AddCardsToDeck()` 批量添加卡牌
 - 适合从配置文件、数据库或游戏逻辑中动态加载卡组
+
+**方法三：使用动态卡组数据（最灵活，推荐用于生产环境）**
+- 创建卡牌Prefab注册表（CardPrefabRegistry）：
+  1. 在Project窗口中右键 → Create → Card System → Card Prefab Registry
+  2. 设置卡牌ID和对应的Prefab映射
+- 创建卡组数据（CardDeckData）：
+  1. 在Project窗口中右键 → Create → Card System → Deck Data
+  2. 设置卡组名称和卡牌列表（ID和数量）
+- 在 `CardSystem` 组件中设置：
+  - `Card Registry`: 拖拽刚才创建的注册表
+  - `Deck Data`: 拖拽刚才创建的卡组数据
+- 运行时调用 `InitializeGame()` 会自动根据卡组数据构建卡组
+- **优势**：
+  - 每个卡牌种类只需一个Prefab
+  - 卡组数据与Prefab分离，易于管理和修改
+  - 支持运行时切换不同的卡组数据
+  - 适合从配置文件、数据库或游戏逻辑中动态加载
 
 #### 3. 代码使用示例
 

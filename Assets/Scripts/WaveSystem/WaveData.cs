@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace WaveSystem
@@ -17,10 +18,33 @@ namespace WaveSystem
         public bool AttackDirection;
 
         /// <summary>
-        /// 波峰数据字典
+        /// 可序列化的波峰数据列表（用于Inspector编辑）
+        /// 在Inspector中可以直接添加和编辑波峰数据
+        /// </summary>
+        [SerializeField] 
+        [Tooltip("波峰数据列表（位置和强度值）")]
+        private List<SerializablePeakData> serializedPeakData = new List<SerializablePeakData>();
+
+        /// <summary>
+        /// 波峰数据字典（运行时使用）
         /// key为位置，value为强度值
         /// </summary>
-        public Dictionary<int, int> PeakData = new Dictionary<int, int>();
+        private Dictionary<int, int> peakDataCache;
+
+        /// <summary>
+        /// 波峰数据字典（只读）
+        /// </summary>
+        public Dictionary<int, int> PeakData
+        {
+            get
+            {
+                if (peakDataCache == null)
+                {
+                    RefreshCache();
+                }
+                return peakDataCache;
+            }
+        }
 
         /// <summary>
         /// 构造函数
@@ -29,6 +53,25 @@ namespace WaveSystem
         public WaveData(bool attackDirection)
         {
             AttackDirection = attackDirection;
+            RefreshCache();
+        }
+
+        /// <summary>
+        /// 刷新缓存（从序列化列表更新字典）
+        /// </summary>
+        private void RefreshCache()
+        {
+            peakDataCache = new Dictionary<int, int>();
+            if (serializedPeakData != null)
+            {
+                foreach (var peak in serializedPeakData)
+                {
+                    if (peak != null)
+                    {
+                        peakDataCache[peak.position] = peak.value;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -38,7 +81,34 @@ namespace WaveSystem
         /// <param name="value">强度值</param>
         public void AddPeak(int position, int value)
         {
-            PeakData[position] = value;
+            // 检查是否已存在
+            var existing = serializedPeakData.FirstOrDefault(p => p != null && p.position == position);
+            if (existing != null)
+            {
+                existing.value = value;
+            }
+            else
+            {
+                serializedPeakData.Add(new SerializablePeakData(position, value));
+            }
+            RefreshCache();
+        }
+
+        /// <summary>
+        /// 获取序列化的波峰数据列表（用于Inspector编辑）
+        /// </summary>
+        public List<SerializablePeakData> GetSerializedPeakData()
+        {
+            return serializedPeakData;
+        }
+
+        /// <summary>
+        /// 设置序列化的波峰数据列表（用于Inspector编辑）
+        /// </summary>
+        public void SetSerializedPeakData(List<SerializablePeakData> data)
+        {
+            serializedPeakData = data ?? new List<SerializablePeakData>();
+            RefreshCache();
         }
 
         /// <summary>
@@ -49,7 +119,15 @@ namespace WaveSystem
         /// <summary>
         /// 检查是否为空
         /// </summary>
-        public bool IsEmpty => PeakData.Count == 0;
+        public bool IsEmpty
+        {
+            get
+            {
+                // 总是刷新缓存以确保数据是最新的
+                RefreshCache();
+                return PeakData.Count == 0;
+            }
+        }
     }
 }
 

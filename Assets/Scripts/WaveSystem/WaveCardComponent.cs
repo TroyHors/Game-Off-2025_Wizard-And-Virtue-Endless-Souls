@@ -23,15 +23,41 @@ namespace WaveSystem
 
         private void Awake()
         {
-            // 从WaveData创建Wave
-            if (waveData != null && !waveData.IsEmpty)
+            RefreshWave();
+        }
+
+        /// <summary>
+        /// 刷新Wave对象（从WaveData创建）
+        /// </summary>
+        private void RefreshWave()
+        {
+            if (waveData != null)
             {
-                Wave = Wave.FromData(waveData);
+                // 确保缓存已刷新（从序列化数据更新）
+                // 通过访问IsEmpty来触发RefreshCache
+                bool isEmpty = waveData.IsEmpty;
+                
+                if (!isEmpty)
+                {
+                    Wave = Wave.FromData(waveData);
+                }
+                else
+                {
+                    Wave = new Wave();
+                    // 只在运行时且确实为空时警告（避免编辑器中的误报）
+                    if (Application.isPlaying && waveData.GetSerializedPeakData().Count == 0)
+                    {
+                        Debug.LogWarning($"[WaveCardComponent] {gameObject.name} 的波数据为空");
+                    }
+                }
             }
             else
             {
                 Wave = new Wave();
-                Debug.LogWarning($"[WaveCardComponent] {gameObject.name} 的波数据为空");
+                if (Application.isPlaying)
+                {
+                    Debug.LogWarning($"[WaveCardComponent] {gameObject.name} 的波数据为null");
+                }
             }
         }
 
@@ -65,14 +91,20 @@ namespace WaveSystem
         /// </summary>
         private void OnValidate()
         {
-            if (showWaveDetails && waveData != null)
+            if (waveData != null)
             {
                 // 确保方向为true（朝向敌人）
                 if (waveData.AttackDirection != true)
                 {
                     waveData.AttackDirection = true;
-                    Debug.LogWarning($"[WaveCardComponent] {gameObject.name} 的波数据方向已自动修正为true（朝向敌人）");
+                    if (Application.isPlaying)
+                    {
+                        Debug.LogWarning($"[WaveCardComponent] {gameObject.name} 的波数据方向已自动修正为true（朝向敌人）");
+                    }
                 }
+
+                // 刷新Wave对象
+                RefreshWave();
             }
         }
 

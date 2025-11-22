@@ -17,8 +17,11 @@ namespace WaveSystem
         [SerializeField] private int maxGridPosition = 10;
         
         [Header("格表设置")]
-        [Tooltip("格表容器（所有格子应该作为此GameObject的子对象）")]
+        [Tooltip("格表容器（所有格子会作为此GameObject的子对象动态生成）")]
         [SerializeField] private Transform gridContainer;
+        
+        [Tooltip("格子Prefab（必须包含WaveGridSlot组件）")]
+        [SerializeField] private GameObject slotPrefab;
         
         [Header("调试")]
         [Tooltip("是否在控制台打印手牌波详情")]
@@ -72,22 +75,48 @@ namespace WaveSystem
                 return;
             }
 
-            // 从子对象中查找所有格子组件
-            WaveGridSlot[] slots = gridContainer.GetComponentsInChildren<WaveGridSlot>();
-            foreach (var slot in slots)
+            if (slotPrefab == null)
             {
-                if (slot.GridPosition >= minGridPosition && slot.GridPosition <= maxGridPosition)
+                Debug.LogWarning("[HandWaveGridManager] 格子Prefab未设置，无法生成格子");
+                return;
+            }
+
+            // 清除旧的格子
+            foreach (Transform child in gridContainer)
+            {
+                if (Application.isPlaying)
                 {
-                    gridSlots[slot.GridPosition] = slot;
-                    slot.Initialize(this);
+                    Destroy(child.gameObject);
                 }
                 else
                 {
-                    Debug.LogWarning($"[HandWaveGridManager] 格子位置 {slot.GridPosition} 超出范围 [{minGridPosition}, {maxGridPosition}]，已忽略");
+#if UNITY_EDITOR
+                    UnityEditor.EditorApplication.delayCall += () => DestroyImmediate(child.gameObject);
+#endif
                 }
             }
 
-            Debug.Log($"[HandWaveGridManager] 格表初始化完成，共 {gridSlots.Count} 个格子");
+            // 动态生成格子
+            for (int position = minGridPosition; position <= maxGridPosition; position++)
+            {
+                GameObject slotObj = Instantiate(slotPrefab, gridContainer);
+                slotObj.name = $"Slot_{position}";
+                
+                WaveGridSlot slot = slotObj.GetComponent<WaveGridSlot>();
+                if (slot == null)
+                {
+                    Debug.LogError($"[HandWaveGridManager] 格子Prefab缺少WaveGridSlot组件");
+                    Destroy(slotObj);
+                    continue;
+                }
+
+                // 设置格子位置
+                slot.SetGridPosition(position);
+                slot.Initialize(this);
+                gridSlots[position] = slot;
+            }
+
+            Debug.Log($"[HandWaveGridManager] 格表初始化完成，共 {gridSlots.Count} 个格子（位置范围：{minGridPosition} 到 {maxGridPosition}）");
         }
 
         /// <summary>
@@ -95,32 +124,27 @@ namespace WaveSystem
         /// </summary>
         /// <param name="cardComponent">波牌组件</param>
         /// <param name="gridPosition">格子位置</param>
-        /// <returns>是否成功放置</returns>
-        public bool PlaceCardAtPosition(WaveCardComponent cardComponent, int gridPosition)
+        /// <returns>放置后的手牌波状态</returns>
+        public Wave PlaceCardAtPosition(WaveCardComponent cardComponent, int gridPosition)
         {
             if (cardComponent == null)
             {
                 Debug.LogWarning("[HandWaveGridManager] 尝试放置空的波牌组件");
-                return false;
+                return handWaveManager.HandWave.Clone();
             }
 
             if (!gridSlots.ContainsKey(gridPosition))
             {
                 Debug.LogWarning($"[HandWaveGridManager] 位置 {gridPosition} 不存在格子");
-                return false;
+                return handWaveManager.HandWave.Clone();
             }
 
             WaveGridSlot slot = gridSlots[gridPosition];
-            if (slot.IsOccupied)
-            {
-                Debug.LogWarning($"[HandWaveGridManager] 位置 {gridPosition} 的格子已被占用");
-                return false;
-            }
 
             // 创建波牌数据，使用格子位置作为最尾端位置
             WaveCard card = new WaveCard(cardComponent.Wave, gridPosition);
 
-            // 放置波牌到格子
+            // 放置波牌到格子（支持多个波牌）
             slot.PlaceCard(cardComponent);
 
             // 与手牌波配对
@@ -131,41 +155,47 @@ namespace WaveSystem
                 PrintHandWaveDetails();
             }
 
-            return true;
+            return handWaveManager.HandWave.Clone();
         }
 
         /// <summary>
         /// 从指定位置撤回波牌
         /// </summary>
         /// <param name="gridPosition">格子位置</param>
-        /// <returns>是否成功撤回</returns>
-        public bool WithdrawCardFromPosition(int gridPosition)
+        /// <param name="cardComponent">要撤回的波牌组件（如果为null，则撤回第一个）</param>
+        /// <returns>撤回后的手牌波状态</returns>
+        public Wave WithdrawCardFromPosition(int gridPosition, WaveCardComponent cardComponent = null)
         {
             if (!gridSlots.ContainsKey(gridPosition))
             {
                 Debug.LogWarning($"[HandWaveGridManager] 位置 {gridPosition} 不存在格子");
-                return false;
+                return handWaveManager.HandWave.Clone();
             }
 
             WaveGridSlot slot = gridSlots[gridPosition];
             if (!slot.IsOccupied)
             {
                 Debug.LogWarning($"[HandWaveGridManager] 位置 {gridPosition} 的格子未被占用");
-                return false;
+                return handWaveManager.HandWave.Clone();
             }
 
-            WaveCardComponent cardComponent = slot.GetCard();
+            // 如果没有指定波牌，获取第一个
+            if (cardComponent == null)
+            {
+                cardComponent = slot.GetFirstCard();
+            }
+
             if (cardComponent == null)
             {
                 Debug.LogWarning($"[HandWaveGridManager] 位置 {gridPosition} 的格子中的波牌组件为空");
-                return false;
+                return handWaveManager.HandWave.Clone();
             }
 
             // 创建波牌数据，使用格子位置作为最尾端位置
             WaveCard card = new WaveCard(cardComponent.Wave, gridPosition);
 
             // 从格子移除波牌
-            slot.RemoveCard();
+            slot.RemoveCard(cardComponent);
 
             // 与手牌波配对（使用负波）
             List<Wave> resultWaves = handWaveManager.WithdrawCard(card);
@@ -175,7 +205,7 @@ namespace WaveSystem
                 PrintHandWaveDetails();
             }
 
-            return true;
+            return handWaveManager.HandWave.Clone();
         }
 
         /// <summary>
