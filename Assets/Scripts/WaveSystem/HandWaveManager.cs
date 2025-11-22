@@ -62,14 +62,17 @@ namespace WaveSystem
             int cardInternalTailEnd = card.Wave.GetMaxPosition();
             int offset = card.TailEndPosition - cardInternalTailEnd;
 
-            // 创建偏移后的波牌波
-            Wave offsetCardWave = CreateOffsetWave(card.Wave, offset);
+            // 创建偏移后的波牌波，移除位置小于0的波峰
+            Wave offsetCardWave = CreateOffsetWave(card.Wave, offset, removeNegativePositions: true);
 
             // 配对（手牌波不偏移，直接配对）
             List<Wave> resultWaves = WavePairing.PairWaves(handWave, offsetCardWave);
 
             // 更新手牌波：合并所有结果波
             handWave = MergeWaves(resultWaves);
+
+            // 移除手牌波中位置小于0的波峰（手牌波最小位置为0）
+            RemoveNegativePositionPeaks();
 
             // 确保手牌波方向为true（朝向敌人）
             if (!handWave.IsEmpty && handWave.AttackDirection != true)
@@ -104,8 +107,8 @@ namespace WaveSystem
             int cardInternalTailEnd = card.Wave.GetMaxPosition();
             int offset = card.TailEndPosition - cardInternalTailEnd;
 
-            // 创建偏移后的波牌波
-            Wave offsetCardWave = CreateOffsetWave(card.Wave, offset);
+            // 创建偏移后的波牌波，移除位置小于0的波峰
+            Wave offsetCardWave = CreateOffsetWave(card.Wave, offset, removeNegativePositions: true);
 
             // 生成负波
             Wave negativeWave = offsetCardWave.GenerateNegativeWave();
@@ -115,6 +118,9 @@ namespace WaveSystem
 
             // 更新手牌波
             handWave = MergeWaves(resultWaves);
+
+            // 移除手牌波中位置小于0的波峰（手牌波最小位置为0）
+            RemoveNegativePositionPeaks();
 
             // 确保手牌波方向为true（朝向敌人）
             if (!handWave.IsEmpty && handWave.AttackDirection != true)
@@ -159,10 +165,11 @@ namespace WaveSystem
         /// </summary>
         /// <param name="originalWave">原始波</param>
         /// <param name="offset">偏移量</param>
+        /// <param name="removeNegativePositions">是否移除位置小于0的波峰（手牌波最小位置为0）</param>
         /// <returns>偏移后的新波</returns>
-        private Wave CreateOffsetWave(Wave originalWave, int offset)
+        private Wave CreateOffsetWave(Wave originalWave, int offset, bool removeNegativePositions = false)
         {
-            if (offset == 0)
+            if (offset == 0 && !removeNegativePositions)
             {
                 return originalWave.Clone();
             }
@@ -176,6 +183,14 @@ namespace WaveSystem
             foreach (var kvp in originalWave.PeakDictionary)
             {
                 int newPosition = kvp.Key + offset;
+                
+                // 如果启用移除负位置，跳过位置小于0的波峰
+                if (removeNegativePositions && newPosition < 0)
+                {
+                    Debug.Log($"[HandWaveManager] 移除位置小于0的波峰：原始位置={kvp.Key}，偏移后位置={newPosition}（已移除）");
+                    continue;
+                }
+
                 offsetWave.AddPeak(newPosition, kvp.Value.Clone());
             }
 
@@ -215,6 +230,34 @@ namespace WaveSystem
             }
 
             return mergedWave;
+        }
+
+        /// <summary>
+        /// 移除手牌波中位置小于0的波峰（手牌波最小位置为0）
+        /// </summary>
+        private void RemoveNegativePositionPeaks()
+        {
+            if (handWave.IsEmpty)
+            {
+                return;
+            }
+
+            // 收集所有位置小于0的波峰
+            List<int> positionsToRemove = new List<int>();
+            foreach (var position in handWave.Positions)
+            {
+                if (position < 0)
+                {
+                    positionsToRemove.Add(position);
+                }
+            }
+
+            // 移除这些波峰
+            foreach (var position in positionsToRemove)
+            {
+                handWave.RemovePeak(position);
+                Debug.Log($"[HandWaveManager] 移除了位置小于0的波峰：位置={position}");
+            }
         }
     }
 }

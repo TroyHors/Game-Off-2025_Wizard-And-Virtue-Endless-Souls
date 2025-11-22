@@ -24,9 +24,16 @@ namespace CardSystem
         [Tooltip("牌堆管理器组件")]
         [SerializeField] private CardPileManager pileManager;
 
+        [Header("手牌槽位管理器")]
+        [Tooltip("手牌槽位管理器（如果设置，将使用槽位系统进行拖动）")]
+        [SerializeField] private HandSlotManager handSlotManager;
+
         [Header("抽牌设置")]
         [Tooltip("每回合默认抽牌数量")]
         [SerializeField] private int cardsPerTurn = 5;
+
+        [Tooltip("手牌上限（-1表示无上限）")]
+        [SerializeField] private int maxHandSize = -1;
 
         /// <summary>
         /// 卡组管理器
@@ -58,6 +65,18 @@ namespace CardSystem
             if (pileManager == null)
             {
                 Debug.LogError("[CardSystem] 未找到CardPileManager组件，请在Inspector中指定或添加CardPileManager组件");
+            }
+
+            // 如果没有指定手牌槽位管理器，尝试从当前GameObject获取
+            if (handSlotManager == null)
+            {
+                handSlotManager = GetComponent<HandSlotManager>();
+            }
+
+            // 将手牌槽位管理器传递给CardPileManager
+            if (pileManager != null && handSlotManager != null)
+            {
+                pileManager.SetHandSlotManager(handSlotManager);
             }
         }
 
@@ -161,20 +180,28 @@ namespace CardSystem
         }
 
         /// <summary>
-        /// 回合开始，从牌堆抽取默认数量的牌到手牌
+        /// 回合开始，从牌堆抽取默认数量的牌到手牌（供UI按钮调用，无返回值）
         /// </summary>
-        /// <returns>实际抽取的牌数</returns>
-        public int StartTurn()
+        public void StartTurn()
         {
-            return StartTurn(cardsPerTurn);
+            StartTurn(cardsPerTurn);
         }
 
         /// <summary>
-        /// 回合开始，从牌堆抽取指定数量的牌到手牌
+        /// 回合开始，从牌堆抽取指定数量的牌到手牌（供UI按钮调用，无返回值）
+        /// </summary>
+        /// <param name="drawCount">要抽取的牌数</param>
+        public void StartTurn(int drawCount)
+        {
+            StartTurnWithResult(drawCount);
+        }
+
+        /// <summary>
+        /// 回合开始，从牌堆抽取指定数量的牌到手牌（返回实际抽取的牌数）
         /// </summary>
         /// <param name="drawCount">要抽取的牌数</param>
         /// <returns>实际抽取的牌数</returns>
-        public int StartTurn(int drawCount)
+        public int StartTurnWithResult(int drawCount)
         {
             if (pileManager == null)
             {
@@ -189,10 +216,44 @@ namespace CardSystem
                 pileManager.ReshuffleDiscardPileToDrawPile();
             }
 
-            int drawnCount = pileManager.DrawCards(drawCount);
-            Debug.Log($"[CardSystem] 回合开始，抽取了 {drawnCount} 张牌（请求 {drawCount} 张）");
+            // 计算实际可抽取的数量（考虑手牌上限）
+            int actualDrawCount = CalculateActualDrawCount(drawCount);
+            
+            if (actualDrawCount <= 0)
+            {
+                Debug.Log($"[CardSystem] 手牌已满，无法抽取更多卡牌（当前手牌：{pileManager.HandCount}，上限：{maxHandSize}）");
+                return 0;
+            }
+
+            int drawnCount = pileManager.DrawCards(actualDrawCount, maxHandSize);
+            Debug.Log($"[CardSystem] 回合开始，抽取了 {drawnCount} 张牌（请求 {drawCount} 张，考虑手牌上限后实际请求 {actualDrawCount} 张）");
 
             return drawnCount;
+        }
+
+        /// <summary>
+        /// 计算实际可抽取的数量（考虑手牌上限）
+        /// </summary>
+        /// <param name="requestedCount">请求抽取的数量</param>
+        /// <returns>实际可抽取的数量</returns>
+        private int CalculateActualDrawCount(int requestedCount)
+        {
+            if (maxHandSize < 0)
+            {
+                // 无上限
+                return requestedCount;
+            }
+
+            int currentHandCount = pileManager != null ? pileManager.HandCount : 0;
+            int availableSlots = maxHandSize - currentHandCount;
+
+            if (availableSlots <= 0)
+            {
+                return 0; // 手牌已满
+            }
+
+            // 返回请求数量和可用槽位的较小值
+            return Mathf.Min(requestedCount, availableSlots);
         }
 
         /// <summary>
@@ -460,6 +521,23 @@ namespace CardSystem
         public CardPrefabRegistry GetCardRegistry()
         {
             return cardRegistry;
+        }
+
+        /// <summary>
+        /// 获取手牌上限
+        /// </summary>
+        public int GetMaxHandSize()
+        {
+            return maxHandSize;
+        }
+
+        /// <summary>
+        /// 设置手牌上限（-1表示无上限）
+        /// </summary>
+        /// <param name="maxSize">手牌上限</param>
+        public void SetMaxHandSize(int maxSize)
+        {
+            maxHandSize = maxSize;
         }
     }
 }

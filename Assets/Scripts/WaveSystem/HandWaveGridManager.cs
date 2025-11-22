@@ -120,6 +120,30 @@ namespace WaveSystem
         }
 
         /// <summary>
+        /// 在指定位置放置波牌（通过拖动系统调用）
+        /// </summary>
+        /// <param name="cardDragHandler">卡牌拖动处理器</param>
+        /// <param name="gridPosition">格子位置</param>
+        /// <returns>放置后的手牌波状态</returns>
+        public Wave PlaceCardAtPosition(CardSystem.CardDragHandler cardDragHandler, int gridPosition)
+        {
+            if (cardDragHandler == null)
+            {
+                Debug.LogWarning("[HandWaveGridManager] 尝试放置空的卡牌拖动处理器");
+                return handWaveManager.HandWave.Clone();
+            }
+
+            WaveCardComponent cardComponent = cardDragHandler.GetComponent<WaveCardComponent>();
+            if (cardComponent == null)
+            {
+                Debug.LogWarning("[HandWaveGridManager] 卡牌拖动处理器没有WaveCardComponent组件");
+                return handWaveManager.HandWave.Clone();
+            }
+
+            return PlaceCardAtPosition(cardComponent, gridPosition);
+        }
+
+        /// <summary>
         /// 在指定位置放置波牌
         /// </summary>
         /// <param name="cardComponent">波牌组件</param>
@@ -146,6 +170,14 @@ namespace WaveSystem
 
             // 放置波牌到格子（支持多个波牌）
             slot.PlaceCard(cardComponent);
+
+            // 如果卡牌有CardDragHandler，更新其状态和槽位引用
+            CardSystem.CardDragHandler dragHandler = cardComponent.GetComponent<CardSystem.CardDragHandler>();
+            if (dragHandler != null)
+            {
+                dragHandler.Status = CardSystem.CardStatus.Pending;
+                dragHandler.CurrentSlot = slot;
+            }
 
             // 与手牌波配对
             List<Wave> resultWaves = handWaveManager.PlaceCard(card);

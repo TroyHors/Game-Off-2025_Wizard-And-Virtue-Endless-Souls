@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using CardSystem;
 
 namespace WaveSystem
 {
@@ -7,7 +8,7 @@ namespace WaveSystem
     /// 波牌格子组件
     /// 挂载到格子的GameObject上，处理波牌的放置和移除
     /// </summary>
-    public class WaveGridSlot : MonoBehaviour
+    public class WaveGridSlot : MonoBehaviour, ICardSlot
     {
         [Header("格子设置")]
         [Tooltip("格子在格表中的位置（必须与手牌波的位置对应）")]
@@ -91,8 +92,27 @@ namespace WaveSystem
                 offset += Vector3.up * (cards.Count - 1) * 0.1f;
             }
             
-            cardComponent.transform.localPosition = offset;
+            // 使用RectTransform或Transform设置位置
+            RectTransform rectTransform = cardComponent.GetComponent<RectTransform>();
+            if (rectTransform != null)
+            {
+                rectTransform.anchoredPosition = offset;
+            }
+            else
+            {
+                cardComponent.transform.localPosition = offset;
+            }
+            
             cardComponent.transform.localRotation = Quaternion.identity;
+            cardComponent.transform.localScale = Vector3.one;
+
+            // 更新CardDragHandler状态（如果存在）
+            CardSystem.CardDragHandler dragHandler = cardComponent.GetComponent<CardSystem.CardDragHandler>();
+            if (dragHandler != null)
+            {
+                dragHandler.Status = CardSystem.CardStatus.Pending;
+                dragHandler.CurrentSlot = this;
+            }
 
             Debug.Log($"[WaveGridSlot] 位置 {gridPosition} 已放置波牌: {cardComponent.gameObject.name}（当前共 {cards.Count} 个波牌）");
         }
@@ -170,6 +190,99 @@ namespace WaveSystem
             }
             return null;
         }
+
+        #region ICardSlot 实现
+
+        /// <summary>
+        /// 是否可以接受指定的卡牌
+        /// </summary>
+        public bool CanAcceptCard(CardDragHandler card)
+        {
+            if (card == null)
+            {
+                return false;
+            }
+
+            // 检查卡牌是否有WaveCardComponent组件（波牌）
+            WaveCardComponent waveCard = card.GetComponent<WaveCardComponent>();
+            if (waveCard == null)
+            {
+                return false; // 不是波牌，不能放在波牌格子中
+            }
+
+            // 格子可以接受多个波牌，所以总是返回true
+            return true;
+        }
+
+        /// <summary>
+        /// 放置卡牌到槽位（ICardSlot接口）
+        /// </summary>
+        public void PlaceCard(CardDragHandler card)
+        {
+            if (card == null)
+            {
+                Debug.LogWarning("[WaveGridSlot] 尝试放置空的卡牌");
+                return;
+            }
+
+            WaveCardComponent waveCard = card.GetComponent<WaveCardComponent>();
+            if (waveCard == null)
+            {
+                Debug.LogWarning("[WaveGridSlot] 尝试放置非波牌到波牌格子");
+                return;
+            }
+
+            // 使用现有的PlaceCard方法（会自动更新CardDragHandler状态）
+            PlaceCard(waveCard);
+
+            // 与手牌波配对（通过GridManager）
+            if (gridManager != null)
+            {
+                gridManager.PlaceCardAtPosition(waveCard, gridPosition);
+            }
+        }
+
+        /// <summary>
+        /// 从槽位移除卡牌（ICardSlot接口）
+        /// </summary>
+        public void RemoveCard(CardDragHandler card)
+        {
+            if (card == null)
+            {
+                return;
+            }
+
+            WaveCardComponent waveCard = card.GetComponent<WaveCardComponent>();
+            if (waveCard != null)
+            {
+                // 从手牌波撤回（通过GridManager）
+                if (gridManager != null)
+                {
+                    gridManager.WithdrawCardFromPosition(gridPosition, waveCard);
+                }
+                
+                // 移除卡牌
+                RemoveCard(waveCard);
+            }
+        }
+
+        /// <summary>
+        /// 卡牌开始拖动时调用
+        /// </summary>
+        public void OnCardBeginDrag(CardDragHandler card)
+        {
+            // 可以在这里添加拖动开始时的视觉效果
+        }
+
+        /// <summary>
+        /// 卡牌拖动结束时调用
+        /// </summary>
+        public void OnCardEndDrag(CardDragHandler card)
+        {
+            // 可以在这里添加拖动结束时的视觉效果
+        }
+
+        #endregion
 
         /// <summary>
         /// 在Inspector中设置格子位置

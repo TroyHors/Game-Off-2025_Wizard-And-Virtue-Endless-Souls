@@ -27,8 +27,20 @@ namespace CardSystem
     public class CardPileManager : MonoBehaviour
     {
         [Header("牌堆设置")]
-        [Tooltip("手牌 - 当前持有的牌")]
+        [Tooltip("手牌 - 当前持有的牌（传统方式：直接作为子对象）")]
         [SerializeField] private Transform handContainer;
+
+        [Tooltip("手牌槽位管理器（如果设置，将使用槽位系统进行拖动）")]
+        [SerializeField] private HandSlotManager handSlotManager;
+
+        /// <summary>
+        /// 设置手牌槽位管理器
+        /// </summary>
+        /// <param name="manager">手牌槽位管理器</param>
+        public void SetHandSlotManager(HandSlotManager manager)
+        {
+            handSlotManager = manager;
+        }
 
         // 局内牌堆数据
         private List<GameObject> drawPile = new List<GameObject>();           // 牌堆（Prefab引用，不实例化）
@@ -93,19 +105,72 @@ namespace CardSystem
         /// 从牌堆抽取指定数量的牌到手牌（实例化卡牌）
         /// </summary>
         /// <param name="count">要抽取的牌数</param>
+        /// <param name="maxHandSize">手牌上限（-1表示无上限）</param>
         /// <returns>实际抽取的牌数</returns>
-        public int DrawCards(int count)
+        public int DrawCards(int count, int maxHandSize = -1)
         {
             int drawnCount = 0;
-            for (int i = 0; i < count && drawPile.Count > 0; i++)
+            
+            // 计算实际可抽取的数量（考虑手牌上限）
+            int actualCount = count;
+            if (maxHandSize >= 0)
             {
+                int availableSlots = maxHandSize - hand.Count;
+                if (availableSlots <= 0)
+                {
+                    Debug.Log($"[CardPileManager] 手牌已满（当前：{hand.Count}，上限：{maxHandSize}），无法抽取更多卡牌");
+                    return 0;
+                }
+                actualCount = Mathf.Min(count, availableSlots);
+            }
+
+            for (int i = 0; i < actualCount && drawPile.Count > 0; i++)
+            {
+                // 检查手牌上限（双重检查，防止在循环过程中手牌被其他操作修改）
+                if (maxHandSize >= 0 && hand.Count >= maxHandSize)
+                {
+                    Debug.Log($"[CardPileManager] 抽取过程中手牌达到上限（{maxHandSize}），停止抽取");
+                    break;
+                }
+
                 // 从牌堆取出Prefab引用
                 GameObject cardPrefab = drawPile[0];
                 drawPile.RemoveAt(0);
 
-                // 实例化卡牌并放入手牌
-                GameObject cardInstance = Instantiate(cardPrefab, handContainer);
+                // 实例化卡牌
+                GameObject cardInstance = Instantiate(cardPrefab);
                 cardInstance.SetActive(true);
+
+                // 添加CardDragHandler组件（如果还没有）
+                CardDragHandler dragHandler = cardInstance.GetComponent<CardDragHandler>();
+                if (dragHandler == null)
+                {
+                    dragHandler = cardInstance.AddComponent<CardDragHandler>();
+                }
+                dragHandler.Status = CardStatus.Hand;
+
+                // 放置到槽位或容器
+                if (handSlotManager != null)
+                {
+                    // 使用槽位系统
+                    HandSlot availableSlot = handSlotManager.GetFirstAvailableSlot();
+                    if (availableSlot != null)
+                    {
+                        availableSlot.PlaceCard(dragHandler);
+                        dragHandler.CurrentSlot = availableSlot;
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[CardPileManager] 手牌槽位已满，无法放置卡牌");
+                        Destroy(cardInstance);
+                        continue;
+                    }
+                }
+                else
+                {
+                    // 传统方式：直接放入容器
+                    cardInstance.transform.SetParent(handContainer);
+                }
                 
                 // 存储实例和Prefab的对应关系
                 hand.Add(new HandCardInfo(cardInstance, cardPrefab));
@@ -144,6 +209,16 @@ namespace CardSystem
             {
                 Debug.LogWarning("[CardPileManager] 尝试丢弃不在手牌中的卡牌");
                 return false;
+            }
+
+            // 如果使用槽位系统，从槽位移除
+            if (handSlotManager != null)
+            {
+                CardDragHandler dragHandler = cardInstance.GetComponent<CardDragHandler>();
+                if (dragHandler != null && dragHandler.CurrentSlot != null)
+                {
+                    dragHandler.CurrentSlot.RemoveCard(dragHandler);
+                }
             }
 
             // 从手牌移除
