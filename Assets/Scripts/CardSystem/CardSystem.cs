@@ -180,28 +180,29 @@ namespace CardSystem
         }
 
         /// <summary>
-        /// 回合开始，从牌堆抽取默认数量的牌到手牌（供UI按钮调用，无返回值）
+        /// 抽牌功能：从牌堆抽取指定数量的牌到手牌（无返回值包装，供UnityEvent调用）
         /// </summary>
-        public void StartTurn()
+        public void DrawCards()
         {
-            StartTurn(cardsPerTurn);
+            DrawCards(-1);
         }
 
         /// <summary>
-        /// 回合开始，从牌堆抽取指定数量的牌到手牌（供UI按钮调用，无返回值）
+        /// 抽牌功能：从牌堆抽取指定数量的牌到手牌（无返回值包装，供UnityEvent调用）
         /// </summary>
         /// <param name="drawCount">要抽取的牌数</param>
-        public void StartTurn(int drawCount)
+        public void DrawCards(int drawCount)
         {
-            StartTurnWithResult(drawCount);
+            DrawCardsWithResult(drawCount);
         }
 
         /// <summary>
-        /// 回合开始，从牌堆抽取指定数量的牌到手牌（返回实际抽取的牌数）
+        /// 抽牌功能：从牌堆抽取指定数量的牌到手牌
+        /// 独立的功能函数，供状态系统调用
         /// </summary>
-        /// <param name="drawCount">要抽取的牌数</param>
+        /// <param name="drawCount">要抽取的牌数（如果为-1，则使用默认的cardsPerTurn）</param>
         /// <returns>实际抽取的牌数</returns>
-        public int StartTurnWithResult(int drawCount)
+        public int DrawCardsWithResult(int drawCount = -1)
         {
             if (pileManager == null)
             {
@@ -209,11 +210,24 @@ namespace CardSystem
                 return 0;
             }
 
+            // 如果未指定抽牌数量，使用默认值
+            if (drawCount < 0)
+            {
+                drawCount = cardsPerTurn;
+            }
+
             // 如果牌堆为空，将弃牌堆洗回牌堆
             if (pileManager.IsDrawPileEmpty())
             {
                 Debug.Log("[CardSystem] 牌堆为空，将弃牌堆洗回牌堆");
                 pileManager.ReshuffleDiscardPileToDrawPile();
+            }
+
+            // 洗牌后再次检查牌堆是否为空（防止弃牌堆也是空的情况）
+            if (pileManager.IsDrawPileEmpty())
+            {
+                Debug.LogWarning("[CardSystem] 洗牌后牌堆仍然为空，无法抽取卡牌");
+                return 0;
             }
 
             // 计算实际可抽取的数量（考虑手牌上限）

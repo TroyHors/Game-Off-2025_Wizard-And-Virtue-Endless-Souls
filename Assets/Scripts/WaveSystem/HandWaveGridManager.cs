@@ -245,10 +245,18 @@ namespace WaveSystem
         }
 
         /// <summary>
+        /// 发出手牌波（无返回值包装，供UnityEvent调用）
+        /// </summary>
+        public void EmitHandWave()
+        {
+            EmitHandWaveWithResult();
+        }
+
+        /// <summary>
         /// 发出手牌波
         /// </summary>
         /// <returns>发出的波（首个波峰对齐到0号位）</returns>
-        public Wave EmitHandWave()
+        public Wave EmitHandWaveWithResult()
         {
             Wave emittedWave = handWaveManager.EmitWave();
             
@@ -261,29 +269,23 @@ namespace WaveSystem
             return emittedWave;
         }
 
+
         /// <summary>
-        /// 结束回合（供UI按钮调用，无返回值）
-        /// 1. 将手牌波转换为最小位置是0的波并发出
-        /// 2. 将标记为"待使用"的卡牌（在格表中的）放入弃牌堆
+        /// 将标记为"待使用"的卡牌（在格表中的）放入弃牌堆（无返回值包装，供UnityEvent调用）
         /// </summary>
-        public void EndTurn()
+        public void DiscardPendingCards()
         {
-            EndTurnWithResult();
+            DiscardPendingCardsWithResult();
         }
 
         /// <summary>
-        /// 结束回合（返回发出的波）
-        /// 1. 将手牌波转换为最小位置是0的波并发出
-        /// 2. 将标记为"待使用"的卡牌（在格表中的）放入弃牌堆
+        /// 将标记为"待使用"的卡牌（在格表中的）放入弃牌堆
+        /// 独立的功能函数，供状态系统调用
         /// </summary>
-        /// <returns>发出的波（最小位置对齐到0号位）</returns>
-        public Wave EndTurnWithResult()
+        /// <returns>成功放入弃牌堆的卡牌数量</returns>
+        public int DiscardPendingCardsWithResult()
         {
-            // 1. 先发出手牌波（最小位置对齐到0号位）
-            // 注意：在发出之前，手牌波应该包含所有待使用卡牌的效果
-            Wave emittedWave = EmitHandWave();
-
-            // 2. 收集所有标记为"待使用"的卡牌（在格表中的）
+            // 收集所有标记为"待使用"的卡牌（在格表中的）
             List<CardSystem.CardDragHandler> pendingCards = new List<CardSystem.CardDragHandler>();
             
             foreach (var slot in gridSlots.Values)
@@ -299,7 +301,8 @@ namespace WaveSystem
                 }
             }
 
-            // 3. 将这些卡牌放入弃牌堆
+            // 将这些卡牌放入弃牌堆
+            int successCount = 0;
             if (cardSystem != null)
             {
                 foreach (var card in pendingCards)
@@ -307,7 +310,6 @@ namespace WaveSystem
                     GameObject cardInstance = card.gameObject;
                     
                     // 从格表中移除（这会触发WithdrawCard，从手牌波中撤回）
-                    // 注意：手牌波已经发出，所以撤回不会影响已发出的波
                     if (card.CurrentSlot != null)
                     {
                         card.CurrentSlot.RemoveCard(card);
@@ -319,6 +321,7 @@ namespace WaveSystem
                     
                     if (success)
                     {
+                        successCount++;
                         Debug.Log($"[HandWaveGridManager] 将待使用的卡牌放入弃牌堆: {cardInstance.name}");
                     }
                     else
@@ -332,9 +335,7 @@ namespace WaveSystem
                 Debug.LogWarning("[HandWaveGridManager] 卡牌系统未设置，无法将待使用的卡牌放入弃牌堆");
             }
 
-            Debug.Log($"[HandWaveGridManager] 回合结束，发出了 {emittedWave.PeakCount} 个波峰的波，移除了 {pendingCards.Count} 张待使用的卡牌");
-
-            return emittedWave;
+            return successCount;
         }
 
         /// <summary>

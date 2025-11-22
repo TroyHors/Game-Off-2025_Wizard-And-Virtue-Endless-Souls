@@ -2,6 +2,98 @@
 The Game Wizard And Virtue Endless Souls(WAVES) for game jam Game Off 2025
 
 this is a 2D game***
+
+## 开发规范 (Development Guidelines)
+
+### 功能开发规范
+
+**重要原则：功能逻辑与状态管理分离**
+
+#### 1. 功能函数设计原则
+
+- **功能函数必须独立**：每个功能函数只负责单一功能，不包含状态管理逻辑
+- **禁止打包式函数**：不要创建类似 `StartTurn()`、`EndTurn()` 这样的打包式函数，它们会混合多个功能
+- **函数命名清晰**：使用动词命名，如 `DrawCards()`、`EmitHandWave()`、`DiscardPendingCards()`
+- **提供无返回值包装函数**：为所有功能函数提供无返回值的包装函数，方便在UnityEvent中调用
+  - 包装函数命名：与功能函数同名，无返回值（如 `DrawCards()`）
+  - 带返回值函数命名：添加 `WithResult` 后缀（如 `DrawCardsWithResult()`）
+
+#### 2. 状态系统设计原则
+
+- **状态系统只负责流程管理**：`GameStateManager` 只管理状态转换，不包含功能逻辑
+- **通过 UnityEvent 调用功能**：在 Inspector 中配置 UnityEvent，将功能函数绑定到状态事件
+- **状态转换自动处理**：状态系统自动处理状态转换和循环（如回合结束自动进入下一回合开始）
+
+#### 3. 开发流程
+
+1. **设计功能函数**：
+   - 在对应的系统类中创建独立的功能函数
+   - 函数只负责单一功能，参数明确，返回值清晰
+   - 示例：`CardSystem.DrawCards(int drawCount = -1)`、`HandWaveGridManager.EmitHandWave()`
+
+2. **配置状态系统**：
+   - 在 `GameStateManager` 的 Inspector 中配置状态事件
+   - 将功能函数绑定到对应的状态事件（如 On Turn Start、On Turn End）
+   - 通过 UnityEvent 的拖拽方式绑定，无需编写额外代码
+
+3. **测试和调试**：
+   - 功能函数可以独立测试
+   - 状态系统可以独立测试
+   - 两者通过 UnityEvent 解耦，便于维护和扩展
+
+#### 4. 示例
+
+**正确示例**：
+```csharp
+// CardSystem.cs - 独立的功能函数（带返回值，供代码调用）
+public int DrawCardsWithResult(int drawCount = -1) { ... }
+
+// CardSystem.cs - 无返回值包装函数（供UnityEvent调用）
+public void DrawCards() { DrawCardsWithResult(-1); }
+public void DrawCards(int drawCount) { DrawCardsWithResult(drawCount); }
+
+// HandWaveGridManager.cs - 独立的功能函数（带返回值，供代码调用）
+public Wave EmitHandWaveWithResult() { ... }
+public int DiscardPendingCardsWithResult() { ... }
+
+// HandWaveGridManager.cs - 无返回值包装函数（供UnityEvent调用）
+public void EmitHandWave() { EmitHandWaveWithResult(); }
+public void DiscardPendingCards() { DiscardPendingCardsWithResult(); }
+
+// GameStateManager.cs - 状态管理，通过UnityEvent调用功能
+[SerializeField] private UnityEvent onTurnStart = new UnityEvent();
+// 在Inspector中绑定：onTurnStart -> CardSystem.DrawCards()（无返回值版本）
+```
+
+**错误示例**：
+```csharp
+// ❌ 不要创建打包式函数
+public void StartTurn() { DrawCards(); ... }  // 错误：混合了状态和功能
+public Wave EndTurnWithResult() { EmitHandWave(); DiscardPendingCards(); ... }  // 错误：打包多个功能
+```
+
+#### 5. 当前系统的功能函数
+
+**CardSystem**：
+- `InitializeGame()` - 游戏初始化（无返回值）
+- `DrawCards()` - 抽牌功能（无返回值包装，供UnityEvent调用）
+- `DrawCards(int drawCount)` - 抽牌功能（无返回值包装，指定数量）
+- `DrawCardsWithResult(int drawCount = -1)` - 抽牌功能（返回实际抽取的牌数，供代码调用）
+
+**HandWaveGridManager**：
+- `EmitHandWave()` - 发出手牌波（无返回值包装，供UnityEvent调用）
+- `EmitHandWaveWithResult()` - 发出手牌波（返回发出的波，供代码调用）
+- `DiscardPendingCards()` - 将待使用的卡牌放入弃牌堆（无返回值包装，供UnityEvent调用）
+- `DiscardPendingCardsWithResult()` - 将待使用的卡牌放入弃牌堆（返回成功数量，供代码调用）
+
+**GameStateManager**：
+- `EnterGameStart()` - 进入游戏开始状态
+- `EnterTurnStart()` - 进入回合开始状态
+- `EnterTurnEnd()` - 进入回合结束状态（自动循环到下一回合开始）
+
+**使用说明**：
+- 在UnityEvent中绑定：使用无返回值版本（如 `DrawCards()`、`EmitHandWave()`）
+- 在代码中调用：使用带返回值版本（如 `DrawCardsWithResult()`、`EmitHandWaveWithResult()`）
 ## 卡牌系统 (Card System)
 
 ### 概述
