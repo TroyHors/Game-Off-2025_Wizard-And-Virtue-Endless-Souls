@@ -33,7 +33,7 @@ namespace MapSystem
         [Range(0f, 2f)]
         public float outDegreeVariance = 0.5f;
 
-        [Tooltip("连接跨度(节点只能连接到列值差绝对值在这个范围内的上层节点)")]
+        [Tooltip("连接跨度(节点可以连接到上层多少列范围内的节点)")]
         [Range(1, 5)]
         public int connectionSpan = 2;
 
@@ -128,7 +128,7 @@ namespace MapSystem
         [Tooltip("最大出现次数(全图)")]
         public int maxCount = -1; // -1表示无限制
 
-        [Tooltip("最小间隔层数(两个相同类型节点之间最小相隔的层数,0表示无限制)")]
+        [Tooltip("最小层间隔(同类型节点之间必须至少相隔多少层,0为无限制可以同层)")]
         [Range(0, 10)]
         public int minLayerInterval = 0;
 

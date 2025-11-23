@@ -38,9 +38,6 @@ namespace MapSystem
         [SerializeField] private Color visitedLineColor = new Color(0.3f, 0.3f, 0.3f, 0.5f);
 
         [Header("自动布局")]
-        [Tooltip("是否自动计算布局")]
-        [SerializeField] private bool autoLayout = true;
-
         [Tooltip("底部间距(从容器底部开始的偏移)")]
         [SerializeField] private float bottomGap = 50f;
 

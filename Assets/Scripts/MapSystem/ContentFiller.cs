@@ -82,35 +82,44 @@ namespace MapSystem
         {
             // 统计已分配的数量
             Dictionary<string, int> assignedCounts = new Dictionary<string, int>();
-            // 记录每个节点类型最后出现的层数
-            Dictionary<string, int> lastLayerOfType = new Dictionary<string, int>();
             foreach (var typeConfig in config.nodeTypeConfigs)
             {
                 assignedCounts[typeConfig.nodeType] = 0;
+            }
+
+            // 记录每个节点类型最后出现的层数（用于检查最小层间隔）
+            Dictionary<string, int> lastLayerOfType = new Dictionary<string, int>();
+            foreach (var typeConfig in config.nodeTypeConfigs)
+            {
                 lastLayerOfType[typeConfig.nodeType] = -1; // -1表示还未出现过
             }
 
-            // 获取所有非Boss节点，按层分组，每层内随机打乱顺序，避免底层集中分配
-            List<MapNode> nodesToAssign = topology.Nodes.Values
+            // 按层分组，然后在每层内随机打乱，这样既能检查层间隔，又能避免底层集中分配
+            var nodesByLayer = topology.Nodes.Values
                 .Where(node => !node.IsBoss)
                 .GroupBy(node => node.Layer)
-                .OrderBy(group => group.Key) // 按层排序
-                .SelectMany(group => group.OrderBy(n => random.Next())) // 每层内随机打乱
+                .OrderBy(group => group.Key)
                 .ToList();
 
             // 为每个节点分配类型
-            foreach (var node in nodesToAssign)
+            foreach (var layerGroup in nodesByLayer)
             {
-                // 计算当前层级的权重
-                float normalizedLayer = (float)node.Layer / (config.height - 1);
-                Dictionary<string, float> weights = CalculateWeightsForLayer(
-                    config, normalizedLayer, assignedCounts, node.Layer, lastLayerOfType);
+                int currentLayer = layerGroup.Key;
+                List<MapNode> nodesInLayer = layerGroup.OrderBy(n => random.Next()).ToList(); // 层内随机打乱
 
-                // 根据权重随机选择
-                string selectedType = SelectTypeByWeight(weights, random);
-                node.NodeType = selectedType;
-                assignedCounts[selectedType]++;
-                lastLayerOfType[selectedType] = node.Layer; // 更新最后出现的层数
+                foreach (var node in nodesInLayer)
+                {
+                    // 计算当前层级的权重
+                    float normalizedLayer = (float)node.Layer / (config.height - 1);
+                    Dictionary<string, float> weights = CalculateWeightsForLayer(
+                        config, normalizedLayer, assignedCounts, currentLayer, lastLayerOfType);
+
+                    // 根据权重随机选择
+                    string selectedType = SelectTypeByWeight(weights, random);
+                    node.NodeType = selectedType;
+                    assignedCounts[selectedType]++;
+                    lastLayerOfType[selectedType] = currentLayer; // 更新最后出现的层数
+                }
             }
 
             Debug.Log($"[ContentFiller] 节点类型分配完成");
@@ -143,6 +152,25 @@ namespace MapSystem
                 float layerMultiplier = typeConfig.layerWeightCurve.Evaluate(normalizedLayer);
                 weight *= layerMultiplier;
 
+                // 检查最小层间隔限制
+                if (typeConfig.minLayerInterval > 0)
+                {
+                    int lastLayer = lastLayerOfType.ContainsKey(typeConfig.nodeType) 
+                        ? lastLayerOfType[typeConfig.nodeType] 
+                        : -1;
+                    
+                    if (lastLayer >= 0)
+                    {
+                        int layerDistance = currentLayer - lastLayer;
+                        if (layerDistance < typeConfig.minLayerInterval)
+                        {
+                            // 不满足最小层间隔，权重设为0
+                            weights[typeConfig.nodeType] = 0;
+                            continue;
+                        }
+                    }
+                }
+
                 // 检查最小/最大数量限制
                 int currentCount = assignedCounts.ContainsKey(typeConfig.nodeType) 
                     ? assignedCounts[typeConfig.nodeType] 
@@ -167,24 +195,6 @@ namespace MapSystem
                     }
                     
                     weight *= urgencyMultiplier;
-                }
-
-                // 检查最小间隔层数限制
-                if (typeConfig.minLayerInterval > 0)
-                {
-                    int lastLayer = lastLayerOfType.ContainsKey(typeConfig.nodeType) 
-                        ? lastLayerOfType[typeConfig.nodeType] 
-                        : -1;
-                    
-                    if (lastLayer >= 0)
-                    {
-                        int layerDistance = currentLayer - lastLayer;
-                        if (layerDistance < typeConfig.minLayerInterval)
-                        {
-                            // 违反最小间隔要求，权重设为0
-                            weight = 0;
-                        }
-                    }
                 }
 
                 weights[typeConfig.nodeType] = weight;
@@ -285,6 +295,26 @@ namespace MapSystem
             // 简单的调整策略:随机替换路径上的某些节点类型
             // 更复杂的策略可以在具体约束中实现
 
+            // 构建当前已分配节点的层间隔信息（用于检查最小层间隔）
+            Dictionary<string, int> lastLayerOfType = new Dictionary<string, int>();
+            foreach (var typeConfig in config.nodeTypeConfigs)
+            {
+                lastLayerOfType[typeConfig.nodeType] = -1; // -1表示还未出现过
+            }
+
+            // 遍历所有已分配的节点，记录每个类型最后出现的层数
+            foreach (var kvp in topology.Nodes)
+            {
+                MapNode n = kvp.Value;
+                if (!n.IsBoss && !string.IsNullOrEmpty(n.NodeType))
+                {
+                    if (!lastLayerOfType.ContainsKey(n.NodeType) || lastLayerOfType[n.NodeType] < n.Layer)
+                    {
+                        lastLayerOfType[n.NodeType] = n.Layer;
+                    }
+                }
+            }
+
             foreach (int nodeId in path)
             {
                 MapNode node = topology.GetNode(nodeId);
@@ -299,16 +329,15 @@ namespace MapSystem
                     // 重新分配类型
                     float normalizedLayer = (float)node.Layer / (config.height - 1);
                     Dictionary<string, int> dummyCounts = new Dictionary<string, int>();
-                    Dictionary<string, int> dummyLastLayers = new Dictionary<string, int>();
-                    // 在调整阶段，暂时不考虑最小间隔限制（使用-1表示未出现过）
-                    foreach (var typeConfig in config.nodeTypeConfigs)
-                    {
-                        dummyLastLayers[typeConfig.nodeType] = -1;
-                    }
                     Dictionary<string, float> weights = CalculateWeightsForLayer(
-                        config, normalizedLayer, dummyCounts, node.Layer, dummyLastLayers);
+                        config, normalizedLayer, dummyCounts, node.Layer, lastLayerOfType);
                     string newType = SelectTypeByWeight(weights, random);
-                    node.NodeType = newType;
+                    if (!string.IsNullOrEmpty(newType))
+                    {
+                        node.NodeType = newType;
+                        // 更新最后出现的层数
+                        lastLayerOfType[newType] = node.Layer;
+                    }
                 }
             }
         }

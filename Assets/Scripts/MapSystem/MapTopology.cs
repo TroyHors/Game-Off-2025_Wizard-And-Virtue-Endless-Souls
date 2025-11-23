@@ -99,54 +99,6 @@ namespace MapSystem
         }
 
         /// <summary>
-        /// 删除节点及其所有连接
-        /// </summary>
-        public void RemoveNode(int nodeId)
-        {
-            if (!Nodes.ContainsKey(nodeId))
-            {
-                return;
-            }
-
-            MapNode node = Nodes[nodeId];
-
-            // 移除所有上层邻居的连接
-            foreach (int upperNeighborId in node.UpperNeighbors.ToList())
-            {
-                MapNode upperNeighbor = GetNode(upperNeighborId);
-                if (upperNeighbor != null)
-                {
-                    upperNeighbor.LowerNeighbors.Remove(nodeId);
-                }
-            }
-
-            // 移除所有下层邻居的连接
-            foreach (int lowerNeighborId in node.LowerNeighbors.ToList())
-            {
-                MapNode lowerNeighbor = GetNode(lowerNeighborId);
-                if (lowerNeighbor != null)
-                {
-                    lowerNeighbor.UpperNeighbors.Remove(nodeId);
-                }
-            }
-
-            // 从层级字典中移除
-            if (NodesByLayer.ContainsKey(node.Layer))
-            {
-                NodesByLayer[node.Layer].Remove(node);
-            }
-
-            // 如果是Boss节点，清除Boss节点ID
-            if (node.IsBoss)
-            {
-                BossNodeId = -1;
-            }
-
-            // 从节点字典中移除
-            Nodes.Remove(nodeId);
-        }
-
-        /// <summary>
         /// 添加有向边(从下层节点到上层节点)
         /// </summary>
         public void AddEdge(int fromNodeId, int toNodeId)
@@ -297,19 +249,6 @@ namespace MapSystem
             }
 
             return allPaths;
-        }
-
-        /// <summary>
-        /// 获取从指定节点到Boss的所有路径
-        /// </summary>
-        public List<List<int>> GetPathsFromNodeToBoss(int startNodeId)
-        {
-            if (BossNodeId == -1)
-            {
-                return new List<List<int>>();
-            }
-
-            return FindPaths(startNodeId, BossNodeId);
         }
 
         /// <summary>
