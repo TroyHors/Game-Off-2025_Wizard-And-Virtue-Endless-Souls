@@ -33,7 +33,7 @@ namespace MapSystem
         [Range(0f, 2f)]
         public float outDegreeVariance = 0.5f;
 
-        [Tooltip("连接跨度(节点可以连接到上层多少列范围内的节点)")]
+        [Tooltip("连接跨度(节点只能连接到列值差绝对值在这个范围内的上层节点)")]
         [Range(1, 5)]
         public int connectionSpan = 2;
 

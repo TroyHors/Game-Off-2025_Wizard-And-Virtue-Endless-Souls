@@ -32,13 +32,13 @@ namespace MapSystem
             // 阶段1: 生成底层节点
             GenerateBottomLayer(topology, config, random);
 
-            // 阶段2: 从下往上逐层生成节点和连接
-            for (int layer = 0; layer < config.height - 1; layer++)
+            // 阶段2: 从下往上逐层生成节点和连接(不包括顶层，顶层只包含Boss)
+            for (int layer = 0; layer < config.height - 2; layer++)
             {
                 GenerateLayerConnections(topology, layer, config, random);
             }
 
-            // 阶段3: 生成顶层Boss节点
+            // 阶段3: 生成顶层Boss节点(连接到倒数第二层)
             GenerateBossNode(topology, config, random);
 
             // 阶段4: 验证和修复
@@ -238,37 +238,51 @@ namespace MapSystem
 
         /// <summary>
         /// 生成顶层Boss节点
+        /// 确保顶层只包含Boss节点
         /// </summary>
         private static void GenerateBossNode(MapTopology topology, MapGenerationConfig config, System.Random random)
         {
             int topLayer = config.height - 1;
+            
+            // 确保顶层没有任何节点(除了Boss)
+            // 由于我们修改了生成逻辑，顶层不应该有节点，但为了安全起见检查一下
             List<MapNode> topLayerNodes = topology.GetNodesAtLayer(topLayer);
-
-            if (topLayerNodes.Count == 0)
+            if (topLayerNodes.Count > 0)
             {
-                // 如果顶层没有节点,创建一个Boss节点
-                int bossColumn = random.Next(config.width);
-                MapNode bossNode = topology.CreateNode(topLayer, bossColumn);
-                bossNode.IsBoss = true;
-                topology.BossNodeId = bossNode.NodeId;
-
-                // 连接到所有倒数第二层的节点
-                int secondLastLayer = topLayer - 1;
-                List<MapNode> secondLastNodes = topology.GetNodesAtLayer(secondLastLayer);
-                foreach (MapNode node in secondLastNodes)
+                // 如果顶层已经有节点，删除它们(不应该发生，但为了安全)
+                Debug.LogWarning($"[TopologyGenerator] 顶层已有 {topLayerNodes.Count} 个节点，将被删除，只保留Boss节点");
+                foreach (var node in topLayerNodes.ToList())
                 {
-                    topology.AddEdge(node.NodeId, bossNode.NodeId);
+                    // 移除所有连接
+                    foreach (int lowerId in node.LowerNeighbors.ToList())
+                    {
+                        MapNode lowerNode = topology.GetNode(lowerId);
+                        if (lowerNode != null)
+                        {
+                            lowerNode.UpperNeighbors.Remove(node.NodeId);
+                        }
+                    }
+                    // 从拓扑中移除节点
+                    topology.Nodes.Remove(node.NodeId);
+                    topology.NodesByLayer[topLayer].Remove(node);
                 }
             }
-            else
+
+            // 创建Boss节点
+            int bossColumn = config.width / 2; // Boss节点放在中间位置
+            MapNode bossNode = topology.CreateNode(topLayer, bossColumn);
+            bossNode.IsBoss = true;
+            topology.BossNodeId = bossNode.NodeId;
+
+            // 连接到所有倒数第二层的节点
+            int secondLastLayer = topLayer - 1;
+            List<MapNode> secondLastNodes = topology.GetNodesAtLayer(secondLastLayer);
+            foreach (MapNode node in secondLastNodes)
             {
-                // 将顶层的一个节点标记为Boss(选择中间位置的节点)
-                MapNode bossNode = topLayerNodes.OrderBy(n => Mathf.Abs(n.Column - config.width / 2)).First();
-                bossNode.IsBoss = true;
-                topology.BossNodeId = bossNode.NodeId;
+                topology.AddEdge(node.NodeId, bossNode.NodeId);
             }
 
-            Debug.Log($"[TopologyGenerator] Boss节点生成: Node[{topology.BossNodeId}]");
+            Debug.Log($"[TopologyGenerator] Boss节点生成: Node[{topology.BossNodeId}] L{topLayer}C{bossColumn}");
         }
 
         /// <summary>
@@ -361,11 +375,16 @@ namespace MapSystem
                 HashSet<int> reachable = GetReachableNodes(topology, bottomNode.NodeId);
                 if (!reachable.Contains(topology.BossNodeId))
                 {
-                    // 找到最接近Boss的可达节点
-                    MapNode closestNode = FindClosestReachableNode(topology, reachable, bossNode);
+                    // 找到最接近Boss的可达节点，且符合连接跨度限制
+                    MapNode closestNode = FindClosestReachableNode(topology, reachable, bossNode, config.connectionSpan);
                     if (closestNode != null && closestNode.Layer < bossNode.Layer)
                     {
-                        topology.AddEdge(closestNode.NodeId, bossNode.NodeId);
+                        // 检查连接跨度（Boss节点特殊处理，如果不符合跨度也允许连接以确保连通性）
+                        int columnDistance = Mathf.Abs(closestNode.Column - bossNode.Column);
+                        if (columnDistance <= config.connectionSpan || bossNode.Layer - closestNode.Layer == 1)
+                        {
+                            topology.AddEdge(closestNode.NodeId, bossNode.NodeId);
+                        }
                     }
                 }
             }
@@ -416,10 +435,24 @@ namespace MapSystem
                 {
                     int nextLayer = problemNode.Layer + 1;
                     List<MapNode> nextLayerNodes = topology.GetNodesAtLayer(nextLayer);
-                    if (nextLayerNodes.Count > 0)
+                    
+                    // 根据连接跨度筛选可连接的节点
+                    List<MapNode> validTargetNodes = nextLayerNodes.Where(node =>
                     {
-                        // 随机选择一个上层节点连接
-                        MapNode targetNode = nextLayerNodes[random.Next(nextLayerNodes.Count)];
+                        int columnDistance = Mathf.Abs(node.Column - problemNode.Column);
+                        return columnDistance <= config.connectionSpan;
+                    }).ToList();
+                    
+                    // 如果没有符合连接跨度的节点，使用所有节点（确保连通性）
+                    if (validTargetNodes.Count == 0)
+                    {
+                        validTargetNodes = nextLayerNodes;
+                    }
+                    
+                    if (validTargetNodes.Count > 0)
+                    {
+                        // 随机选择一个符合条件的上层节点连接
+                        MapNode targetNode = validTargetNodes[random.Next(validTargetNodes.Count)];
                         topology.AddEdge(problemNodeId, targetNode.NodeId);
                     }
                 }
@@ -430,10 +463,23 @@ namespace MapSystem
                     int prevLayer = problemNode.Layer - 1;
                     List<MapNode> prevLayerNodes = topology.GetNodesAtLayer(prevLayer);
                     
-                    if (prevLayerNodes.Count > 0)
+                    // 根据连接跨度筛选可连接的下层节点
+                    List<MapNode> validSourceNodes = prevLayerNodes.Where(node =>
                     {
-                        // 随机选择一个下层节点，让它连接到当前节点
-                        MapNode sourceNode = prevLayerNodes[random.Next(prevLayerNodes.Count)];
+                        int columnDistance = Mathf.Abs(problemNode.Column - node.Column);
+                        return columnDistance <= config.connectionSpan;
+                    }).ToList();
+                    
+                    // 如果没有符合连接跨度的节点，使用所有节点（确保连通性）
+                    if (validSourceNodes.Count == 0)
+                    {
+                        validSourceNodes = prevLayerNodes;
+                    }
+                    
+                    if (validSourceNodes.Count > 0)
+                    {
+                        // 随机选择一个符合条件的下层节点，让它连接到当前节点
+                        MapNode sourceNode = validSourceNodes[random.Next(validSourceNodes.Count)];
                         topology.AddEdge(sourceNode.NodeId, problemNodeId);
                         
                         // 更新可达集合
@@ -472,12 +518,14 @@ namespace MapSystem
         }
 
         /// <summary>
-        /// 找到最接近目标节点的可达节点
+        /// 找到最接近目标节点的可达节点（优先选择符合连接跨度限制的节点）
         /// </summary>
-        private static MapNode FindClosestReachableNode(MapTopology topology, HashSet<int> reachable, MapNode target)
+        private static MapNode FindClosestReachableNode(MapTopology topology, HashSet<int> reachable, MapNode target, int connectionSpan)
         {
-            MapNode closest = null;
-            int minDistance = int.MaxValue;
+            MapNode closestWithinSpan = null;
+            MapNode closestOverall = null;
+            int minDistanceWithinSpan = int.MaxValue;
+            int minDistanceOverall = int.MaxValue;
 
             foreach (int nodeId in reachable)
             {
@@ -487,15 +535,28 @@ namespace MapSystem
                     continue;
                 }
 
-                int distance = Mathf.Abs(node.Column - target.Column) + (target.Layer - node.Layer);
-                if (distance < minDistance)
+                int columnDistance = Mathf.Abs(node.Column - target.Column);
+                int layerDistance = target.Layer - node.Layer;
+                int totalDistance = columnDistance + layerDistance * 10; // 层数距离权重更大
+
+                // 检查是否符合连接跨度限制
+                bool withinSpan = columnDistance <= connectionSpan;
+
+                if (withinSpan && totalDistance < minDistanceWithinSpan)
                 {
-                    minDistance = distance;
-                    closest = node;
+                    minDistanceWithinSpan = totalDistance;
+                    closestWithinSpan = node;
+                }
+
+                if (totalDistance < minDistanceOverall)
+                {
+                    minDistanceOverall = totalDistance;
+                    closestOverall = node;
                 }
             }
 
-            return closest;
+            // 优先返回符合连接跨度限制的节点，如果没有则返回最近的节点
+            return closestWithinSpan ?? closestOverall;
         }
 
         /// <summary>
