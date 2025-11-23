@@ -25,30 +25,50 @@ namespace MapSystem
             }
 
             // 设置随机种子
-            System.Random random = seed >= 0 ? new System.Random(seed) : new System.Random();
+            int baseSeed = seed >= 0 ? seed : System.Environment.TickCount;
+            System.Random random = new System.Random(baseSeed);
 
-            MapTopology topology = new MapTopology(config.height, config.width);
+            const int maxRetries = 50; // 最多重试50次
+            int retryCount = 0;
 
-            // 阶段1: 生成底层节点
-            GenerateBottomLayer(topology, config, random);
-
-            // 阶段2: 从下往上逐层生成节点和连接(不包括顶层，顶层只包含Boss)
-            for (int layer = 0; layer < config.height - 2; layer++)
+            while (retryCount < maxRetries)
             {
-                GenerateLayerConnections(topology, layer, config, random);
+                // 每次重试使用不同的种子
+                int currentSeed = baseSeed + retryCount;
+                random = new System.Random(currentSeed);
+
+                MapTopology topology = new MapTopology(config.height, config.width);
+
+                // 阶段1: 生成底层节点
+                GenerateBottomLayer(topology, config, random);
+
+                // 阶段2: 从下往上逐层生成节点和连接(不包括顶层，顶层只包含Boss)
+                for (int layer = 0; layer < config.height - 2; layer++)
+                {
+                    GenerateLayerConnections(topology, layer, config, random);
+                }
+
+                // 阶段3: 生成顶层Boss节点(连接到倒数第二层)
+                GenerateBossNode(topology, config, random);
+
+                // 阶段4: 验证和修复
+                ValidateAndFix(topology, config, random);
+
+                // 阶段5: 检查路径多样性
+                if (CheckPathDiversity(topology))
+                {
+                    Debug.Log($"[TopologyGenerator] 拓扑生成完成（重试 {retryCount} 次） {topology.GetStatistics()}");
+                    return topology;
+                }
+                else
+                {
+                    Debug.LogWarning($"[TopologyGenerator] 路径多样性不足，重新生成（重试 {retryCount + 1}/{maxRetries}）");
+                    retryCount++;
+                }
             }
 
-            // 阶段3: 生成顶层Boss节点(连接到倒数第二层)
-            GenerateBossNode(topology, config, random);
-
-            // 阶段4: 验证和修复
-            ValidateAndFix(topology, config, random);
-
-            // 阶段5: 优化节点列位置，最小化连接距离
-            OptimizeNodeColumns(topology, config);
-
-            Debug.Log($"[TopologyGenerator] 拓扑生成完成 {topology.GetStatistics()}");
-            return topology;
+            Debug.LogError($"[TopologyGenerator] 达到最大重试次数({maxRetries})，无法生成满足路径多样性要求的地图");
+            return null;
         }
 
         /// <summary>
@@ -290,15 +310,15 @@ namespace MapSystem
         /// </summary>
         private static void ValidateAndFix(MapTopology topology, MapGenerationConfig config, System.Random random)
         {
-            int maxFixAttempts = 5;
-            int attempts = 0;
+            int maxIterations = 100; // 防止无限循环
+            int iterations = 0;
 
-            while (attempts < maxFixAttempts)
+            while (iterations < maxIterations)
             {
                 // 检查连通性
                 bool isConnected = topology.CheckConnectivity();
                 
-                // 检查死节点和不可达节点
+                // 检查死节点
                 List<int> deadEnds = topology.FindDeadEndNodes();
                 
                 // 获取所有底层节点
@@ -313,37 +333,60 @@ namespace MapSystem
                     }
                 }
                 
-                List<MapNode> unreachableNodes = topology.Nodes.Values
+                // 找到所有不可达的节点（不包括Boss）
+                List<int> unreachableNodeIds = topology.Nodes.Values
                     .Where(node => !node.IsBoss && !reachableFromBottom.Contains(node.NodeId))
+                    .Select(node => node.NodeId)
                     .ToList();
 
                 // 如果连通性正常且没有死节点和不可达节点，退出循环
-                if (isConnected && deadEnds.Count == 0 && unreachableNodes.Count == 0)
+                if (isConnected && deadEnds.Count == 0 && unreachableNodeIds.Count == 0)
                 {
+                    Debug.Log($"[TopologyGenerator] 地图验证通过，共检查 {iterations} 次");
                     break;
                 }
 
-                // 修复连通性
-                if (!isConnected)
+                // 删除所有死节点和不可达节点
+                List<int> nodesToDelete = new List<int>();
+                nodesToDelete.AddRange(deadEnds);
+                nodesToDelete.AddRange(unreachableNodeIds);
+                nodesToDelete = nodesToDelete.Distinct().ToList();
+
+                if (nodesToDelete.Count > 0)
                 {
-                    Debug.LogWarning("[TopologyGenerator] 连通性检查失败,尝试修复...");
+                    Debug.Log($"[TopologyGenerator] 删除 {nodesToDelete.Count} 个问题节点（死节点: {deadEnds.Count}, 不可达节点: {unreachableNodeIds.Count}）");
+                    foreach (int nodeId in nodesToDelete)
+                    {
+                        topology.RemoveNode(nodeId);
+                    }
+                }
+
+                // 修复连通性（如果删除节点后导致连通性问题）
+                if (!topology.CheckConnectivity())
+                {
+                    Debug.LogWarning("[TopologyGenerator] 删除节点后连通性检查失败,尝试修复...");
                     FixConnectivity(topology, config, random);
                 }
 
-                // 修复死节点和不可达节点
-                if (deadEnds.Count > 0 || unreachableNodes.Count > 0)
-                {
-                    Debug.LogWarning($"[TopologyGenerator] 发现 {deadEnds.Count} 个死节点, {unreachableNodes.Count} 个不可达节点,尝试修复...");
-                    FixDeadEnds(topology, deadEnds, config, random);
-                }
+                iterations++;
+            }
 
-                attempts++;
+            if (iterations >= maxIterations)
+            {
+                Debug.LogError("[TopologyGenerator] 达到最大迭代次数，地图可能仍有问题");
             }
 
             // 最终验证
             if (!topology.CheckConnectivity())
             {
-                Debug.LogError("[TopologyGenerator] 修复后连通性仍然失败");
+                Debug.LogError("[TopologyGenerator] 最终验证：连通性仍然失败");
+            }
+
+            // 最终检查死节点
+            List<int> finalDeadEnds = topology.FindDeadEndNodes();
+            if (finalDeadEnds.Count > 0)
+            {
+                Debug.LogError($"[TopologyGenerator] 最终验证：仍有 {finalDeadEnds.Count} 个死节点");
             }
         }
 
@@ -390,104 +433,6 @@ namespace MapSystem
             }
         }
 
-        /// <summary>
-        /// 修复死节点和不可达节点
-        /// </summary>
-        private static void FixDeadEnds(MapTopology topology, List<int> deadEndIds, MapGenerationConfig config, System.Random random)
-        {
-            // 获取所有底层节点
-            List<MapNode> bottomLayerNodes = topology.GetNodesAtLayer(0);
-            if (bottomLayerNodes.Count == 0)
-            {
-                return;
-            }
-
-            // 计算从所有底层节点可达的节点集合
-            HashSet<int> reachableFromBottom = new HashSet<int>();
-            foreach (MapNode bottomNode in bottomLayerNodes)
-            {
-                HashSet<int> reachable = GetReachableNodes(topology, bottomNode.NodeId);
-                reachableFromBottom.UnionWith(reachable);
-            }
-
-            // 找到所有不可达的节点
-            List<MapNode> unreachableNodes = topology.Nodes.Values
-                .Where(node => !node.IsBoss && !reachableFromBottom.Contains(node.NodeId))
-                .ToList();
-
-            // 修复死节点和不可达节点
-            List<int> allProblemNodes = new List<int>(deadEndIds);
-            allProblemNodes.AddRange(unreachableNodes.Select(n => n.NodeId));
-            allProblemNodes = allProblemNodes.Distinct().ToList();
-
-            int topLayer = config.height - 1;
-
-            foreach (int problemNodeId in allProblemNodes)
-            {
-                MapNode problemNode = topology.GetNode(problemNodeId);
-                if (problemNode == null)
-                {
-                    continue;
-                }
-
-                // 如果是死节点(没有向上连接)，先修复向上连接
-                if (problemNode.OutDegree == 0 && problemNode.Layer < topLayer)
-                {
-                    int nextLayer = problemNode.Layer + 1;
-                    List<MapNode> nextLayerNodes = topology.GetNodesAtLayer(nextLayer);
-                    
-                    // 根据连接跨度筛选可连接的节点
-                    List<MapNode> validTargetNodes = nextLayerNodes.Where(node =>
-                    {
-                        int columnDistance = Mathf.Abs(node.Column - problemNode.Column);
-                        return columnDistance <= config.connectionSpan;
-                    }).ToList();
-                    
-                    // 如果没有符合连接跨度的节点，使用所有节点（确保连通性）
-                    if (validTargetNodes.Count == 0)
-                    {
-                        validTargetNodes = nextLayerNodes;
-                    }
-                    
-                    if (validTargetNodes.Count > 0)
-                    {
-                        // 随机选择一个符合条件的上层节点连接
-                        MapNode targetNode = validTargetNodes[random.Next(validTargetNodes.Count)];
-                        topology.AddEdge(problemNodeId, targetNode.NodeId);
-                    }
-                }
-
-                // 如果节点不可达，随机连接到下层节点，确保能被到达
-                if (!reachableFromBottom.Contains(problemNodeId) && problemNode.Layer > 0)
-                {
-                    int prevLayer = problemNode.Layer - 1;
-                    List<MapNode> prevLayerNodes = topology.GetNodesAtLayer(prevLayer);
-                    
-                    // 根据连接跨度筛选可连接的下层节点
-                    List<MapNode> validSourceNodes = prevLayerNodes.Where(node =>
-                    {
-                        int columnDistance = Mathf.Abs(problemNode.Column - node.Column);
-                        return columnDistance <= config.connectionSpan;
-                    }).ToList();
-                    
-                    // 如果没有符合连接跨度的节点，使用所有节点（确保连通性）
-                    if (validSourceNodes.Count == 0)
-                    {
-                        validSourceNodes = prevLayerNodes;
-                    }
-                    
-                    if (validSourceNodes.Count > 0)
-                    {
-                        // 随机选择一个符合条件的下层节点，让它连接到当前节点
-                        MapNode sourceNode = validSourceNodes[random.Next(validSourceNodes.Count)];
-                        topology.AddEdge(sourceNode.NodeId, problemNodeId);
-                        
-                        // 更新可达集合
-                        reachableFromBottom.Add(problemNodeId);
-                    }
-                }
-            }
-        }
 
         /// <summary>
         /// 获取从指定节点可达的所有节点
@@ -560,368 +505,36 @@ namespace MapSystem
         }
 
         /// <summary>
-        /// 优化节点列位置，最小化相邻两层之间连接的列值差绝对值之和
+        /// 检查路径多样性（每个底层节点到Boss至少要有2条路径）
         /// </summary>
-        private static void OptimizeNodeColumns(MapTopology topology, MapGenerationConfig config)
+        private static bool CheckPathDiversity(MapTopology topology)
         {
-            // 从最底层往上，依次对每两层进行优化
-            for (int layer = 0; layer < config.height - 1; layer++)
+            if (topology.BossNodeId == -1)
             {
-                OptimizeTwoLayers(topology, layer, layer + 1, config);
+                return false;
             }
+
+            // 获取所有底层节点
+            List<MapNode> bottomLayerNodes = topology.GetNodesAtLayer(0);
+            if (bottomLayerNodes.Count == 0)
+            {
+                return false;
+            }
+
+            // 检查每个底层节点到Boss的路径数量
+            foreach (MapNode bottomNode in bottomLayerNodes)
+            {
+                List<List<int>> paths = topology.GetPathsFromNodeToBoss(bottomNode.NodeId);
+                if (paths.Count < 2)
+                {
+                    Debug.LogWarning($"[TopologyGenerator] 底层节点 {bottomNode.NodeId} 到Boss只有 {paths.Count} 条路径（需要至少2条）");
+                    return false;
+                }
+            }
+
+            return true;
         }
 
-        /// <summary>
-        /// 优化相邻两层的节点列位置
-        /// 使用回溯算法找到全局最优解
-        /// </summary>
-        private static void OptimizeTwoLayers(MapTopology topology, int lowerLayer, int upperLayer, MapGenerationConfig config)
-        {
-            List<MapNode> lowerNodes = topology.GetNodesAtLayer(lowerLayer);
-            List<MapNode> upperNodes = topology.GetNodesAtLayer(upperLayer);
-
-            if (lowerNodes.Count == 0 || upperNodes.Count == 0)
-            {
-                return;
-            }
-
-            // 计算当前连接的列值差绝对值之和
-            int currentTotalDistance = CalculateTotalColumnDistance(topology, lowerNodes, upperNodes);
-
-            // 如果上层节点数太多，给出警告但继续尝试（可能较慢）
-            const int WARNING_THRESHOLD = 10;
-            if (upperNodes.Count > WARNING_THRESHOLD)
-            {
-                Debug.LogWarning($"[TopologyGenerator] 上层节点数较多({upperNodes.Count})，优化可能较慢");
-            }
-
-            // 获取下层节点已使用的列位置
-            Dictionary<int, int> lowerNodeColumns = new Dictionary<int, int>();
-            HashSet<int> usedColumns = new HashSet<int>();
-            foreach (var lowerNode in lowerNodes)
-            {
-                lowerNodeColumns[lowerNode.NodeId] = lowerNode.Column;
-                usedColumns.Add(lowerNode.Column);
-            }
-
-            // 使用回溯算法找到最优排列
-            Dictionary<int, int> bestAssignment = new Dictionary<int, int>();
-            int minTotalDistance = int.MaxValue;
-
-            // 为每个上层节点准备可用的列位置
-            List<int> availableColumns = Enumerable.Range(0, config.width).ToList();
-            
-            // 使用回溯算法尝试所有可能的排列
-            BacktrackOptimize(upperNodes, 0, availableColumns, usedColumns, lowerNodeColumns, topology, 
-                lowerLayer, new Dictionary<int, int>(), ref bestAssignment, ref minTotalDistance);
-
-            // 应用最优解
-            if (bestAssignment.Count > 0 && minTotalDistance < currentTotalDistance)
-            {
-                foreach (var upperNode in upperNodes)
-                {
-                    if (bestAssignment.ContainsKey(upperNode.NodeId))
-                    {
-                        upperNode.Column = bestAssignment[upperNode.NodeId];
-                    }
-                }
-
-                Debug.Log($"[TopologyGenerator] 优化层 {lowerLayer}-{upperLayer}: 距离从 {currentTotalDistance} 减少到 {minTotalDistance}");
-            }
-            else if (bestAssignment.Count > 0)
-            {
-                Debug.Log($"[TopologyGenerator] 层 {lowerLayer}-{upperLayer}: 当前已是最优解，距离为 {currentTotalDistance}");
-            }
-        }
-
-        /// <summary>
-        /// 回溯算法：尝试所有可能的列位置分配，找到全局最优解
-        /// </summary>
-        private static void BacktrackOptimize(
-            List<MapNode> upperNodes,
-            int nodeIndex,
-            List<int> availableColumns,
-            HashSet<int> usedColumns,
-            Dictionary<int, int> lowerNodeColumns,
-            MapTopology topology,
-            int lowerLayer,
-            Dictionary<int, int> currentAssignment,
-            ref Dictionary<int, int> bestAssignment,
-            ref int minTotalDistance)
-        {
-            // 如果已经处理完所有节点，计算总距离
-            if (nodeIndex >= upperNodes.Count)
-            {
-                int totalDistance = CalculateTotalDistanceWithAssignment(topology, lowerNodeColumns, currentAssignment, upperNodes, lowerLayer);
-                if (totalDistance < minTotalDistance)
-                {
-                    minTotalDistance = totalDistance;
-                    bestAssignment = new Dictionary<int, int>(currentAssignment);
-                }
-                return;
-            }
-
-            MapNode currentNode = upperNodes[nodeIndex];
-
-            // 获取该节点的所有下层连接节点
-            List<MapNode> connectedLowerNodes = currentNode.LowerNeighbors
-                .Select(id => topology.GetNode(id))
-                .Where(n => n != null && n.Layer == lowerLayer)
-                .ToList();
-
-            // 计算每个列位置的候选值，按距离排序（剪枝优化）
-            List<(int column, int distance)> columnDistances = new List<(int, int)>();
-            
-            foreach (int col in availableColumns)
-            {
-                int distance = 0;
-                if (connectedLowerNodes.Count > 0)
-                {
-                    // 计算该列位置与所有连接的下层节点的距离
-                    foreach (var lowerNode in connectedLowerNodes)
-                    {
-                        if (lowerNodeColumns.ContainsKey(lowerNode.NodeId))
-                        {
-                            distance += Mathf.Abs(col - lowerNodeColumns[lowerNode.NodeId]);
-                        }
-                    }
-                }
-                columnDistances.Add((col, distance));
-            }
-
-            // 按距离排序，优先尝试距离小的列（剪枝优化）
-            columnDistances = columnDistances.OrderBy(x => x.distance).ToList();
-
-            // 尝试每个候选列位置
-            foreach (var (col, distance) in columnDistances)
-            {
-                // 计算当前部分分配的最小可能距离（剪枝）
-                int currentPartialDistance = CalculatePartialDistance(topology, lowerNodeColumns, currentAssignment, 
-                    currentNode, col, connectedLowerNodes);
-                
-                // 如果当前部分距离已经大于等于已知最优解，剪枝
-                if (currentPartialDistance >= minTotalDistance)
-                {
-                    continue;
-                }
-
-                // 检查是否可以使用该列（允许重复使用列，因为可能有多个节点）
-                bool columnWasUsed = usedColumns.Contains(col);
-                
-                // 分配列位置
-                currentAssignment[currentNode.NodeId] = col;
-                if (!columnWasUsed)
-                {
-                    usedColumns.Add(col);
-                }
-
-                // 递归处理下一个节点
-                BacktrackOptimize(upperNodes, nodeIndex + 1, availableColumns, usedColumns, 
-                    lowerNodeColumns, topology, lowerLayer, currentAssignment, 
-                    ref bestAssignment, ref minTotalDistance);
-
-                // 回溯：恢复状态
-                currentAssignment.Remove(currentNode.NodeId);
-                if (!columnWasUsed)
-                {
-                    usedColumns.Remove(col);
-                }
-
-                // 如果已经找到最优解（距离为0），可以提前退出
-                if (minTotalDistance == 0)
-                {
-                    break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// 计算部分分配的距离（用于剪枝）
-        /// </summary>
-        private static int CalculatePartialDistance(
-            MapTopology topology,
-            Dictionary<int, int> lowerNodeColumns,
-            Dictionary<int, int> currentAssignment,
-            MapNode currentNode,
-            int candidateColumn,
-            List<MapNode> connectedLowerNodes)
-        {
-            int distance = 0;
-
-            // 计算当前节点与连接的下层节点的距离
-            foreach (var lowerNode in connectedLowerNodes)
-            {
-                if (lowerNodeColumns.ContainsKey(lowerNode.NodeId))
-                {
-                    distance += Mathf.Abs(candidateColumn - lowerNodeColumns[lowerNode.NodeId]);
-                }
-            }
-
-            // 计算已分配节点与下层节点的距离
-            foreach (var kvp in currentAssignment)
-            {
-                MapNode assignedNode = topology.GetNode(kvp.Key);
-                if (assignedNode == null)
-                {
-                    continue;
-                }
-
-                foreach (int lowerNeighborId in assignedNode.LowerNeighbors)
-                {
-                    if (lowerNodeColumns.ContainsKey(lowerNeighborId))
-                    {
-                        distance += Mathf.Abs(kvp.Value - lowerNodeColumns[lowerNeighborId]);
-                    }
-                }
-            }
-
-            return distance;
-        }
-
-        /// <summary>
-        /// 计算给定分配方案下的总距离
-        /// </summary>
-        private static int CalculateTotalDistanceWithAssignment(
-            MapTopology topology,
-            Dictionary<int, int> lowerNodeColumns,
-            Dictionary<int, int> upperNodeAssignment,
-            List<MapNode> upperNodes,
-            int lowerLayer)
-        {
-            int totalDistance = 0;
-
-            foreach (var lowerNodeId in lowerNodeColumns.Keys)
-            {
-                MapNode lowerNode = topology.GetNode(lowerNodeId);
-                if (lowerNode == null)
-                {
-                    continue;
-                }
-
-                int lowerCol = lowerNodeColumns[lowerNodeId];
-
-                foreach (int upperNeighborId in lowerNode.UpperNeighbors)
-                {
-                    if (upperNodeAssignment.ContainsKey(upperNeighborId))
-                    {
-                        int upperCol = upperNodeAssignment[upperNeighborId];
-                        totalDistance += Mathf.Abs(lowerCol - upperCol);
-                    }
-                }
-            }
-
-            return totalDistance;
-        }
-
-        /// <summary>
-        /// 计算两层之间所有连接的列值差绝对值之和
-        /// </summary>
-        private static int CalculateTotalColumnDistance(MapTopology topology, List<MapNode> lowerNodes, List<MapNode> upperNodes)
-        {
-            int totalDistance = 0;
-
-            foreach (var lowerNode in lowerNodes)
-            {
-                foreach (int upperNeighborId in lowerNode.UpperNeighbors)
-                {
-                    MapNode upperNode = topology.GetNode(upperNeighborId);
-                    if (upperNode != null && upperNodes.Contains(upperNode))
-                    {
-                        totalDistance += Mathf.Abs(lowerNode.Column - upperNode.Column);
-                    }
-                }
-            }
-
-            return totalDistance;
-        }
-
-        /// <summary>
-        /// 找到最优列位置，使得与所有连接节点的列值差绝对值之和最小
-        /// </summary>
-        private static int FindOptimalColumn(List<MapNode> connectedNodes, Dictionary<int, int> nodeToColumn, List<int> usedColumns, int maxWidth)
-        {
-            if (connectedNodes.Count == 0)
-            {
-                return FindUnusedColumn(usedColumns, maxWidth);
-            }
-
-            // 获取所有连接节点的列位置
-            List<int> connectedColumns = connectedNodes
-                .Where(n => nodeToColumn.ContainsKey(n.NodeId))
-                .Select(n => nodeToColumn[n.NodeId])
-                .ToList();
-
-            if (connectedColumns.Count == 0)
-            {
-                return FindUnusedColumn(usedColumns, maxWidth);
-            }
-
-            // 计算所有可能的列位置的总距离
-            int bestColumn = 0;
-            int minTotalDistance = int.MaxValue;
-
-            // 遍历所有可能的列位置
-            for (int col = 0; col < maxWidth; col++)
-            {
-                // 如果该列已被使用，跳过
-                if (usedColumns.Contains(col))
-                {
-                    continue;
-                }
-
-                // 计算该位置的总距离
-                int totalDistance = 0;
-                foreach (int connectedCol in connectedColumns)
-                {
-                    totalDistance += Mathf.Abs(col - connectedCol);
-                }
-
-                if (totalDistance < minTotalDistance)
-                {
-                    minTotalDistance = totalDistance;
-                    bestColumn = col;
-                }
-            }
-
-            // 如果所有列都被使用，选择距离最小的已使用列
-            if (minTotalDistance == int.MaxValue)
-            {
-                // 所有列都被使用，选择距离最小的列
-                for (int col = 0; col < maxWidth; col++)
-                {
-                    int totalDistance = 0;
-                    foreach (int connectedCol in connectedColumns)
-                    {
-                        totalDistance += Mathf.Abs(col - connectedCol);
-                    }
-
-                    if (totalDistance < minTotalDistance)
-                    {
-                        minTotalDistance = totalDistance;
-                        bestColumn = col;
-                    }
-                }
-            }
-
-            return bestColumn;
-        }
-
-        /// <summary>
-        /// 找到一个未使用的列位置
-        /// </summary>
-        private static int FindUnusedColumn(List<int> usedColumns, int maxWidth)
-        {
-            for (int col = 0; col < maxWidth; col++)
-            {
-                if (!usedColumns.Contains(col))
-                {
-                    return col;
-                }
-            }
-
-            // 如果所有列都被使用，返回第一个列
-            return 0;
-        }
     }
 }
 

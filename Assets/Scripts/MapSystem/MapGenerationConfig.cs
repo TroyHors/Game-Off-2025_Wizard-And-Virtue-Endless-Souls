@@ -128,6 +128,10 @@ namespace MapSystem
         [Tooltip("最大出现次数(全图)")]
         public int maxCount = -1; // -1表示无限制
 
+        [Tooltip("最小间隔层数(两个相同类型节点之间最小相隔的层数,0表示无限制)")]
+        [Range(0, 10)]
+        public int minLayerInterval = 0;
+
         [Header("可视化")]
         [Tooltip("该节点类型对应的图像素材")]
         public Sprite sprite;

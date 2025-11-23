@@ -82,15 +82,20 @@ namespace MapSystem
         {
             // 统计已分配的数量
             Dictionary<string, int> assignedCounts = new Dictionary<string, int>();
+            // 记录每个节点类型最后出现的层数
+            Dictionary<string, int> lastLayerOfType = new Dictionary<string, int>();
             foreach (var typeConfig in config.nodeTypeConfigs)
             {
                 assignedCounts[typeConfig.nodeType] = 0;
+                lastLayerOfType[typeConfig.nodeType] = -1; // -1表示还未出现过
             }
 
-            // 获取所有非Boss节点，随机打乱顺序，避免底层集中分配
+            // 获取所有非Boss节点，按层分组，每层内随机打乱顺序，避免底层集中分配
             List<MapNode> nodesToAssign = topology.Nodes.Values
                 .Where(node => !node.IsBoss)
-                .OrderBy(n => random.Next()) // 随机打乱顺序
+                .GroupBy(node => node.Layer)
+                .OrderBy(group => group.Key) // 按层排序
+                .SelectMany(group => group.OrderBy(n => random.Next())) // 每层内随机打乱
                 .ToList();
 
             // 为每个节点分配类型
@@ -98,12 +103,14 @@ namespace MapSystem
             {
                 // 计算当前层级的权重
                 float normalizedLayer = (float)node.Layer / (config.height - 1);
-                Dictionary<string, float> weights = CalculateWeightsForLayer(config, normalizedLayer, assignedCounts);
+                Dictionary<string, float> weights = CalculateWeightsForLayer(
+                    config, normalizedLayer, assignedCounts, node.Layer, lastLayerOfType);
 
                 // 根据权重随机选择
                 string selectedType = SelectTypeByWeight(weights, random);
                 node.NodeType = selectedType;
                 assignedCounts[selectedType]++;
+                lastLayerOfType[selectedType] = node.Layer; // 更新最后出现的层数
             }
 
             Debug.Log($"[ContentFiller] 节点类型分配完成");
@@ -115,7 +122,9 @@ namespace MapSystem
         private static Dictionary<string, float> CalculateWeightsForLayer(
             MapGenerationConfig config, 
             float normalizedLayer, 
-            Dictionary<string, int> assignedCounts)
+            Dictionary<string, int> assignedCounts,
+            int currentLayer,
+            Dictionary<string, int> lastLayerOfType)
         {
             Dictionary<string, float> weights = new Dictionary<string, float>();
 
@@ -158,6 +167,24 @@ namespace MapSystem
                     }
                     
                     weight *= urgencyMultiplier;
+                }
+
+                // 检查最小间隔层数限制
+                if (typeConfig.minLayerInterval > 0)
+                {
+                    int lastLayer = lastLayerOfType.ContainsKey(typeConfig.nodeType) 
+                        ? lastLayerOfType[typeConfig.nodeType] 
+                        : -1;
+                    
+                    if (lastLayer >= 0)
+                    {
+                        int layerDistance = currentLayer - lastLayer;
+                        if (layerDistance < typeConfig.minLayerInterval)
+                        {
+                            // 违反最小间隔要求，权重设为0
+                            weight = 0;
+                        }
+                    }
                 }
 
                 weights[typeConfig.nodeType] = weight;
@@ -272,7 +299,14 @@ namespace MapSystem
                     // 重新分配类型
                     float normalizedLayer = (float)node.Layer / (config.height - 1);
                     Dictionary<string, int> dummyCounts = new Dictionary<string, int>();
-                    Dictionary<string, float> weights = CalculateWeightsForLayer(config, normalizedLayer, dummyCounts);
+                    Dictionary<string, int> dummyLastLayers = new Dictionary<string, int>();
+                    // 在调整阶段，暂时不考虑最小间隔限制（使用-1表示未出现过）
+                    foreach (var typeConfig in config.nodeTypeConfigs)
+                    {
+                        dummyLastLayers[typeConfig.nodeType] = -1;
+                    }
+                    Dictionary<string, float> weights = CalculateWeightsForLayer(
+                        config, normalizedLayer, dummyCounts, node.Layer, dummyLastLayers);
                     string newType = SelectTypeByWeight(weights, random);
                     node.NodeType = newType;
                 }
