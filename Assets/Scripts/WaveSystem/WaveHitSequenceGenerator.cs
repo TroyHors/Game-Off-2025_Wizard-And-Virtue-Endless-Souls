@@ -92,7 +92,7 @@ namespace WaveSystem
                 
                 if (target == null)
                 {
-                    Debug.LogWarning($"[WaveHitSequenceGenerator] 位置 {position} 的波峰无法找到目标（攻击方向：{(peak.AttackDirection ? "攻向玩家" : "攻向敌人")}）");
+                    Debug.LogWarning($"[WaveHitSequenceGenerator] 位置 {position} 的波峰无法找到目标（攻击方向：{(peak.AttackDirection ? "攻向敌人" : "攻向玩家")}）");
                     continue;
                 }
 

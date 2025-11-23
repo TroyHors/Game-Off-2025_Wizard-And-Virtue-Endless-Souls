@@ -20,7 +20,7 @@ namespace WaveSystem
 
         /// <summary>
         /// 波的攻击方向
-        /// null表示空波（没有波峰），true表示攻向玩家，false表示不攻向玩家
+        /// null表示空波（没有波峰），true表示攻向敌人，false表示攻向玩家
         /// 同一个波中的所有波峰必须具有相同的攻击方向
         /// </summary>
         public bool? AttackDirection { get; private set; } = null;
@@ -71,7 +71,7 @@ namespace WaveSystem
                 // 波已有方向，检查是否一致
                 if (AttackDirection.Value != peak.AttackDirection)
                 {
-                    Debug.LogError($"[Wave] 尝试添加不同方向的波峰！波的方向为{(AttackDirection.Value ? "攻向玩家" : "不攻向玩家")}，但波峰的方向为{(peak.AttackDirection ? "攻向玩家" : "不攻向玩家")}。位置{position}的波峰已被拒绝添加。");
+                    Debug.LogError($"[Wave] 尝试添加不同方向的波峰！波的方向为{(AttackDirection.Value ? "攻向敌人" : "攻向玩家")}，但波峰的方向为{(peak.AttackDirection ? "攻向敌人" : "攻向玩家")}。位置{position}的波峰已被拒绝添加。");
                     return;
                 }
             }
@@ -89,7 +89,7 @@ namespace WaveSystem
         /// </summary>
         /// <param name="position">位置</param>
         /// <param name="value">强度值</param>
-        /// <param name="attackDirection">攻击方向（true=攻向玩家）</param>
+        /// <param name="attackDirection">攻击方向（true=攻向敌人）</param>
         public void AddPeak(int position, int value, bool attackDirection)
         {
             AddPeak(position, new WavePeak(value, attackDirection));

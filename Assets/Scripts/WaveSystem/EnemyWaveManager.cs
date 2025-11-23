@@ -42,7 +42,6 @@ namespace WaveSystem
 
         /// <summary>
         /// 设置当前敌人的波
-        /// 敌人波应该攻击玩家（AttackDirection = true）
         /// </summary>
         /// <param name="wave">要设置的波</param>
         public void SetEnemyWave(Wave wave)
@@ -56,11 +55,6 @@ namespace WaveSystem
             }
 
             currentEnemyWave = wave.Clone();
-            // 确保敌人波方向为true（攻向玩家）
-            if (!currentEnemyWave.IsEmpty && currentEnemyWave.AttackDirection != true)
-            {
-                currentEnemyWave.SetAttackDirection(true);
-            }
             currentPresetIndex = -1; // 使用自定义波，不再使用预设
         }
 
@@ -85,11 +79,6 @@ namespace WaveSystem
 
             // 从 WaveData 创建 Wave
             currentEnemyWave = Wave.FromData(presetData);
-            // 确保敌人波方向为true（攻向玩家）
-            if (!currentEnemyWave.IsEmpty && currentEnemyWave.AttackDirection != true)
-            {
-                currentEnemyWave.SetAttackDirection(true);
-            }
             currentPresetIndex = presetIndex;
 
             Debug.Log($"[EnemyWaveManager] 加载预设波 {presetIndex}，包含 {currentEnemyWave.PeakCount} 个波峰");

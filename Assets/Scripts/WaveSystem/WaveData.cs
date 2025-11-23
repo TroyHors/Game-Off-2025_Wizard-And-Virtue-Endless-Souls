@@ -13,7 +13,7 @@ namespace WaveSystem
     {
         /// <summary>
         /// 波的攻击方向
-        /// true表示攻向玩家，false表示不攻向玩家
+        /// true表示攻向敌人，false表示攻向玩家
         /// </summary>
         public bool AttackDirection;
 

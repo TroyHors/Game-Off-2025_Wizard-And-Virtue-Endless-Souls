@@ -18,7 +18,7 @@ namespace WaveSystem
 
         /// <summary>
         /// 攻击方向
-        /// true表示攻向玩家，false表示不攻向玩家（或攻向其他方向）
+        /// true表示攻向敌人，false表示攻向玩家
         /// </summary>
         public bool AttackDirection { get; set; }
 
@@ -26,7 +26,7 @@ namespace WaveSystem
         /// 构造函数
         /// </summary>
         /// <param name="value">强度值</param>
-        /// <param name="attackDirection">攻击方向（true=攻向玩家）</param>
+        /// <param name="attackDirection">攻击方向（true=攻向敌人）</param>
         public WavePeak(int value, bool attackDirection)
         {
             Value = value;
@@ -44,7 +44,7 @@ namespace WaveSystem
 
         public override string ToString()
         {
-            return $"WavePeak(Value:{Value}, Dir:{(AttackDirection ? "Player" : "Other")})";
+            return $"WavePeak(Value:{Value}, Dir:{(AttackDirection ? "Enemy" : "Player")})";
         }
     }
 }

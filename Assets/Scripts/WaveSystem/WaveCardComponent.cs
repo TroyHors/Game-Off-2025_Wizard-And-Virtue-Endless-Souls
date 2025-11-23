@@ -93,13 +93,13 @@ namespace WaveSystem
         {
             if (waveData != null)
             {
-                // 确保方向为false（朝向敌人）
-                if (waveData.AttackDirection != false)
+                // 确保方向为true（朝向敌人）
+                if (waveData.AttackDirection != true)
                 {
-                    waveData.AttackDirection = false;
+                    waveData.AttackDirection = true;
                     if (Application.isPlaying)
                     {
-                        Debug.LogWarning($"[WaveCardComponent] {gameObject.name} 的波数据方向已自动修正为false（朝向敌人）");
+                        Debug.LogWarning($"[WaveCardComponent] {gameObject.name} 的波数据方向已自动修正为true（朝向敌人）");
                     }
                 }
 

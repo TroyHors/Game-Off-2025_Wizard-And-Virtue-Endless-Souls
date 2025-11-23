@@ -89,14 +89,14 @@ namespace DamageSystem
 
         /// <summary>
         /// 根据攻击方向获取目标
-        /// true = 攻向玩家，返回玩家
-        /// false = 不攻向玩家（攻向敌人），返回敌人
+        /// true = 攻向敌人，返回敌人
+        /// false = 攻向玩家，返回玩家
         /// </summary>
-        /// <param name="attackDirection">攻击方向（true=攻向玩家）</param>
+        /// <param name="attackDirection">攻击方向（true=攻向敌人）</param>
         /// <returns>目标GameObject，如果不存在则返回null</returns>
         public GameObject GetTargetByDirection(bool attackDirection)
         {
-            return attackDirection ? player : enemy;
+            return attackDirection ? enemy : player;
         }
 
         /// <summary>

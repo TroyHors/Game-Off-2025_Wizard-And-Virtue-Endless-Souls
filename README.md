@@ -134,7 +134,7 @@ public Wave EndTurnWithResult() { EmitHandWave(); DiscardPendingCards(); ... }  
 3. **TargetManager** (`Assets/Scripts/DamageSystem/TargetManager.cs`)
    - 目标管理器，管理玩家和敌人的引用
    - 支持自动查找（通过Tag）或手动设置
-   - 根据攻击方向查找目标：`true` = 攻向玩家，`false` = 攻向敌人
+   - 根据攻击方向查找目标：`true` = 攻向敌人，`false` = 攻向玩家
 
 4. **WaveHitSequenceGenerator** (`Assets/Scripts/WaveSystem/WaveHitSequenceGenerator.cs`)
    - 波伤害序列生成器（静态类）
@@ -205,7 +205,7 @@ enemyWaveManager.LoadRandomPresetWave(); // 随机加载预设波
 
 // 方式2：设置自定义波
 Wave customWave = new Wave();
-customWave.AddPeak(0, 5, true); // 位置0，强度5，攻向玩家（敌人波应该攻击玩家）
+customWave.AddPeak(0, 5, true); // 位置0，强度5，攻向敌人
 enemyWaveManager.SetEnemyWave(customWave);
 ```
 
@@ -531,7 +531,7 @@ void RemoveCardFromDeck(GameObject cardPrefab)
    - 表示波的最小单位 - 波峰
    - 包含位置（Position）、强度值（Value）、攻击方向（AttackDirection）属性
    - 强度值为整数，可正可负，正负只表示数值符号，不表示方向
-   - 攻击方向使用bool表示（true=攻向玩家，false=不攻向玩家）
+   - 攻击方向使用bool表示（true=攻向敌人，false=攻向玩家）
 
 2. **Wave** (`Assets/Scripts/WaveSystem/Wave.cs`)
    - 管理波峰集合的容器
@@ -555,7 +555,7 @@ void RemoveCardFromDeck(GameObject cardPrefab)
 波峰是波的最小单位，具有以下属性：
 - **位置 (Position)**: 波峰在波中的位置（整数）
 - **强度 (Value)**: 波峰的强度值（整数，可正可负）
-- **攻击方向 (AttackDirection)**: 攻击方向（bool，true=攻向玩家）
+- **攻击方向 (AttackDirection)**: 攻击方向（bool，true=攻向敌人）
 
 #### 波 (Wave)
 
@@ -594,12 +594,12 @@ public class WaveExample : MonoBehaviour
         Wave wave = new Wave();
 
         // 方法1：直接添加波峰对象
-        WavePeak peak1 = new WavePeak(position: 0, value: 10, attackDirection: true);
+        WavePeak peak1 = new WavePeak(position: 0, value: 10, attackDirection: true); // true=攻向敌人
         wave.AddPeak(peak1);
 
         // 方法2：使用便捷方法添加
-        wave.AddPeak(position: 1, value: -5, attackDirection: false);
-        wave.AddPeak(position: 3, value: 8, attackDirection: true);
+        wave.AddPeak(position: 1, value: -5, attackDirection: false); // false=攻向玩家
+        wave.AddPeak(position: 3, value: 8, attackDirection: true); // true=攻向敌人
 
         // 注意：位置2是空位，波中可以有空位
     }
@@ -651,7 +651,7 @@ Wave waveFromArray = Wave.FromPeaks(peaksArray);
 // 检查波的方向
 if (wave.AttackDirection.HasValue)
 {
-    Debug.Log($"波的方向: {(wave.AttackDirection.Value ? "攻向玩家" : "不攻向玩家")}");
+    Debug.Log($"波的方向: {(wave.AttackDirection.Value ? "攻向敌人" : "攻向玩家")}");
 }
 
 // 注意：尝试添加不同方向的波峰会报错
@@ -665,12 +665,12 @@ wave2.AddPeak(1, 5, false);  // 失败！会报错并拒绝添加
 ```csharp
 // 创建两个波
 Wave waveA = new Wave();
-waveA.AddPeak(0, 10, true);   // 位置0，强度10，攻向玩家
-waveA.AddPeak(1, 5, true);    // 位置1，强度5，攻向玩家
+waveA.AddPeak(0, 10, true);   // 位置0，强度10，攻向敌人
+waveA.AddPeak(1, 5, true);    // 位置1，强度5，攻向敌人
 
 Wave waveB = new Wave();
-waveB.AddPeak(0, -8, false);  // 位置0，强度-8，不攻向玩家
-waveB.AddPeak(2, 3, true);    // 位置2，强度3，攻向玩家
+waveB.AddPeak(0, -8, false);  // 位置0，强度-8，攻向玩家
+waveB.AddPeak(2, 3, true);    // 位置2，强度3，攻向敌人
 
 // 配对两个波
 List<Wave> resultWaves = WavePairing.PairWaves(waveA, waveB);
@@ -682,7 +682,7 @@ foreach (Wave resultWave in resultWaves)
     // 遍历结果波中的波峰
     foreach (var peak in resultWave.GetSortedPeaks())
     {
-        Debug.Log($"  位置{peak.Position}: 强度{peak.Value}, 方向{(peak.AttackDirection ? "玩家" : "其他")}");
+        Debug.Log($"  位置{peak.Position}: 强度{peak.Value}, 方向{(peak.AttackDirection ? "敌人" : "玩家")}");
     }
 }
 ```
@@ -690,23 +690,23 @@ foreach (Wave resultWave in resultWaves)
 #### 4. 配对计算示例
 
 **示例1：相同位置，方向相同**
-- 波A: 位置0，强度10，攻向玩家
-- 波B: 位置0，强度5，攻向玩家
-- 结果: 位置0，强度15（10+5），攻向玩家
+- 波A: 位置0，强度10，攻向敌人
+- 波B: 位置0，强度5，攻向敌人
+- 结果: 位置0，强度15（10+5），攻向敌人
 
 **示例2：相同位置，方向相反，强度抵消**
-- 波A: 位置0，强度10，攻向玩家
-- 波B: 位置0，强度-10，不攻向玩家
+- 波A: 位置0，强度10，攻向敌人
+- 波B: 位置0，强度-10，攻向玩家
 - 结果: 位置0，强度0（10+(-10)），该波峰会保留在新波中（强度为0的波峰也会被存储）
 
 **示例3：相同位置，方向相反，强度不抵消**
-- 波A: 位置0，强度10，攻向玩家
-- 波B: 位置0，强度-5，不攻向玩家
-- 结果: 位置0，强度5（10+(-5)），攻向玩家（因为10的绝对值大于5）
+- 波A: 位置0，强度10，攻向敌人
+- 波B: 位置0，强度-5，攻向玩家
+- 结果: 位置0，强度5（10+(-5)），攻向敌人（因为10的绝对值大于5）
 
 **示例4：不同位置**
-- 波A: 位置0，强度10，攻向玩家
-- 波B: 位置1，强度5，不攻向玩家
+- 波A: 位置0，强度10，攻向敌人
+- 波B: 位置1，强度5，攻向玩家
 - 结果: 两个波峰分别保留，生成2个波（一个包含位置0，一个包含位置1）
 
 ### API 文档
@@ -715,7 +715,7 @@ foreach (Wave resultWave in resultWaves)
 
 - `int Position`: 波峰的位置
 - `int Value`: 波峰的强度值（整数，可正可负）
-- `bool AttackDirection`: 攻击方向（true=攻向玩家，false=不攻向玩家）
+- `bool AttackDirection`: 攻击方向（true=攻向敌人，false=攻向玩家）
 
 #### WavePeak 主要方法
 
@@ -726,7 +726,7 @@ foreach (Wave resultWave in resultWaves)
 
 - `int PeakCount`: 获取波中波峰的数量
 - `bool IsEmpty`: 检查波是否为空
-- `bool? AttackDirection`: 波的攻击方向（null=空波，true=攻向玩家，false=不攻向玩家）
+- `bool? AttackDirection`: 波的攻击方向（null=空波，true=攻向敌人，false=攻向玩家）
 - `IReadOnlyCollection<int> Positions`: 获取所有波峰的位置
 - `IReadOnlyCollection<WavePeak> Peaks`: 获取所有波峰
 - `IReadOnlyDictionary<int, WavePeak> PeakDictionary`: 获取所有波峰的键值对
@@ -953,8 +953,8 @@ public class GameController : MonoBehaviour
 
 ##### 3. 重要说明
 
-- **手牌波方向**: 手牌波永远是朝向敌人的（AttackDirection = false，false表示不攻向玩家即攻向敌人）
-- **波牌方向**: 波牌的方向也应该是朝向敌人的（false）
+- **手牌波方向**: 手牌波永远是朝向敌人的（AttackDirection = true）
+- **波牌方向**: 波牌的方向也应该是朝向敌人的（true）
 - **格子位置**: 格子的位置必须与手牌波的位置对应，例如如果手牌波的位置范围是 -10 到 10，那么格子也应该有对应的位置
 - **最尾端位置**: 当波牌放置在格子中时，使用格子的位置作为波牌的最尾端位置（TailEndPosition）与手牌波配对
 - **手牌波不偏移**: 在合成过程中，手牌波本身不进行任何偏移，只有波牌会根据格子位置进行偏移

@@ -416,7 +416,7 @@ namespace WaveSystem
         {
             Debug.Log($"--- {label} ---");
             Debug.Log($"  PeakCount: {wave.PeakCount}, IsEmpty: {wave.IsEmpty}");
-            Debug.Log($"  波的方向: {(wave.AttackDirection.HasValue ? (wave.AttackDirection.Value ? "→敌人" : "→其他") : "未定义（空波）")}");
+            Debug.Log($"  波的方向: {(wave.AttackDirection.HasValue ? (wave.AttackDirection.Value ? "→敌人" : "→玩家") : "未定义（空波）")}");
 
             if (wave.IsEmpty)
             {
@@ -427,7 +427,7 @@ namespace WaveSystem
                 var sortedPeaks = wave.GetSortedPeaks();
                 foreach (var (position, peak) in sortedPeaks)
                 {
-                    string direction = peak.AttackDirection ? "→敌人" : "→其他";
+                    string direction = peak.AttackDirection ? "→敌人" : "→玩家";
                     Debug.Log($"  位置{position}: 强度={peak.Value}, 方向={direction}");
                 }
             }
