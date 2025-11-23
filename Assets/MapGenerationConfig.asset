@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77ddde55e897121468e14e769be53538, type: 3}
+  m_Name: MapGenerationConfig
+  m_EditorClassIdentifier: 
+  height: 15
+  width: 5
+  startNodeCount: 2
+  minNodesPerLayer: 2
+  maxNodesPerLayer: 4
+  avgOutDegree: 2
+  outDegreeVariance: 0.5
+  connectionSpan: 2
+  branchProbability: 0.6
+  mergeProbability: 0.4
+  enableContentFilling: 1
+  nodeTypeConfigs: []
+  enablePathValidation: 1
+  minRestNodesPerPath: 2
+  maxConsecutiveEliteNodes: 2

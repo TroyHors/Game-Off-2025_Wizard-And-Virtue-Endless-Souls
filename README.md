@@ -990,3 +990,461 @@ public class GameController : MonoBehaviour
 - 实现波的合并和拆分功能
 - 添加波牌的拖拽放置功能
 - 实现格表的动态生成
+
+---
+
+## 地图生成系统 (Map Generation System)
+
+### 概述
+
+地图生成系统用于生成爬塔类游戏的地图结构。系统采用"拓扑生成 + 内容填充"的两阶段设计,生成从下到上的有向无环图(DAG)结构,支持多条可选路线、分叉汇合、路径合理性约束等功能。
+
+### 系统架构
+
+#### 核心组件
+
+1. **MapNode** (`Assets/Scripts/MapSystem/MapNode.cs`)
+   - 地图节点数据结构
+   - 包含:层数、列位置、节点类型、邻接关系、Boss/起点标记
+   - 支持向上和向下的邻居查询
+
+2. **MapTopology** (`Assets/Scripts/MapSystem/MapTopology.cs`)
+   - 地图拓扑结构(DAG)
+   - 管理所有节点和连接关系
+   - 提供连通性检查、路径查找、统计信息等功能
+
+3. **MapGenerationConfig** (`Assets/Scripts/MapSystem/MapGenerationConfig.cs`)
+   - 地图生成配置(ScriptableObject)
+   - 可在Inspector中配置不同章节/难度的参数
+   - 包含拓扑生成参数、内容填充参数、路径合理性约束参数
+
+4. **TopologyGenerator** (`Assets/Scripts/MapSystem/TopologyGenerator.cs`)
+   - 拓扑生成器(静态类)
+   - 负责生成地图的节点和路径结构
+   - 实现分叉汇合控制、连通性保证、死节点修复等逻辑
+
+5. **ContentFiller** (`Assets/Scripts/MapSystem/ContentFiller.cs`)
+   - 内容填充器(静态类)
+   - 在既定拓扑上为每个节点分配类型和事件
+   - 支持全局配比 + 层级权重的分配策略
+   - 提供路径合理性约束接口
+
+6. **MapManager** (`Assets/Scripts/MapSystem/MapManager.cs`)
+   - 地图管理器(MonoBehaviour)
+   - 负责地图的生成、管理和运行时行为
+   - 处理玩家移动、节点访问记录、事件触发等
+
+7. **PathConstraints** (`Assets/Scripts/MapSystem/PathConstraints.cs`)
+   - 路径合理性约束的示例实现
+   - 包含最少休息节点约束、最多连续精英节点约束、重要节点分布约束等
+
+### 核心概念
+
+#### 地图结构
+
+- **层级网格**: 地图由高度H(层数)和宽度W(每层最大节点数)定义
+- **有向无环图(DAG)**: 只允许从第i层节点连接到第i+1层节点,不允许回退和横向循环
+- **起点节点**: 底层的一个或多个起点节点
+- **Boss节点**: 顶层的Boss节点,所有路径的终点
+
+#### 生成流程
+
+1. **拓扑生成阶段**:
+   - 生成底层起点节点
+   - 从下往上逐层生成节点和连接
+   - 控制分叉和汇合的数量
+   - 生成顶层Boss节点
+   - 验证和修复连通性问题
+
+2. **内容填充阶段**:
+   - 按权重随机分配节点类型
+   - 验证路径合理性并调整
+   - 应用路径约束(如最少营火数、最多连续精英数等)
+
+#### 节点类型
+
+- 节点类型由内容填充系统分配,作为标记用于导向对应的事件系统
+- 节点类型配置在Inspector中设置,包括:
+  - 全局权重(在所有层级中的基础权重)
+  - 层级权重曲线(按层数调整权重)
+  - 最小/最大出现次数
+
+### 使用方法
+
+#### 1. 创建地图生成配置
+
+1. 在Project窗口中右键 → Create → Map System → Map Generation Config
+2. 配置基础参数:
+   - `Height`: 地图高度(层数)
+   - `Width`: 地图宽度(每层最大节点数)
+3. 配置拓扑生成参数:
+   - `Start Node Count`: 底层起点节点数量
+   - `Min/Max Nodes Per Layer`: 每层最小/最大节点数
+   - `Avg Out Degree`: 每个节点平均出度
+   - `Connection Span`: 连接跨度
+   - `Branch/Merge Probability`: 分叉/汇合概率
+4. 配置内容填充参数:
+   - 在`Node Type Configs`数组中添加节点类型配置
+   - 为每个类型设置全局权重、层级权重曲线、最小/最大出现次数
+
+#### 2. 设置场景
+
+1. 在场景中创建一个GameObject,命名为 "MapManager"
+2. 添加 `MapManager` 组件
+3. 将创建的地图生成配置拖拽到 `Config` 字段
+4. 设置 `Map Seed`(可选, -1表示随机)
+5. 勾选 `Generate On Start` 以在游戏开始时自动生成地图
+
+#### 3. 代码使用示例
+
+```csharp
+using MapSystem;
+using UnityEngine;
+
+public class GameController : MonoBehaviour
+{
+    [SerializeField] private MapManager mapManager;
+    
+    void Start()
+    {
+        // 生成地图(使用指定种子)
+        mapManager.GenerateMap(seed: 12345);
+        
+        // 获取当前节点
+        MapNode currentNode = mapManager.CurrentNode;
+        Debug.Log($"当前位置: {currentNode}");
+        
+        // 获取可以移动到的上层节点
+        List<MapNode> availableNodes = mapManager.GetAvailableNextNodes();
+        foreach (var node in availableNodes)
+        {
+            Debug.Log($"可以移动到: {node}");
+        }
+    }
+    
+    void OnNodeSelected(int nodeId)
+    {
+        // 移动到指定节点
+        bool success = mapManager.MoveToNode(nodeId);
+        if (success)
+        {
+            MapNode node = mapManager.CurrentNode;
+            Debug.Log($"移动到: {node.NodeType}");
+            
+            // 根据节点类型触发对应事件
+            TriggerNodeEvent(node.NodeType);
+            
+            // 检查是否到达Boss
+            if (mapManager.IsAtBoss())
+            {
+                Debug.Log("到达Boss!");
+            }
+        }
+    }
+    
+    void TriggerNodeEvent(string nodeType)
+    {
+        // 根据节点类型导向对应的事件系统
+        // 这里只是示例,实际实现需要连接到游戏事件系统
+        switch (nodeType)
+        {
+            case "Combat":
+                // 触发战斗事件
+                break;
+            case "Elite":
+                // 触发精英战斗事件
+                break;
+            case "Rest":
+                // 触发营火事件
+                break;
+            case "Shop":
+                // 触发商店事件
+                break;
+            case "Event":
+                // 触发随机事件
+                break;
+        }
+    }
+}
+```
+
+#### 4. 路径合理性约束
+
+系统提供了路径合理性约束接口,可以创建自定义约束:
+
+```csharp
+using MapSystem;
+
+// 创建约束列表
+List<ContentFiller.IPathConstraint> constraints = new List<ContentFiller.IPathConstraint>();
+
+// 添加最少休息节点约束
+constraints.Add(new MinRestNodesConstraint("Rest", minCount: 2));
+
+// 添加最多连续精英节点约束
+constraints.Add(new MaxConsecutiveEliteNodesConstraint("Elite", maxConsecutive: 2));
+
+// 添加重要节点分布约束
+string[] importantTypes = { "Shop", "Rest" };
+constraints.Add(new ImportantNodesDistributionConstraint(importantTypes, minEarlyRatio: 0.2f, minLateRatio: 0.2f));
+
+// 在生成地图时应用约束(需要在MapManager中扩展)
+```
+
+### API 文档
+
+#### MapManager 主要方法
+
+**地图生成:**
+- `GenerateMap(int seed = -1)`: 生成地图(使用指定种子)
+- `RegenerateMap(int newSeed = -1)`: 使用新种子重新生成地图
+- `ResetMap()`: 重置地图(清除访问记录,重置玩家位置)
+
+**节点查询:**
+- `CurrentNode`: 获取当前玩家所在节点
+- `CurrentNodeId`: 获取当前节点ID
+- `GetAvailableNextNodes()`: 获取可以移动到的上层节点列表
+- `GetNodeInfo(int nodeId)`: 获取指定节点的信息字符串
+- `IsNodeVisited(int nodeId)`: 检查节点是否已访问
+
+**移动和状态:**
+- `MoveToNode(int targetNodeId)`: 移动到指定节点
+- `IsAtBoss()`: 检查是否到达Boss节点
+
+**事件:**
+- `OnNodeEntered`: 节点进入事件(System.Action<MapNode>)
+- `OnMapGenerated`: 地图生成完成事件(System.Action<MapTopology>)
+- `OnNodeStateChanged`: 节点状态改变事件(System.Action)
+
+#### MapTopology 主要方法
+
+**节点管理:**
+- `CreateNode(int layer, int column)`: 创建新节点
+- `AddNode(MapNode node)`: 添加节点(用于从数据恢复)
+- `GetNode(int nodeId)`: 获取指定节点
+- `GetNodesAtLayer(int layer)`: 获取指定层的所有节点
+
+**连接管理:**
+- `AddEdge(int fromNodeId, int toNodeId)`: 添加有向边
+
+**查询和验证:**
+- `CheckConnectivity()`: 检查从起点到Boss的连通性
+- `FindDeadEndNodes()`: 查找死节点(无法继续向上)
+- `GetAllPathsToBoss()`: 获取从起点到Boss的所有路径
+- `GetStatistics()`: 获取统计信息
+
+#### TopologyGenerator 主要方法
+
+- `Generate(MapGenerationConfig config, int seed = -1)`: 生成地图拓扑结构
+
+#### ContentFiller 主要方法
+
+- `FillContent(MapTopology topology, MapGenerationConfig config, int seed = -1, List<IPathConstraint> constraints = null)`: 填充节点内容
+
+**接口:**
+- `IPathConstraint`: 路径合理性约束接口
+  - `CheckPath(List<int> path, MapTopology topology)`: 检查路径是否满足约束
+  - `GetDescription()`: 获取约束描述
+
+### 地图可视化系统
+
+#### 概述
+
+地图可视化系统用于在Unity UI中动态生成和显示地图。系统支持节点图像配置、树状连接线显示、节点状态可视化(当前/已访问/可访问/不可访问)和点击交互。
+
+#### 核心组件
+
+1. **MapNodeVisual** (`Assets/Scripts/MapSystem/MapNodeVisual.cs`)
+   - 单个节点的可视化组件
+   - 管理节点的UI显示、状态颜色、点击交互
+   - 支持多种节点状态:正常、已访问、当前、可访问、不可访问
+
+2. **MapVisualizer** (`Assets/Scripts/MapSystem/MapVisualizer.cs`)
+   - 地图可视化管理器
+   - 负责动态生成节点和连接线
+   - 自动布局节点位置
+   - 监听地图状态变化并更新可视化
+
+3. **MapGenerationConfig可视化配置**
+   - `NodeTypeVisualConfig[]`: 节点类型到图像素材的映射
+   - `startNodeSprite`: 起点节点图像
+   - `bossNodeSprite`: Boss节点图像
+   - `defaultNodeSprite`: 默认节点图像
+
+#### 使用方法
+
+##### 1. 配置节点图像
+
+1. 在`MapGenerationConfig`的Inspector中配置:
+   - 在`Node Visual Configs`数组中添加节点类型可视化配置
+   - 为每个节点类型设置对应的Sprite和节点大小
+   - 设置起点节点图像、Boss节点图像和默认节点图像
+
+##### 2. 创建节点和连接线Prefab
+
+**创建节点Prefab:**
+1. 在场景中创建一个UI Image GameObject
+2. 添加`MapNodeVisual`组件
+3. 可选:添加子对象作为背景或状态指示器
+4. 保存为Prefab
+
+**创建连接线Prefab:**
+1. 在场景中创建一个UI Image GameObject(用于绘制连接线)
+2. 设置Image的Color和Material(如果需要)
+3. 保存为Prefab
+
+##### 3. 设置场景
+
+1. 在Canvas下创建一个GameObject,命名为 "MapVisualizer"
+2. 添加`MapVisualizer`组件
+3. 创建两个空的GameObject作为容器:
+   - `NodeContainer` - 节点容器(添加RectTransform组件)
+   - `LineContainer` - 连接线容器(添加RectTransform组件)
+4. 在`MapVisualizer`组件中设置:
+   - `Map Manager`: 拖拽MapManager组件
+   - `Node Container`: 拖拽节点容器
+   - `Line Container`: 拖拽连接线容器
+   - `Node Prefab`: 拖拽节点Prefab
+   - `Line Prefab`: 拖拽连接线Prefab
+5. 配置布局参数:
+   - `Layer Spacing`: 层间距(默认150)
+   - `Node Spacing`: 节点间距(默认120)
+   - `Line Width`: 连接线宽度(默认2)
+   - `Line Color`: 连接线颜色
+   - `Visited Line Color`: 已访问连接线颜色
+
+##### 4. 代码使用示例
+
+```csharp
+using MapSystem;
+using UnityEngine;
+
+public class MapUIController : MonoBehaviour
+{
+    [SerializeField] private MapVisualizer mapVisualizer;
+    [SerializeField] private MapManager mapManager;
+
+    void Start()
+    {
+        // 监听节点点击事件
+        if (mapVisualizer != null)
+        {
+            mapVisualizer.OnNodeClicked += HandleNodeClicked;
+        }
+
+        // 监听地图生成完成事件
+        if (mapManager != null)
+        {
+            mapManager.OnMapGenerated += HandleMapGenerated;
+        }
+    }
+
+    void HandleMapGenerated(MapTopology topology)
+    {
+        // 地图生成完成后,可视化系统会自动更新
+        // 如果需要手动刷新,可以调用:
+        // mapVisualizer.GenerateVisualization();
+    }
+
+    void HandleNodeClicked(MapNode node)
+    {
+        Debug.Log($"点击了节点: {node.NodeType}");
+        // 根据节点类型触发对应事件
+        TriggerNodeEvent(node.NodeType);
+    }
+
+    void TriggerNodeEvent(string nodeType)
+    {
+        // 连接到游戏事件系统
+        switch (nodeType)
+        {
+            case "Combat":
+                // 触发战斗事件
+                break;
+            case "Elite":
+                // 触发精英战斗事件
+                break;
+            case "Rest":
+                // 触发营火事件
+                break;
+            case "Shop":
+                // 触发商店事件
+                break;
+        }
+    }
+}
+```
+
+#### 节点状态
+
+系统支持以下节点状态,并自动更新颜色:
+
+- **Normal(正常)**: 白色,未访问的普通节点
+- **Visited(已访问)**: 灰色,已访问过的节点
+- **Current(当前)**: 黄色,玩家当前所在的节点
+- **Available(可访问)**: 绿色,可以移动到的上层节点
+- **Unavailable(不可访问)**: 深灰色,不可访问的节点
+
+#### 连接线显示
+
+- 系统自动绘制从每个节点到其上层邻居的连接线
+- 已访问的连接线会显示为不同的颜色(更暗)
+- 连接线使用UI Image绘制,支持自定义宽度和颜色
+
+#### API 文档
+
+##### MapVisualizer 主要方法
+
+- `GenerateVisualization()`: 生成地图可视化
+- `UpdateNodeStates()`: 更新节点状态
+- `RefreshVisualization()`: 刷新可视化(更新节点状态)
+- `ClearVisualization()`: 清除所有可视化元素
+
+**事件:**
+- `OnNodeClicked`: 节点点击事件(System.Action<MapNode>)
+
+##### MapNodeVisual 主要方法
+
+- `Initialize(MapNode node, Sprite sprite, Vector2 size)`: 初始化节点可视化
+- `SetState(NodeState state)`: 设置节点状态
+- `GetState()`: 获取节点状态
+- `SetSprite(Sprite sprite)`: 设置节点图像
+- `GetWorldPosition()`: 获取节点世界位置
+- `GetCenterPosition()`: 获取节点中心位置
+
+**事件:**
+- `OnNodeClicked`: 节点点击事件(System.Action<MapNodeVisual>)
+
+#### 注意事项
+
+1. **Prefab要求**: 节点Prefab必须包含`MapNodeVisual`组件,连接线Prefab必须包含`Image`和`RectTransform`组件
+2. **自动更新**: 可视化系统会自动监听地图生成和状态改变事件,无需手动调用更新
+3. **布局计算**: 节点位置根据层数和列位置自动计算,支持自定义层间距和节点间距
+4. **性能考虑**: 对于大型地图(节点数>100),建议使用对象池优化节点和连接线的创建/销毁
+5. **UI层级**: 连接线容器应该在节点容器之前(在Hierarchy中更靠上),确保连接线在节点下方显示
+
+### 设计原则
+
+1. **两阶段生成**: 拓扑生成和内容填充分离,便于调试和扩展
+2. **参数化配置**: 通过ScriptableObject配置不同章节/难度的参数
+3. **路径合理性**: 提供约束接口,确保生成的路径符合游戏节奏
+4. **随机种子**: 支持随机种子,相同种子生成相同地图,便于调试和复盘
+5. **节点类型分离**: 节点生成和实际节点事件分离,节点类型只作为标记,由独立的事件系统处理
+
+### 注意事项
+
+1. **节点类型配置**: 节点类型需要在Inspector中配置,系统不会自动创建节点类型
+2. **事件系统集成**: 节点类型只是标记,需要连接到游戏事件系统来处理实际事件
+3. **路径约束**: 路径合理性约束是可选的,如果不满足约束,系统会尝试调整但可能不完全满足
+4. **性能考虑**: 对于大型地图(高度>50),路径查找可能较慢,建议优化或限制路径数量
+5. **调试信息**: 所有调试信息都带有 `[MapManager]`、`[TopologyGenerator]`、`[ContentFiller]` 等前缀,方便在日志中搜索
+
+### 扩展建议
+
+如果需要扩展功能,可以考虑:
+- 添加地图可视化编辑器
+- 实现地图序列化和持久化
+- 添加更多路径合理性约束
+- 实现动态难度调整
+- 添加地图预览功能
+- 实现地图分享和种子系统
