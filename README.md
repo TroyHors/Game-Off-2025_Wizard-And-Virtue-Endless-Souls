@@ -85,6 +85,22 @@ public Wave EndTurnWithResult() { EmitHandWave(); DiscardPendingCards(); ... }  
 - `EmitHandWaveWithResult()` - 发出手牌波（返回发出的波，供代码调用）
 - `DiscardPendingCards()` - 将待使用的卡牌放入弃牌堆（无返回值包装，供UnityEvent调用）
 - `DiscardPendingCardsWithResult()` - 将待使用的卡牌放入弃牌堆（返回成功数量，供代码调用）
+- `GenerateHitSequenceFromEmittedWave()` - 从发出的波生成有序波峰伤害列表（无返回值包装，供UnityEvent调用）
+- `GenerateHitSequenceFromEmittedWaveWithResult()` - 从发出的波生成有序波峰伤害列表（返回伤害序列，供代码调用）
+
+**DamageSystem**：
+- `ProcessHitSequence(List<PeakHit> hitSequence)` - 处理有序波峰伤害列表（无返回值包装，供UnityEvent调用）
+- `ProcessHitSequenceWithResult(List<PeakHit> hitSequence)` - 处理有序波峰伤害列表（返回处理结果，供代码调用）
+- `ProcessHitSequenceAsync(List<PeakHit> hitSequence)` - 异步处理伤害序列（支持延迟，用于动画）
+
+**EnemyWaveManager**：
+- `SetEnemyWave(Wave wave)` - 设置当前敌人的波
+- `LoadPresetWave(int presetIndex)` - 加载预设波
+- `LoadRandomPresetWave()` - 随机加载一个预设波
+- `ClearEnemyWave()` - 清空当前敌人的波
+
+**DamageSystemHelper**：
+- `ProcessEmittedWave()` - 完整流程：发出玩家波 -> 获取敌人波 -> 配对 -> 生成伤害序列 -> 处理伤害序列（无返回值包装，供UnityEvent调用）
 
 **GameStateManager**：
 - `EnterGameStart()` - 进入游戏开始状态
@@ -94,6 +110,141 @@ public Wave EndTurnWithResult() { EmitHandWave(); DiscardPendingCards(); ... }  
 **使用说明**：
 - 在UnityEvent中绑定：使用无返回值版本（如 `DrawCards()`、`EmitHandWave()`）
 - 在代码中调用：使用带返回值版本（如 `DrawCardsWithResult()`、`EmitHandWaveWithResult()`）
+
+## 伤害系统 (Damage System)
+
+### 概述
+
+伤害系统负责处理波系统输出的有序波峰伤害列表，逐个依次命中结算。系统设计遵循"有序波峰伤害列表逐个结算"的原则，支持表现层按波峰顺序播放扣血动画。
+
+### 系统架构
+
+#### 核心组件
+
+1. **PeakHit** (`Assets/Scripts/DamageSystem/PeakHit.cs`)
+   - 波峰伤害数据
+   - 包含：`target`（目标实体）、`damage`（伤害值）、`orderIndex`（序号/时间顺序）
+
+2. **HealthComponent** (`Assets/Scripts/DamageSystem/HealthComponent.cs`)
+   - 统一的生命组件，用于玩家和敌人
+   - 功能：回血、扣血、死亡、护盾
+   - 护盾独立于血量计算，先扣除护盾，护盾不足时扣除生命值
+   - 提供事件：`OnHealthChanged`、`OnShieldChanged`、`OnDamageTaken`、`OnHealed`、`OnDeath`
+
+3. **TargetManager** (`Assets/Scripts/DamageSystem/TargetManager.cs`)
+   - 目标管理器，管理玩家和敌人的引用
+   - 支持自动查找（通过Tag）或手动设置
+   - 根据攻击方向查找目标：`true` = 攻向玩家，`false` = 攻向敌人
+
+4. **WaveHitSequenceGenerator** (`Assets/Scripts/WaveSystem/WaveHitSequenceGenerator.cs`)
+   - 波伤害序列生成器（静态类）
+   - 将波转换为有序波峰伤害列表
+   - 根据攻击方向确定目标，使用强度绝对值确定伤害值，使用波峰位置确定序号
+
+5. **DamageSystem** (`Assets/Scripts/DamageSystem/DamageSystem.cs`)
+   - 伤害结算系统
+   - 处理有序波峰伤害列表，逐个依次命中结算
+   - 不区分玩家或敌人，只通过 `target` 和组件系统找到目标
+   - 支持同步和异步处理（异步支持延迟，用于动画）
+   - 提供事件：`OnHitSequenceStart`、`OnHitProcessed`（供表现层播放动画）、`OnHitSequenceComplete`
+
+6. **DamageSystemHelper** (`Assets/Scripts/DamageSystem/DamageSystemHelper.cs`)
+   - 伤害系统辅助类
+   - 提供便捷方法，用于在 UnityEvent 中连接波系统和伤害系统
+   - `ProcessEmittedWave()`：完整流程（发出波 -> 生成伤害序列 -> 处理伤害序列）
+
+### 核心流程
+
+1. **发出玩家波**：
+   - 从手牌波格表管理器发出玩家的波（首个波峰对齐到0号位）
+
+2. **获取敌人波**：
+   - 从敌人波管理器获取当前敌人的波（支持预设占位符）
+
+3. **配对两个波**：
+   - 使用 `WavePairing.PairWaves()` 配对玩家波和敌人波
+   - 配对后可能生成1个或2个结果波（根据攻击方向分类）
+   - 相同位置的波峰会进行配对计算（强度相加，方向根据规则确定）
+
+4. **生成伤害序列**：
+   - 从配对后的波列表生成有序波峰伤害列表
+   - 每个波峰转换为 `PeakHit`（包含目标、伤害值、序号）
+   - 列表按 `orderIndex` 升序排序
+
+5. **处理伤害序列**：
+   - 遍历 `hitSequence`，逐个依次命中结算
+   - 对于每个 `PeakHit`：
+     - 通过 `target` 确定对象和其 `HealthComponent`
+     - 若目标不存在或已经死亡，跳过
+     - 调用目标扣血函数
+     - 若目标在这次伤害后死亡，立刻更新死亡状态
+   - 触发 `OnHitProcessed` 事件（供表现层播放动画）
+
+### 使用示例
+
+#### 1. 基本使用（通过 DamageSystemHelper）
+
+```csharp
+// 在 GameStateManager 的 UnityEvent 中绑定：
+// onTurnEnd -> DamageSystemHelper.ProcessEmittedWave()
+
+// 完整流程：
+// 1. 发出玩家波
+// 2. 获取敌人波（从 EnemyWaveManager）
+// 3. 配对两个波
+// 4. 生成伤害序列
+// 5. 处理伤害序列
+```
+
+#### 2. 设置敌人波
+
+```csharp
+// 方式1：使用预设波
+enemyWaveManager.LoadPresetWave(0); // 加载第一个预设波
+enemyWaveManager.LoadRandomPresetWave(); // 随机加载预设波
+
+// 方式2：设置自定义波
+Wave customWave = new Wave();
+customWave.AddPeak(0, 5, false); // 位置0，强度5，攻向敌人
+enemyWaveManager.SetEnemyWave(customWave);
+```
+
+#### 3. 分步使用
+
+```csharp
+// 步骤1：生成伤害序列
+List<PeakHit> hitSequence = handWaveGridManager.GenerateHitSequenceFromEmittedWaveWithResult();
+
+// 步骤2：处理伤害序列
+damageSystem.ProcessHitSequence(hitSequence);
+```
+
+#### 4. 异步处理（支持动画）
+
+```csharp
+// 使用异步处理，每个伤害之间有延迟
+damageSystem.ProcessHitSequenceAsync(hitSequence);
+```
+
+#### 5. 监听动画事件
+
+```csharp
+// 在表现层监听 OnHitProcessed 事件，按波峰顺序播放扣血动画
+damageSystem.OnHitProcessed.AddListener((hit, remainingHealth, remainingShield) => {
+    // 播放扣血动画
+    PlayDamageAnimation(hit.target, hit.damage);
+});
+```
+
+### 设计原则
+
+1. **配对机制**：玩家波和敌人波必须先进行配对，配对后的结果波才转换为伤害序列
+2. **有序结算**：伤害序列必须按 `orderIndex` 升序排序，逐个依次结算
+3. **通用性**：不区分玩家或敌人，只通过 `target` 和组件系统找到目标
+4. **表现与逻辑分离**：通过事件系统预留接口，供表现层按波峰顺序播放动画
+5. **护盾机制**：护盾独立于血量计算，先扣除护盾，护盾不足时扣除生命值
+6. **敌人波管理**：使用预设占位符，未来可替换为随机或数据库实现
+
 ## 卡牌系统 (Card System)
 
 ### 概述

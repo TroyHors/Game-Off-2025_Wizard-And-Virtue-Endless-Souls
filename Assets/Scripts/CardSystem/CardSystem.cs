@@ -108,10 +108,10 @@ namespace CardSystem
             else
             {
                 // 使用传统卡组
-                if (deck.IsEmpty())
-                {
-                    Debug.LogWarning("[CardSystem] 卡组为空，无法初始化游戏");
-                    return;
+            if (deck.IsEmpty())
+            {
+                Debug.LogWarning("[CardSystem] 卡组为空，无法初始化游戏");
+                return;
                 }
                 deckCards = deck.CreateCopy();
                 Debug.Log($"[CardSystem] 使用传统卡组初始化，卡组大小：{deckCards.Count}");

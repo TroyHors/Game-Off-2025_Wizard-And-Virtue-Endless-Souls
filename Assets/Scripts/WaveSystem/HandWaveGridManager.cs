@@ -27,6 +27,10 @@ namespace WaveSystem
         [Tooltip("卡牌系统（用于将待使用的卡牌放入弃牌堆）")]
         [SerializeField] private CardSystem.CardSystem cardSystem;
 
+        [Header("伤害系统引用")]
+        [Tooltip("目标管理器（用于生成伤害序列时查找目标）")]
+        [SerializeField] private DamageSystem.TargetManager targetManager;
+
         [Header("调试")]
         [Tooltip("是否在控制台打印手牌波详情")]
         [SerializeField] private bool debugPrintWaveDetails = true;
@@ -267,6 +271,32 @@ namespace WaveSystem
             }
 
             return emittedWave;
+        }
+
+        /// <summary>
+        /// 从发出的波生成有序波峰伤害列表（无返回值包装，供UnityEvent调用）
+        /// 注意：此方法需要 targetManager 已在 Inspector 中设置
+        /// </summary>
+        /// <returns>有序波峰伤害列表（已按 orderIndex 升序排序）</returns>
+        public System.Collections.Generic.List<DamageSystem.PeakHit> GenerateHitSequenceFromEmittedWave()
+        {
+            return GenerateHitSequenceFromEmittedWaveWithResult();
+        }
+
+        /// <summary>
+        /// 从发出的波生成有序波峰伤害列表
+        /// </summary>
+        /// <returns>有序波峰伤害列表（已按 orderIndex 升序排序）</returns>
+        public System.Collections.Generic.List<DamageSystem.PeakHit> GenerateHitSequenceFromEmittedWaveWithResult()
+        {
+            if (targetManager == null)
+            {
+                Debug.LogError("[HandWaveGridManager] TargetManager 未设置，无法生成伤害序列");
+                return new System.Collections.Generic.List<DamageSystem.PeakHit>();
+            }
+
+            Wave emittedWave = EmitHandWaveWithResult();
+            return WaveHitSequenceGenerator.GenerateHitSequence(emittedWave, targetManager);
         }
 
 
