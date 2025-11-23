@@ -205,7 +205,7 @@ enemyWaveManager.LoadRandomPresetWave(); // 随机加载预设波
 
 // 方式2：设置自定义波
 Wave customWave = new Wave();
-customWave.AddPeak(0, 5, false); // 位置0，强度5，攻向敌人
+customWave.AddPeak(0, 5, true); // 位置0，强度5，攻向玩家（敌人波应该攻击玩家）
 enemyWaveManager.SetEnemyWave(customWave);
 ```
 
@@ -953,8 +953,8 @@ public class GameController : MonoBehaviour
 
 ##### 3. 重要说明
 
-- **手牌波方向**: 手牌波永远是朝向敌人的（AttackDirection = true）
-- **波牌方向**: 波牌的方向也应该是朝向敌人的（true）
+- **手牌波方向**: 手牌波永远是朝向敌人的（AttackDirection = false，false表示不攻向玩家即攻向敌人）
+- **波牌方向**: 波牌的方向也应该是朝向敌人的（false）
 - **格子位置**: 格子的位置必须与手牌波的位置对应，例如如果手牌波的位置范围是 -10 到 10，那么格子也应该有对应的位置
 - **最尾端位置**: 当波牌放置在格子中时，使用格子的位置作为波牌的最尾端位置（TailEndPosition）与手牌波配对
 - **手牌波不偏移**: 在合成过程中，手牌波本身不进行任何偏移，只有波牌会根据格子位置进行偏移

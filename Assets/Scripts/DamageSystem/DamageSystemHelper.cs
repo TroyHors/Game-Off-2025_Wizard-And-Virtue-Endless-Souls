@@ -80,8 +80,8 @@ namespace DamageSystem
                     Debug.Log("[DamageSystemHelper] 敌人波为空，直接使用玩家波生成伤害序列");
                 }
                 // 如果敌人波为空，直接使用玩家波生成伤害序列
-                List<PeakHit> hitSequence = WaveHitSequenceGenerator.GenerateHitSequence(playerWave, targetManager);
-                ProcessHitSequence(hitSequence);
+                List<PeakHit> emptyEnemyHitSequence = WaveHitSequenceGenerator.GenerateHitSequence(playerWave, targetManager);
+                ProcessHitSequence(emptyEnemyHitSequence);
                 return;
             }
 
@@ -98,9 +98,9 @@ namespace DamageSystem
             }
 
             // 步骤4：从配对后的波生成伤害序列
-            List<PeakHit> hitSequence = WaveHitSequenceGenerator.GenerateHitSequenceFromPairedWaves(pairedWaves, targetManager);
+            List<PeakHit> pairedHitSequence = WaveHitSequenceGenerator.GenerateHitSequenceFromPairedWaves(pairedWaves, targetManager);
 
-            if (hitSequence == null || hitSequence.Count == 0)
+            if (pairedHitSequence == null || pairedHitSequence.Count == 0)
             {
                 if (debugLog)
                 {
@@ -110,7 +110,7 @@ namespace DamageSystem
             }
 
             // 步骤5：处理伤害序列
-            ProcessHitSequence(hitSequence);
+            ProcessHitSequence(pairedHitSequence);
         }
 
         /// <summary>

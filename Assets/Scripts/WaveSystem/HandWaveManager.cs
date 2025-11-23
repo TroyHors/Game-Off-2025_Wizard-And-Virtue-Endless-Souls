@@ -74,10 +74,10 @@ namespace WaveSystem
             // 移除手牌波中位置小于0的波峰（手牌波最小位置为0）
             RemoveNegativePositionPeaks();
 
-            // 确保手牌波方向为true（朝向敌人）
-            if (!handWave.IsEmpty && handWave.AttackDirection != true)
+            // 确保手牌波方向为false（朝向敌人）
+            if (!handWave.IsEmpty && handWave.AttackDirection != false)
             {
-                handWave.SetAttackDirection(true);
+                handWave.SetAttackDirection(false);
             }
 
             return resultWaves;
@@ -122,10 +122,10 @@ namespace WaveSystem
             // 移除手牌波中位置小于0的波峰（手牌波最小位置为0）
             RemoveNegativePositionPeaks();
 
-            // 确保手牌波方向为true（朝向敌人）
-            if (!handWave.IsEmpty && handWave.AttackDirection != true)
+            // 确保手牌波方向为false（朝向敌人）
+            if (!handWave.IsEmpty && handWave.AttackDirection != false)
             {
-                handWave.SetAttackDirection(true);
+                handWave.SetAttackDirection(false);
             }
 
             return resultWaves;
