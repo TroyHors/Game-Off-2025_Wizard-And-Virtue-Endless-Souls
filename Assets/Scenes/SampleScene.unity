@@ -185,7 +185,7 @@ MonoBehaviour:
   gridContainer: {fileID: 465195199}
   slotPrefab: {fileID: 868270896599410164, guid: 808839d5e70e2114da17854164cc74e3, type: 3}
   cardSystem: {fileID: 1589936377}
-  targetManager: {fileID: 1907028278}
+  targetManager: {fileID: 0}
   debugPrintWaveDetails: 1
 --- !u!114 &93045001
 MonoBehaviour:
@@ -432,6 +432,7 @@ RectTransform:
   - {fileID: 465195199}
   - {fileID: 1372713818}
   - {fileID: 1951704733}
+  - {fileID: 211813766}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -567,15 +568,81 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c67852a5003b6194d947ee99232c6432, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  textOffset: {x: 0, y: 1.5, z: 0}
-  healthText: {fileID: 0}
-  canvas: {fileID: 0}
-  textColor:
-    r: 1
-    g: 1
-    b: 1
-    a: 1
-  fontSize: 24
+--- !u!1 &211813765
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 211813766}
+  - component: {fileID: 211813768}
+  - component: {fileID: 211813767}
+  m_Layer: 5
+  m_Name: map
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &211813766
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 211813765}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 108617049}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &211813767
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 211813765}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 0}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &211813768
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 211813765}
+  m_CullTransparentMesh: 1
 --- !u!1 &222499148
 GameObject:
   m_ObjectHideFlags: 0
@@ -587,6 +654,7 @@ GameObject:
   - component: {fileID: 222499150}
   - component: {fileID: 222499149}
   - component: {fileID: 222499151}
+  - component: {fileID: 222499152}
   m_Layer: 0
   m_Name: Damage Manager
   m_TagString: Untagged
@@ -646,10 +714,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   handWaveGridManager: {fileID: 93045000}
   enemyWaveManager: {fileID: 93045001}
-  targetManager: {fileID: 1907028278}
+  targetManager: {fileID: 222499152}
   damageSystem: {fileID: 222499149}
   useAsyncProcessing: 0
   debugLog: 1
+--- !u!114 &222499152
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 222499148}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2199deabab09c0248beeff9b305f14a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  player: {fileID: 0}
+  enemy: {fileID: 0}
+  autoFindTargets: 1
+  playerTag: Player
+  enemyTag: Enemy
 --- !u!1 &465195198
 GameObject:
   m_ObjectHideFlags: 0
@@ -1223,7 +1308,7 @@ MonoBehaviour:
   handSlotPrefab: {fileID: 5555682215095382758, guid: 87598aadc2750c84385680d4174fb533, type: 3}
   slotCount: 8
   autoGenerateSlots: 1
---- !u!1 &1907028277
+--- !u!1 &1821050662
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1231,47 +1316,69 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1907028279}
-  - component: {fileID: 1907028278}
+  - component: {fileID: 1821050664}
+  - component: {fileID: 1821050663}
+  - component: {fileID: 1821050665}
   m_Layer: 0
-  m_Name: Target Manager
+  m_Name: Map Manager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1907028278
+--- !u!114 &1821050663
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1907028277}
+  m_GameObject: {fileID: 1821050662}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2199deabab09c0248beeff9b305f14a2, type: 3}
+  m_Script: {fileID: 11500000, guid: 304d6c89fdd0cae4dbdf170027df9f97, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 0}
-  enemy: {fileID: 0}
-  autoFindTargets: 1
-  playerTag: Player
-  enemyTag: Enemy
---- !u!4 &1907028279
+  config: {fileID: 11400000, guid: 48cd175b7f00f734d840b8008067855f, type: 2}
+  currentNodeId: -1
+  mapSeed: -1
+  generateOnStart: 1
+--- !u!4 &1821050664
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1907028277}
+  m_GameObject: {fileID: 1821050662}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 501.75, y: 134.71582, z: 0}
+  m_LocalPosition: {x: 4.722, y: 15.377998, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1821050665
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1821050662}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8310f6a4c40db44c8f527132aba2077, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mapManager: {fileID: 1821050663}
+  mapContainer: {fileID: 211813766}
+  layerSpacing: 30
+  nodeSpacing: 30
+  nodeRandomOffset: 5
+  lineWidth: 2
+  lineColor: {r: 0.5, g: 0.5, b: 0.5, a: 0.8}
+  visitedLineColor: {r: 0.3, g: 0.3, b: 0.3, a: 0.5}
+  bottomGap: 50
+  horizontalOffset: 0
 --- !u!1 &1951704732
 GameObject:
   m_ObjectHideFlags: 0
@@ -1285,7 +1392,7 @@ GameObject:
   - component: {fileID: 1951704735}
   - component: {fileID: 1951704734}
   m_Layer: 5
-  m_Name: duel (2)
+  m_Name: end turn
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1518,7 +1625,7 @@ SceneRoots:
   - {fileID: 1589936378}
   - {fileID: 93044999}
   - {fileID: 222499150}
-  - {fileID: 1907028279}
+  - {fileID: 1821050664}
   - {fileID: 2048236279}
   - {fileID: 108617049}
   - {fileID: 620889679}
