@@ -66,6 +66,9 @@ namespace MapSystem
         [Tooltip("Boss节点图像")]
         public Sprite bossNodeSprite;
 
+        [Tooltip("Boss节点大小")]
+        public Vector2 bossNodeSize = new Vector2(100, 100);
+
         [Tooltip("默认节点图像(当节点类型未配置时使用)")]
         public Sprite defaultNodeSprite;
 

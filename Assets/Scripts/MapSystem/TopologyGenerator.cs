@@ -512,7 +512,7 @@ namespace MapSystem
 
         /// <summary>
         /// 优化相邻两层的节点列位置
-        /// 使用回溯算法找到最优解
+        /// 使用回溯算法找到全局最优解
         /// </summary>
         private static void OptimizeTwoLayers(MapTopology topology, int lowerLayer, int upperLayer, MapGenerationConfig config)
         {
@@ -527,17 +527,16 @@ namespace MapSystem
             // 计算当前连接的列值差绝对值之和
             int currentTotalDistance = CalculateTotalColumnDistance(topology, lowerNodes, upperNodes);
 
-            // 如果上层节点数太多，使用贪心算法（避免组合爆炸）
-            const int MAX_NODES_FOR_BACKTRACK = 8;
-            if (upperNodes.Count > MAX_NODES_FOR_BACKTRACK)
+            // 如果上层节点数太多，给出警告但继续尝试（可能较慢）
+            const int WARNING_THRESHOLD = 10;
+            if (upperNodes.Count > WARNING_THRESHOLD)
             {
-                OptimizeTwoLayersGreedy(topology, lowerLayer, upperLayer, config);
-                return;
+                Debug.LogWarning($"[TopologyGenerator] 上层节点数较多({upperNodes.Count})，优化可能较慢");
             }
 
             // 获取下层节点已使用的列位置
-            HashSet<int> usedColumns = new HashSet<int>();
             Dictionary<int, int> lowerNodeColumns = new Dictionary<int, int>();
+            HashSet<int> usedColumns = new HashSet<int>();
             foreach (var lowerNode in lowerNodes)
             {
                 lowerNodeColumns[lowerNode.NodeId] = lowerNode.Column;
@@ -568,58 +567,14 @@ namespace MapSystem
 
                 Debug.Log($"[TopologyGenerator] 优化层 {lowerLayer}-{upperLayer}: 距离从 {currentTotalDistance} 减少到 {minTotalDistance}");
             }
-        }
-
-        /// <summary>
-        /// 贪心算法优化（用于节点数过多的情况）
-        /// </summary>
-        private static void OptimizeTwoLayersGreedy(MapTopology topology, int lowerLayer, int upperLayer, MapGenerationConfig config)
-        {
-            List<MapNode> lowerNodes = topology.GetNodesAtLayer(lowerLayer);
-            List<MapNode> upperNodes = topology.GetNodesAtLayer(upperLayer);
-
-            int currentTotalDistance = CalculateTotalColumnDistance(topology, lowerNodes, upperNodes);
-
-            Dictionary<int, int> nodeToColumn = new Dictionary<int, int>();
-            HashSet<int> usedColumns = new HashSet<int>();
-
-            // 保持下层节点列位置不变
-            foreach (var lowerNode in lowerNodes)
+            else if (bestAssignment.Count > 0)
             {
-                nodeToColumn[lowerNode.NodeId] = lowerNode.Column;
-                usedColumns.Add(lowerNode.Column);
-            }
-
-            // 按连接数排序，优先处理连接多的节点
-            List<MapNode> sortedUpperNodes = upperNodes.OrderByDescending(n => n.InDegree).ToList();
-
-            foreach (var upperNode in sortedUpperNodes)
-            {
-                List<MapNode> connectedLowerNodes = upperNode.LowerNeighbors
-                    .Select(id => topology.GetNode(id))
-                    .Where(n => n != null && n.Layer == lowerLayer)
-                    .ToList();
-
-                int bestColumn = FindOptimalColumn(connectedLowerNodes, nodeToColumn, usedColumns, config.width);
-                nodeToColumn[upperNode.NodeId] = bestColumn;
-                usedColumns.Add(bestColumn);
-            }
-
-            // 应用优化后的列位置
-            foreach (var upperNode in upperNodes)
-            {
-                upperNode.Column = nodeToColumn[upperNode.NodeId];
-            }
-
-            int optimizedTotalDistance = CalculateTotalColumnDistance(topology, lowerNodes, upperNodes);
-            if (optimizedTotalDistance < currentTotalDistance)
-            {
-                Debug.Log($"[TopologyGenerator] 优化层 {lowerLayer}-{upperLayer} (贪心): 距离从 {currentTotalDistance} 减少到 {optimizedTotalDistance}");
+                Debug.Log($"[TopologyGenerator] 层 {lowerLayer}-{upperLayer}: 当前已是最优解，距离为 {currentTotalDistance}");
             }
         }
 
         /// <summary>
-        /// 回溯算法：尝试所有可能的列位置分配
+        /// 回溯算法：尝试所有可能的列位置分配，找到全局最优解
         /// </summary>
         private static void BacktrackOptimize(
             List<MapNode> upperNodes,
@@ -653,59 +608,45 @@ namespace MapSystem
                 .Where(n => n != null && n.Layer == lowerLayer)
                 .ToList();
 
-            // 计算每个列位置的候选值
-            List<int> candidateColumns = new List<int>();
-
-            if (connectedLowerNodes.Count > 0)
+            // 计算每个列位置的候选值，按距离排序（剪枝优化）
+            List<(int column, int distance)> columnDistances = new List<(int, int)>();
+            
+            foreach (int col in availableColumns)
             {
-                // 计算每个列位置的总距离
-                List<(int column, int distance)> columnDistances = new List<(int, int)>();
-                
-                foreach (int col in availableColumns)
+                int distance = 0;
+                if (connectedLowerNodes.Count > 0)
                 {
-                    int totalDistance = 0;
+                    // 计算该列位置与所有连接的下层节点的距离
                     foreach (var lowerNode in connectedLowerNodes)
                     {
                         if (lowerNodeColumns.ContainsKey(lowerNode.NodeId))
                         {
-                            totalDistance += Mathf.Abs(col - lowerNodeColumns[lowerNode.NodeId]);
+                            distance += Mathf.Abs(col - lowerNodeColumns[lowerNode.NodeId]);
                         }
                     }
-                    columnDistances.Add((col, totalDistance));
                 }
+                columnDistances.Add((col, distance));
+            }
 
-                // 按距离排序，优先尝试距离小的列（剪枝优化）
-                columnDistances = columnDistances.OrderBy(x => x.distance).ToList();
-                candidateColumns = columnDistances.Select(x => x.column).ToList();
-            }
-            else
-            {
-                // 没有连接，按顺序尝试所有列
-                candidateColumns = availableColumns.ToList();
-            }
+            // 按距离排序，优先尝试距离小的列（剪枝优化）
+            columnDistances = columnDistances.OrderBy(x => x.distance).ToList();
 
             // 尝试每个候选列位置
-            foreach (int col in candidateColumns)
+            foreach (var (col, distance) in columnDistances)
             {
-                // 检查是否可以使用该列
-                bool columnWasUsed = usedColumns.Contains(col);
-                
-                // 如果列已被使用且不是最后一个节点，跳过（避免重复分配）
-                if (columnWasUsed && nodeIndex < upperNodes.Count - 1)
-                {
-                    continue;
-                }
-
                 // 计算当前部分分配的最小可能距离（剪枝）
                 int currentPartialDistance = CalculatePartialDistance(topology, lowerNodeColumns, currentAssignment, 
                     currentNode, col, connectedLowerNodes);
                 
-                // 如果当前部分距离已经大于已知最优解，剪枝
+                // 如果当前部分距离已经大于等于已知最优解，剪枝
                 if (currentPartialDistance >= minTotalDistance)
                 {
                     continue;
                 }
 
+                // 检查是否可以使用该列（允许重复使用列，因为可能有多个节点）
+                bool columnWasUsed = usedColumns.Contains(col);
+                
                 // 分配列位置
                 currentAssignment[currentNode.NodeId] = col;
                 if (!columnWasUsed)

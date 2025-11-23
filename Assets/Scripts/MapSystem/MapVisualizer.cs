@@ -368,10 +368,10 @@ namespace MapSystem
         /// </summary>
         private Vector2 GetNodeSize(MapNode node, MapGenerationConfig config)
         {
-            // Boss节点使用默认大小
+            // Boss节点使用配置的大小
             if (node.IsBoss)
             {
-                return new Vector2(100, 100);
+                return config.bossNodeSize;
             }
 
             // 根据节点类型查找大小(从NodeTypeConfig中获取)
