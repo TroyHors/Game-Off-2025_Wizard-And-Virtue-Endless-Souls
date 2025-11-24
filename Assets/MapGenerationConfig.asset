@@ -54,6 +54,7 @@ MonoBehaviour:
     minLayerInterval: 0
     sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
     nodeSize: {x: 20, y: 20}
+    flowPrefab: {fileID: 754346546221149822, guid: c81b87d9820d8b446b68e832480412ca, type: 3}
   - nodeType: "\u5546\u5E97"
     globalWeight: 26.4
     layerWeightCurve:
@@ -85,6 +86,7 @@ MonoBehaviour:
     minLayerInterval: 2
     sprite: {fileID: 10915, guid: 0000000000000000f000000000000000, type: 0}
     nodeSize: {x: 20, y: 20}
+    flowPrefab: {fileID: 0}
   - nodeType: "\u7CBE\u82F1"
     globalWeight: 26.4
     layerWeightCurve:
@@ -116,6 +118,7 @@ MonoBehaviour:
     minLayerInterval: 2
     sprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
     nodeSize: {x: 20, y: 20}
+    flowPrefab: {fileID: 0}
   enablePathValidation: 0
   minRestNodesPerPath: 2
   maxConsecutiveEliteNodes: 2
