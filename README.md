@@ -1448,3 +1448,314 @@ public class MapUIController : MonoBehaviour
 - 实现动态难度调整
 - 添加地图预览功能
 - 实现地图分享和种子系统
+
+---
+
+## 角色动态创建系统 (Character Dynamic Creation System)
+
+### 概述
+
+角色动态创建系统负责在战斗时动态生成玩家和敌人实体,战斗结束后自动清理。系统采用数据与实体分离的设计,玩家数据长期存在,实体仅在战斗时生成。
+
+### 系统架构
+
+#### 核心组件
+
+1. **PlayerData** (`Assets/Scripts/CharacterSystem/PlayerData.cs`)
+   - 玩家数据（ScriptableObject,持久化数据）
+   - 存储:最大生命值、当前生命值、资源等
+   - 即使实体不在场也可以修改数据（例如地图上的回复事件）
+
+2. **PlayerEntityManager** (`Assets/Scripts/CharacterSystem/PlayerEntityManager.cs`)
+   - 玩家实体管理器
+   - 负责根据玩家数据动态生成和销毁玩家实体
+   - 战斗开始时生成实体,战斗结束时同步数据并销毁实体
+
+3. **EnemyConfig** (`Assets/Scripts/CharacterSystem/EnemyConfig.cs`)
+   - 敌人配置（ScriptableObject）
+   - 存储一组敌人的配置数据（生命值、波数据等）
+   - 每次战斗根据当前关卡需要生成敌人
+
+4. **EnemySpawner** (`Assets/Scripts/CharacterSystem/EnemySpawner.cs`)
+   - 敌人生成器
+   - 根据敌人配置动态生成敌人实体
+   - 支持依次生成:第一次战斗生成第一个配置的敌人,第二次战斗生成第二个配置的敌人
+
+### 使用方法
+
+#### 1. 创建玩家数据
+
+1. 在Project窗口中右键 → Create → Character System → Player Data
+2. 配置玩家数据:
+   - `Max Health`: 最大生命值（默认100）
+   - `Current Health`: 当前生命值（默认100）
+   - `Current Resource`: 当前资源值（可用于后续扩展）
+
+#### 2. 创建玩家实体Prefab
+
+**必须挂载的组件:**
+- **HealthComponent** (`Assets/Scripts/DamageSystem/HealthComponent.cs`)
+  - 生命值组件,用于管理生命值、护盾、死亡等
+  - 在Inspector中设置初始最大生命值（会在生成时被玩家数据覆盖）
+
+**可选组件:**
+- 模型组件（SpriteRenderer、MeshRenderer等）
+- UI组件（用于显示生命值等）
+- 其他游戏逻辑组件
+
+**设置Tag:**
+- 将GameObject的Tag设置为 "Player"（或与PlayerEntityManager中的playerTag一致）
+
+**示例步骤:**
+1. 创建一个GameObject,命名为 "PlayerEntityPrefab"
+2. 添加 `HealthComponent` 组件
+3. 在 `HealthComponent` 中设置初始最大生命值（可选,会被玩家数据覆盖）
+4. 添加玩家模型、UI等组件
+5. 设置Tag为 "Player"
+6. 保存为Prefab
+
+#### 3. 创建敌人配置
+
+1. 在Project窗口中右键 → Create → Character System → Enemy Config
+2. 配置敌人实体设置:
+   - `Enemy Entity Prefab`: 拖拽敌人实体Prefab
+   - `Enemy Tag`: 设置敌人Tag（默认 "Enemy"）
+3. 在 `Enemy Configs` 数组中添加敌人配置:
+   - `Enemy Name`: 敌人名称
+   - `Max Health`: 最大生命值
+   - `Wave Data`: 敌人波数据（可选）
+   - `Preset Wave Index`: 预设波索引（-1表示使用自定义waveData）
+
+**敌人依次生成说明:**
+- 第一次战斗:生成 `Enemy Configs[0]` 的敌人
+- 第二次战斗:生成 `Enemy Configs[1]` 的敌人
+- 第三次战斗:生成 `Enemy Configs[2]` 的敌人
+- 以此类推
+- 如果配置数量不足,会循环使用（例如有3个配置,第4次战斗会使用第1个配置）
+- **所有敌人都生成在同一个位置**（使用第一个生成位置或默认位置）
+
+#### 4. 创建敌人实体Prefab
+
+**必须挂载的组件:**
+- **HealthComponent** (`Assets/Scripts/DamageSystem/HealthComponent.cs`)
+  - 生命值组件,用于管理生命值、护盾、死亡等
+  - 在Inspector中设置初始最大生命值（会在生成时被敌人配置覆盖）
+
+**可选但推荐挂载的组件:**
+- **EnemyWaveManager** (`Assets/Scripts/WaveSystem/EnemyWaveManager.cs`)
+  - 敌人波管理器,用于管理敌人的波数据
+  - 如果挂载此组件,系统会自动应用配置中的波数据
+  - 在Inspector中配置预设波列表（如果使用预设波索引）
+
+**可选组件:**
+- 模型组件（SpriteRenderer、MeshRenderer等）
+- UI组件（用于显示生命值等）
+- 其他游戏逻辑组件
+
+**设置Tag:**
+- 将GameObject的Tag设置为 "Enemy"（或与EnemyConfig中的enemyTag一致）
+
+**示例步骤:**
+1. 创建一个GameObject,命名为 "EnemyEntityPrefab"
+2. 添加 `HealthComponent` 组件
+3. 在 `HealthComponent` 中设置初始最大生命值（可选,会被敌人配置覆盖）
+4. 添加 `EnemyWaveManager` 组件（推荐）
+5. 在 `EnemyWaveManager` 中配置预设波列表（如果使用预设波索引）
+6. 添加敌人模型、UI等组件
+7. 设置Tag为 "Enemy"
+8. 保存为Prefab
+
+#### 5. 设置场景
+
+**设置玩家实体管理器:**
+1. 在场景中创建一个GameObject,命名为 "PlayerEntityManager"
+2. 添加 `PlayerEntityManager` 组件
+3. 配置组件:
+   - `Player Data`: 拖拽创建的PlayerData ScriptableObject
+   - `Player Entity Prefab`: 拖拽创建的玩家实体Prefab
+   - `Player Spawn Point`: 创建空GameObject作为生成位置,拖拽到此字段（可选,不设置则使用默认位置）
+   - `Player Tag`: 设置玩家Tag（默认 "Player"）
+
+**设置敌人生成器:**
+1. 在场景中创建一个GameObject,命名为 "EnemySpawner"
+2. 添加 `EnemySpawner` 组件
+3. 配置组件:
+   - `Enemy Config`: 拖拽创建的EnemyConfig ScriptableObject
+   - `Spawn Points`: 创建空GameObject作为生成位置,添加到列表（可选,不设置则使用默认位置）
+     - **注意**: 所有敌人都生成在同一个位置（使用第一个生成位置或默认位置）
+   - `Default Offset`: 默认生成位置偏移（当没有设置生成位置时使用）
+   - `Default Spacing`: 默认生成间距（当没有设置生成位置时使用,但所有敌人生成在同一位置,此参数实际不使用）
+
+**设置战斗流程:**
+1. 在 `CombatNodeFlow` 组件中（如果存在）:
+   - `Player Entity Manager`: 拖拽PlayerEntityManager组件（可选,系统会自动查找）
+   - `Enemy Spawner`: 拖拽EnemySpawner组件（可选,系统会自动查找）
+
+#### 6. 代码使用示例
+
+```csharp
+using CharacterSystem;
+using UnityEngine;
+
+public class GameController : MonoBehaviour
+{
+    [SerializeField] private PlayerEntityManager playerEntityManager;
+    [SerializeField] private EnemySpawner enemySpawner;
+    [SerializeField] private PlayerData playerData;
+
+    void Start()
+    {
+        // 在地图上回复生命值（即使实体不在场）
+        playerData.Heal(20);
+        
+        // 在地图上受到伤害（即使实体不在场）
+        playerData.TakeDamage(10);
+    }
+
+    void OnCombatStart()
+    {
+        // 生成玩家实体（战斗开始时自动调用）
+        playerEntityManager.SpawnPlayerEntity();
+        
+        // 生成敌人实体（战斗开始时自动调用,依次生成）
+        enemySpawner.SpawnEnemies();
+    }
+
+    void OnCombatEnd()
+    {
+        // 销毁玩家实体并同步数据（战斗结束时自动调用）
+        playerEntityManager.DestroyPlayerEntity();
+        
+        // 清除所有敌人实体（战斗结束时自动调用）
+        enemySpawner.ClearAllEnemies();
+    }
+
+    void OnGameRestart()
+    {
+        // 重置战斗计数（重新开始游戏时）
+        enemySpawner.ResetCombatCounter();
+    }
+}
+```
+
+### 工作流程
+
+#### 玩家实体流程
+
+1. **战斗开始**:
+   - `CombatNodeFlow.StartFlow()` 被调用
+   - 自动调用 `playerEntityManager.SpawnPlayerEntity()`
+   - 从 `PlayerData` 读取数据并应用到实体
+   - 实体显示在场景中
+
+2. **战斗进行中**:
+   - 玩家实体参与战斗逻辑
+   - 生命值变化实时反映在实体上
+
+3. **战斗结束**:
+   - `CombatNodeFlow.FinishCombat()` 被调用
+   - 自动调用 `playerEntityManager.DestroyPlayerEntity()`
+   - 实体数据同步回 `PlayerData`
+   - 实体被销毁
+
+4. **地图上**:
+   - 即使实体不在场,也可以修改 `PlayerData`
+   - 例如:营火节点回复生命值、事件节点受到伤害等
+
+#### 敌人实体流程
+
+1. **战斗开始**:
+   - `CombatNodeFlow.StartFlow()` 被调用
+   - 自动调用 `enemySpawner.SpawnEnemies()`
+   - 根据战斗计数依次生成敌人:
+     - 第一次战斗:生成配置[0]的敌人
+     - 第二次战斗:生成配置[1]的敌人
+     - 以此类推
+   - 所有敌人都生成在同一个位置
+   - 应用配置的生命值和波数据
+
+2. **战斗进行中**:
+   - 敌人实体参与战斗逻辑
+   - 生命值变化实时反映在实体上
+
+3. **战斗结束**:
+   - `CombatNodeFlow.FinishCombat()` 被调用
+   - 自动调用 `enemySpawner.ClearAllEnemies()`
+   - 所有敌人实体被销毁
+
+4. **下次战斗**:
+   - 战斗计数自动增加
+   - 生成下一个配置的敌人
+
+### API 文档
+
+#### PlayerData 主要方法
+
+**生命值操作:**
+- `Heal(int healAmount)`: 回复生命值（即使实体不在场也可以调用）
+- `TakeDamage(int damage)`: 受到伤害（即使实体不在场也可以调用）
+- `SetMaxHealth(int newMaxHealth)`: 设置最大生命值
+- `ResetHealth()`: 重置生命值
+
+**数据同步:**
+- `SyncFromEntity(HealthComponent entityHealth)`: 从实体同步数据到玩家数据（战斗结束时调用）
+- `ApplyToEntity(HealthComponent entityHealth)`: 将数据应用到实体（战斗开始时调用）
+
+#### PlayerEntityManager 主要方法
+
+- `SpawnPlayerEntity()`: 生成玩家实体（战斗开始时调用）
+- `DestroyPlayerEntity()`: 销毁玩家实体并同步数据（战斗结束时调用）
+- `HidePlayerEntity()`: 隐藏玩家实体（不销毁）
+- `ShowPlayerEntity()`: 显示玩家实体（如果被隐藏）
+
+#### EnemySpawner 主要方法
+
+- `SpawnEnemies(List<int> configIndices = null)`: 生成敌人实体（战斗开始时调用）
+  - 如果不指定 `configIndices`,会按战斗计数依次生成单个敌人
+  - 如果指定 `configIndices`,会生成指定配置的敌人
+- `ClearAllEnemies()`: 清除所有敌人实体（战斗结束时调用）
+- `RemoveEnemy(GameObject enemy)`: 清除指定敌人
+- `ResetCombatCounter()`: 重置战斗计数（重新开始游戏时调用）
+
+#### EnemyConfig 主要方法
+
+- `GetEnemyConfig(int index)`: 获取指定索引的敌人配置
+- `ConfigCount`: 获取配置数量
+
+### 注意事项
+
+1. **Prefab组件要求**:
+   - 玩家实体Prefab必须包含 `HealthComponent` 组件
+   - 敌人实体Prefab必须包含 `HealthComponent` 组件
+   - 敌人实体Prefab推荐包含 `EnemyWaveManager` 组件（用于管理波数据）
+
+2. **Tag设置**:
+   - 玩家实体Prefab的Tag必须设置为 "Player"（或与PlayerEntityManager中的playerTag一致）
+   - 敌人实体Prefab的Tag必须设置为 "Enemy"（或与EnemyConfig中的enemyTag一致）
+
+3. **敌人依次生成**:
+   - 敌人依次生成指的是以战斗为单位依次生成
+   - 第一次战斗生成第一个配置的敌人,第二次战斗生成第二个配置的敌人
+   - 所有敌人都生成在同一个位置（使用第一个生成位置或默认位置）
+   - 如果配置数量不足,会循环使用
+
+4. **数据同步**:
+   - 战斗开始时,玩家数据会自动应用到实体
+   - 战斗结束时,实体数据会自动同步回玩家数据
+   - 即使实体不在场,也可以修改玩家数据
+
+5. **自动集成**:
+   - 如果设置了 `PlayerEntityManager` 和 `EnemySpawner`, `CombatNodeFlow` 会自动调用生成和清理方法
+   - 如果没有设置,系统会使用场景中现有的玩家/敌人实体（向后兼容）
+
+6. **调试信息**:
+   - 所有调试信息都带有 `[PlayerEntityManager]`、`[EnemySpawner]`、`[PlayerData]` 等前缀,方便在日志中搜索
+
+### 扩展建议
+
+如果需要扩展功能,可以考虑:
+- 添加玩家资源系统（能量、金币等）
+- 实现敌人AI系统
+- 添加角色动画和特效
+- 实现角色升级系统
+- 添加角色装备系统

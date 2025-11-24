@@ -248,6 +248,16 @@ namespace DamageSystem
             onHealthChanged?.Invoke(currentHealth, maxHealth);
             onShieldChanged?.Invoke(currentShield);
         }
+
+        /// <summary>
+        /// 直接设置当前生命值（用于从数据同步到实体）
+        /// </summary>
+        /// <param name="newHealth">新的当前生命值</param>
+        public void SetCurrentHealth(int newHealth)
+        {
+            currentHealth = Mathf.Clamp(newHealth, 0, maxHealth);
+            onHealthChanged?.Invoke(currentHealth, maxHealth);
+        }
     }
 }
 

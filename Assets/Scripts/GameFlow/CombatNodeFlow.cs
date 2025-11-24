@@ -47,6 +47,13 @@ namespace GameFlow
         [Tooltip("敌人Tag（用于查找敌人）")]
         [SerializeField] private string enemyTag = "Enemy";
 
+        [Header("角色生成系统")]
+        [Tooltip("玩家实体管理器（用于生成和销毁玩家实体）")]
+        [SerializeField] private CharacterSystem.PlayerEntityManager playerEntityManager;
+
+        [Tooltip("敌人生成器（用于生成和销毁敌人实体）")]
+        [SerializeField] private CharacterSystem.EnemySpawner enemySpawner;
+
         [Header("战斗状态")]
         [Tooltip("战斗是否已结束")]
         [SerializeField] private bool isCombatFinished = false;
@@ -145,7 +152,39 @@ namespace GameFlow
                 damageSystem = FindObjectOfType<DamageSystem.DamageSystem>();
             }
 
-            // 查找所有敌人
+            // 自动查找系统引用
+            if (playerEntityManager == null)
+            {
+                playerEntityManager = FindObjectOfType<CharacterSystem.PlayerEntityManager>();
+            }
+
+            if (enemySpawner == null)
+            {
+                enemySpawner = FindObjectOfType<CharacterSystem.EnemySpawner>();
+            }
+
+            // 生成玩家实体
+            if (playerEntityManager != null)
+            {
+                playerEntityManager.SpawnPlayerEntity();
+            }
+            else
+            {
+                Debug.LogWarning("[CombatNodeFlow] PlayerEntityManager 未找到，将使用场景中现有的玩家实体");
+            }
+
+            // 生成敌人实体
+            if (enemySpawner != null)
+            {
+                List<GameObject> spawnedEnemies = enemySpawner.SpawnEnemies();
+                Debug.Log($"[CombatNodeFlow] 通过 EnemySpawner 生成了 {spawnedEnemies.Count} 个敌人");
+            }
+            else
+            {
+                Debug.LogWarning("[CombatNodeFlow] EnemySpawner 未找到，将使用场景中现有的敌人实体");
+            }
+
+            // 查找所有敌人（包括动态生成的）
             FindAllEnemies();
 
             // 订阅伤害系统的死亡事件
@@ -348,8 +387,32 @@ namespace GameFlow
                 damageSystem.OnTargetDeath.RemoveListener(OnEnemyDeath);
             }
 
-            // 战斗结束时的逻辑（如果需要）
-            // 这里可以添加战斗结束后的清理代码
+            // 同步玩家实体数据回玩家数据，然后销毁玩家实体
+            if (playerEntityManager != null)
+            {
+                playerEntityManager.DestroyPlayerEntity();
+            }
+
+            // 清除所有敌人实体
+            if (enemySpawner != null)
+            {
+                enemySpawner.ClearAllEnemies();
+            }
+            else
+            {
+                // 如果没有 EnemySpawner，手动清除通过 Tag 找到的敌人
+                // 注意：这只会清除场景中现有的敌人，不会清除动态生成的
+                GameObject[] enemyObjects = GameObject.FindGameObjectsWithTag(enemyTag);
+                foreach (GameObject enemyObj in enemyObjects)
+                {
+                    Destroy(enemyObj);
+                }
+                Debug.Log($"[CombatNodeFlow] 手动清除了 {enemyObjects.Length} 个敌人实体");
+            }
+
+            // 清空敌人列表
+            enemies.Clear();
+            deadEnemyCount = 0;
 
             // 完成流程
             FinishFlow();
