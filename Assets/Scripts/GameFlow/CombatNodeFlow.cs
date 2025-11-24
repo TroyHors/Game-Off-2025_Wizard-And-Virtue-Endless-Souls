@@ -1,6 +1,10 @@
 using MapSystem;
 using UnityEngine;
-using UnityEngine.Events;
+using WaveSystem;
+using DamageSystem;
+using System.Collections.Generic;
+using System.Linq;
+using CardSystemManager = CardSystem.CardSystem;
 
 namespace GameFlow
 {
@@ -18,6 +22,7 @@ namespace GameFlow
     /// <summary>
     /// 战斗节点事件流程
     /// 直接集成回合逻辑，替代 GameStateManager
+    /// 所有调用都通过代码直接执行，不依赖 Inspector 配置
     /// </summary>
     public class CombatNodeFlow : NodeEventFlowBase
     {
@@ -25,26 +30,36 @@ namespace GameFlow
         [Tooltip("当前回合状态")]
         [SerializeField] private CombatTurnState currentState = CombatTurnState.CombatStart;
 
-        [Header("回合事件")]
-        [Tooltip("战斗开始时的回调")]
-        [SerializeField] private UnityEvent onCombatStart = new UnityEvent();
+        [Header("系统引用（运行时自动查找）")]
+        [Tooltip("卡牌系统（回合开始时抽牌）")]
+        [SerializeField] private CardSystemManager cardSystem;
 
-        [Tooltip("回合开始时的回调")]
-        [SerializeField] private UnityEvent onTurnStart = new UnityEvent();
+        [Tooltip("手波网格管理器（回合结束时发射和弃牌）")]
+        [SerializeField] private HandWaveGridManager handWaveGridManager;
 
-        [Tooltip("回合进行中的回调（通常不需要）")]
-        [SerializeField] private UnityEvent onTurnPlaying = new UnityEvent();
+        [Tooltip("伤害系统辅助类（完整流程：发出玩家波 -> 获取敌人波 -> 配对 -> 生成伤害序列 -> 处理伤害序列）")]
+        [SerializeField] private DamageSystem.DamageSystemHelper damageSystemHelper;
 
-        [Tooltip("回合结束时的回调")]
-        [SerializeField] private UnityEvent onTurnEnd = new UnityEvent();
+        [Tooltip("伤害系统（用于订阅死亡事件）")]
+        [SerializeField] private DamageSystem.DamageSystem damageSystem;
 
-        [Header("战斗事件")]
-        [Tooltip("战斗结束时触发")]
-        [SerializeField] private UnityEvent onCombatEnd = new UnityEvent();
+        [Header("敌人设置")]
+        [Tooltip("敌人Tag（用于查找敌人）")]
+        [SerializeField] private string enemyTag = "Enemy";
 
         [Header("战斗状态")]
         [Tooltip("战斗是否已结束")]
         [SerializeField] private bool isCombatFinished = false;
+
+        /// <summary>
+        /// 所有敌人的列表
+        /// </summary>
+        private List<HealthComponent> enemies = new List<HealthComponent>();
+
+        /// <summary>
+        /// 已死亡的敌人数量
+        /// </summary>
+        private int deadEnemyCount = 0;
 
         /// <summary>
         /// 当前回合状态
@@ -52,29 +67,51 @@ namespace GameFlow
         public CombatTurnState CurrentState => currentState;
 
         /// <summary>
-        /// 战斗开始事件
+        /// 是否可以结束回合（只有在回合进行中状态才能结束）
         /// </summary>
-        public UnityEvent OnCombatStart => onCombatStart;
+        public bool CanEndTurn => currentState == CombatTurnState.TurnPlaying;
 
-        /// <summary>
-        /// 回合开始事件
-        /// </summary>
-        public UnityEvent OnTurnStart => onTurnStart;
+        private void Awake()
+        {
+            // 自动查找系统引用
+            if (cardSystem == null)
+            {
+                cardSystem = FindObjectOfType<CardSystemManager>();
+            }
 
-        /// <summary>
-        /// 回合进行中事件
-        /// </summary>
-        public UnityEvent OnTurnPlaying => onTurnPlaying;
+            if (handWaveGridManager == null)
+            {
+                handWaveGridManager = FindObjectOfType<HandWaveGridManager>();
+            }
 
-        /// <summary>
-        /// 回合结束事件
-        /// </summary>
-        public UnityEvent OnTurnEnd => onTurnEnd;
+            if (damageSystemHelper == null)
+            {
+                damageSystemHelper = FindObjectOfType<DamageSystem.DamageSystemHelper>();
+            }
 
-        /// <summary>
-        /// 战斗结束事件
-        /// </summary>
-        public UnityEvent OnCombatEnd => onCombatEnd;
+            if (damageSystem == null)
+            {
+                damageSystem = FindObjectOfType<DamageSystem.DamageSystem>();
+            }
+        }
+
+        private void OnEnable()
+        {
+            // 订阅伤害系统的死亡事件
+            if (damageSystem != null)
+            {
+                damageSystem.OnTargetDeath.AddListener(OnEnemyDeath);
+            }
+        }
+
+        private void OnDisable()
+        {
+            // 取消订阅
+            if (damageSystem != null)
+            {
+                damageSystem.OnTargetDeath.RemoveListener(OnEnemyDeath);
+            }
+        }
 
         /// <summary>
         /// 开始执行战斗流程
@@ -87,15 +124,116 @@ namespace GameFlow
                 return;
             }
 
-            isCombatFinished = false;
-            currentState = CombatTurnState.CombatStart;
-            Debug.Log($"[CombatNodeFlow] 开始战斗流程: Node[{currentNodeData.NodeId}]");
+            // 确保系统引用已找到
+            if (cardSystem == null)
+            {
+                cardSystem = FindObjectOfType<CardSystemManager>();
+            }
 
-            // 触发战斗开始事件
-            onCombatStart?.Invoke();
+            if (handWaveGridManager == null)
+            {
+                handWaveGridManager = FindObjectOfType<HandWaveGridManager>();
+            }
+
+            if (damageSystemHelper == null)
+            {
+                damageSystemHelper = FindObjectOfType<DamageSystem.DamageSystemHelper>();
+            }
+
+            if (damageSystem == null)
+            {
+                damageSystem = FindObjectOfType<DamageSystem.DamageSystem>();
+            }
+
+            // 查找所有敌人
+            FindAllEnemies();
+
+            // 订阅伤害系统的死亡事件
+            if (damageSystem != null)
+            {
+                damageSystem.OnTargetDeath.AddListener(OnEnemyDeath);
+            }
+
+            isCombatFinished = false;
+            deadEnemyCount = 0;
+            currentState = CombatTurnState.CombatStart;
+            Debug.Log($"[CombatNodeFlow] 开始战斗流程: Node[{currentNodeData.NodeId}]，找到 {enemies.Count} 个敌人");
+
+            // 战斗开始时的逻辑：初始化牌堆和手牌堆
+            if (cardSystem != null)
+            {
+                cardSystem.PrepareForCombat();
+            }
+            else
+            {
+                Debug.LogWarning("[CombatNodeFlow] CardSystem 未找到，无法初始化牌堆");
+            }
 
             // 开始回合系统
             EnterTurnStart();
+        }
+
+        /// <summary>
+        /// 查找场景中所有敌人
+        /// </summary>
+        private void FindAllEnemies()
+        {
+            enemies.Clear();
+            
+            if (string.IsNullOrEmpty(enemyTag))
+            {
+                Debug.LogWarning("[CombatNodeFlow] 敌人Tag未设置，无法查找敌人");
+                return;
+            }
+
+            GameObject[] enemyObjects = GameObject.FindGameObjectsWithTag(enemyTag);
+            foreach (GameObject enemyObj in enemyObjects)
+            {
+                HealthComponent healthComponent = enemyObj.GetComponent<HealthComponent>();
+                if (healthComponent != null)
+                {
+                    enemies.Add(healthComponent);
+                    Debug.Log($"[CombatNodeFlow] 找到敌人: {enemyObj.name}");
+                }
+                else
+                {
+                    Debug.LogWarning($"[CombatNodeFlow] 敌人 {enemyObj.name} 缺少 HealthComponent 组件");
+                }
+            }
+
+            if (enemies.Count == 0)
+            {
+                Debug.LogWarning("[CombatNodeFlow] 未找到任何敌人，战斗将无法正常结束");
+            }
+        }
+
+        /// <summary>
+        /// 敌人死亡回调（由DamageSystem触发）
+        /// </summary>
+        private void OnEnemyDeath(GameObject deadTarget)
+        {
+            if (isCombatFinished)
+            {
+                return;
+            }
+
+            // 检查死亡的物体是否是敌人
+            HealthComponent deadHealthComponent = deadTarget.GetComponent<HealthComponent>();
+            if (deadHealthComponent == null || !enemies.Contains(deadHealthComponent))
+            {
+                // 不是敌人，忽略
+                return;
+            }
+
+            deadEnemyCount++;
+            Debug.Log($"[CombatNodeFlow] 敌人 {deadTarget.name} 死亡，已死亡敌人数: {deadEnemyCount}/{enemies.Count}");
+
+            // 检查是否所有敌人都已死亡
+            if (deadEnemyCount >= enemies.Count)
+            {
+                Debug.Log("[CombatNodeFlow] 所有敌人已死亡，战斗结束");
+                FinishCombat();
+            }
         }
 
         /// <summary>
@@ -110,7 +248,16 @@ namespace GameFlow
             {
                 currentState = CombatTurnState.TurnStart;
                 Debug.Log("[CombatNodeFlow] 进入回合开始状态");
-                onTurnStart?.Invoke();
+                
+                // 回合开始：抽牌
+                if (cardSystem != null)
+                {
+                    cardSystem.DrawCards();
+                }
+                else
+                {
+                    Debug.LogWarning("[CombatNodeFlow] CardSystem 未找到，无法抽牌");
+                }
                 
                 // 自动进入回合进行中状态
                 EnterTurnPlaying();
@@ -130,7 +277,7 @@ namespace GameFlow
             {
                 currentState = CombatTurnState.TurnPlaying;
                 Debug.Log("[CombatNodeFlow] 进入回合进行中状态");
-                onTurnPlaying?.Invoke();
+                // 回合进行中：玩家可以操作卡牌等
             }
         }
 
@@ -143,19 +290,37 @@ namespace GameFlow
             {
                 currentState = CombatTurnState.TurnEnd;
                 Debug.Log("[CombatNodeFlow] 进入回合结束状态");
-                onTurnEnd?.Invoke();
+                
+                // 回合结束：完整流程（发出玩家波 -> 获取敌人波 -> 配对 -> 生成伤害序列 -> 处理伤害序列）
+                if (damageSystemHelper != null)
+                {
+                    // 使用 DamageSystemHelper 的完整流程
+                    damageSystemHelper.ProcessEmittedWave();
+                }
+                else
+                {
+                    Debug.LogWarning("[CombatNodeFlow] DamageSystemHelper 未找到，无法执行回合结束操作");
+                }
+                
+                // 弃牌（在伤害处理之后）
+                if (handWaveGridManager != null)
+                {
+                    handWaveGridManager.DiscardPendingCards();
+                }
+                else
+                {
+                    Debug.LogWarning("[CombatNodeFlow] HandWaveGridManager 未找到，无法弃牌");
+                }
                 
                 // 检查战斗是否应该结束
-                // 这里可以添加战斗结束条件检查
-                // 例如：检查敌人是否全部死亡、玩家是否死亡等
-                // 如果满足结束条件，调用 FinishCombat()
-                // 否则自动进入下一回合开始状态（回合循环）
+                // 敌人死亡检查通过 DamageSystem 的 OnTargetDeath 事件自动处理
+                // 如果所有敌人死亡，会自动调用 FinishCombat()
                 
-                // 注意：实际的战斗结束逻辑应该由具体的战斗系统实现
-                // 这里只提供框架，具体的结束条件判断由用户后续填充
-                
-                // 默认继续下一回合
-                EnterTurnStart();
+                // 默认继续下一回合（如果战斗未结束）
+                if (!isCombatFinished)
+                {
+                    EnterTurnStart();
+                }
             }
             else
             {
@@ -165,7 +330,7 @@ namespace GameFlow
 
         /// <summary>
         /// 完成战斗
-        /// 由战斗系统在战斗结束时调用
+        /// 由战斗系统在战斗结束时调用（当所有敌人死亡时自动调用）
         /// </summary>
         public void FinishCombat()
         {
@@ -177,8 +342,14 @@ namespace GameFlow
             isCombatFinished = true;
             Debug.Log($"[CombatNodeFlow] 战斗完成: Node[{currentNodeData.NodeId}]");
 
-            // 触发战斗结束事件
-            onCombatEnd?.Invoke();
+            // 取消订阅死亡事件
+            if (damageSystem != null)
+            {
+                damageSystem.OnTargetDeath.RemoveListener(OnEnemyDeath);
+            }
+
+            // 战斗结束时的逻辑（如果需要）
+            // 这里可以添加战斗结束后的清理代码
 
             // 完成流程
             FinishFlow();

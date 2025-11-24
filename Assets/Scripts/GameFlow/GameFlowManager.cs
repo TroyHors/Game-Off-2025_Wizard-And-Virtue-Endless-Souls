@@ -59,6 +59,11 @@ namespace GameFlow
         public MapNode CurrentNodeData => currentNodeData;
 
         /// <summary>
+        /// 当前流程对象（用于外部访问）
+        /// </summary>
+        public INodeEventFlow CurrentFlow => currentFlow;
+
+        /// <summary>
         /// 游戏开始事件
         /// </summary>
         public UnityEvent OnGameStart => onGameStart;
@@ -194,7 +199,24 @@ namespace GameFlow
 
             // 触发节点事件开始事件
             Debug.Log($"[GameFlowManager] 启动节点事件流程: Node[{nodeData.NodeId}] Type:{nodeData.NodeType}");
-            onNodeEventStart?.Invoke();
+            if (onNodeEventStart != null)
+            {
+                int listenerCount = onNodeEventStart.GetPersistentEventCount();
+                Debug.Log($"[GameFlowManager] OnNodeEventStart 事件监听器数量: {listenerCount}");
+                if (listenerCount > 0)
+                {
+                    onNodeEventStart.Invoke();
+                    Debug.Log("[GameFlowManager] OnNodeEventStart 事件已触发");
+                }
+                else
+                {
+                    Debug.Log("[GameFlowManager] OnNodeEventStart 事件没有监听器");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[GameFlowManager] OnNodeEventStart 事件为 null");
+            }
 
             // 开始执行流程
             currentFlow.StartFlow();
@@ -266,6 +288,48 @@ namespace GameFlow
             {
                 Debug.LogWarning("[GameFlowManager] 游戏已经开始，无法重复触发");
             }
+        }
+
+        /// <summary>
+        /// 结束当前回合（供UI按钮调用）
+        /// 如果当前流程是 CombatNodeFlow，则调用其 EnterTurnEnd 方法
+        /// </summary>
+        public void EndCurrentTurn()
+        {
+            if (currentFlow == null)
+            {
+                Debug.LogWarning("[GameFlowManager] 当前没有正在执行的节点事件流程");
+                return;
+            }
+
+            // 检查是否是战斗流程
+            if (currentFlow is CombatNodeFlow combatFlow)
+            {
+                combatFlow.EnterTurnEnd();
+            }
+            else
+            {
+                Debug.LogWarning($"[GameFlowManager] 当前流程类型 {currentFlow.GetType().Name} 不支持结束回合操作");
+            }
+        }
+
+        /// <summary>
+        /// 检查是否可以结束回合（供UI按钮判断是否可用）
+        /// </summary>
+        public bool CanEndTurn()
+        {
+            if (currentFlow == null)
+            {
+                return false;
+            }
+
+            // 检查是否是战斗流程且处于回合进行中状态
+            if (currentFlow is CombatNodeFlow combatFlow)
+            {
+                return combatFlow.CurrentState == CombatTurnState.TurnPlaying;
+            }
+
+            return false;
         }
 
         /// <summary>

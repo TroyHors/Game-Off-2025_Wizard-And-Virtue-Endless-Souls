@@ -30,6 +30,9 @@ namespace DamageSystem
         [Tooltip("伤害序列处理完成时触发（总伤害数，死亡数）")]
         [SerializeField] private UnityEvent<int, int> onHitSequenceComplete = new UnityEvent<int, int>();
 
+        [Tooltip("目标死亡时触发（死亡的GameObject）")]
+        [SerializeField] private UnityEvent<GameObject> onTargetDeath = new UnityEvent<GameObject>();
+
         /// <summary>
         /// 开始处理伤害序列事件
         /// </summary>
@@ -44,6 +47,11 @@ namespace DamageSystem
         /// 伤害序列处理完成事件
         /// </summary>
         public UnityEvent<int, int> OnHitSequenceComplete => onHitSequenceComplete;
+
+        /// <summary>
+        /// 目标死亡事件（供战斗流程系统订阅）
+        /// </summary>
+        public UnityEvent<GameObject> OnTargetDeath => onTargetDeath;
 
         /// <summary>
         /// 是否正在处理伤害序列
@@ -135,6 +143,8 @@ namespace DamageSystem
                     {
                         Debug.Log($"[DamageSystem] 目标 {hit.target.name} 在受到 {hit.damage} 点伤害后死亡（实际造成 {actualDamage} 点生命值伤害）");
                     }
+                    // 触发目标死亡事件
+                    onTargetDeath?.Invoke(hit.target);
                 }
                 else if (debugLog)
                 {
@@ -237,6 +247,8 @@ namespace DamageSystem
                     {
                         Debug.Log($"[DamageSystem] 目标 {hit.target.name} 在受到 {hit.damage} 点伤害后死亡（实际造成 {actualDamage} 点生命值伤害）");
                     }
+                    // 触发目标死亡事件
+                    onTargetDeath?.Invoke(hit.target);
                 }
                 else if (debugLog)
                 {
