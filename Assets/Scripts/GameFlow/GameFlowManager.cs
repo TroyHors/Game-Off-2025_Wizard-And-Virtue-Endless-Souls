@@ -96,12 +96,25 @@ namespace GameFlow
             }
         }
 
-        private void OnEnable()
+        private void Start()
         {
+            // 确保在 Start 时再次查找 mapManager（避免 OnEnable 时还未初始化）
+            if (mapManager == null)
+            {
+                mapManager = FindObjectOfType<MapManager>();
+            }
+
             // 订阅地图生成事件，在游戏开始时触发
             if (mapManager != null)
             {
                 mapManager.OnMapGenerated += HandleMapGenerated;
+
+                // 如果地图已经生成，立即处理（处理订阅时机问题）
+                if (mapManager.CurrentTopology != null && !isGameStarted)
+                {
+                    Debug.Log("[GameFlowManager] 检测到地图已生成，立即触发游戏开始事件");
+                    HandleMapGenerated(mapManager.CurrentTopology);
+                }
             }
         }
 

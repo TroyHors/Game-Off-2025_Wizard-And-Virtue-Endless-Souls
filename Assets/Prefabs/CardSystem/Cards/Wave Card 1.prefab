@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &868270896599410164
+--- !u!1 &7089098863694528691
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,25 +8,24 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7470523835621759971}
-  - component: {fileID: 9046012157815283681}
-  - component: {fileID: 3913930301027273269}
-  - component: {fileID: 487523952846983581}
-  - component: {fileID: -1412325216275568201}
+  - component: {fileID: 1565775866583003483}
+  - component: {fileID: 4309475768501451890}
+  - component: {fileID: 4490386852292392053}
+  - component: {fileID: 6581102793343482923}
   m_Layer: 5
-  m_Name: slot
+  m_Name: Wave Card 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!224 &7470523835621759971
+--- !u!224 &1565775866583003483
 RectTransform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 868270896599410164}
+  m_GameObject: {fileID: 7089098863694528691}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
@@ -36,39 +35,39 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -296.5, y: -249.66666}
-  m_SizeDelta: {x: 100, y: 100}
+  m_AnchoredPosition: {x: -417.5, y: -249.66666}
+  m_SizeDelta: {x: 100, y: 183.37}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!222 &9046012157815283681
+--- !u!222 &4309475768501451890
 CanvasRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 868270896599410164}
+  m_GameObject: {fileID: 7089098863694528691}
   m_CullTransparentMesh: 1
---- !u!114 &3913930301027273269
+--- !u!114 &4490386852292392053
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 868270896599410164}
+  m_GameObject: {fileID: 7089098863694528691}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -77,43 +76,23 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &487523952846983581
+--- !u!114 &6581102793343482923
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 868270896599410164}
+  m_GameObject: {fileID: 7089098863694528691}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0520f631bf5807c46981a226f55359ad, type: 3}
+  m_Script: {fileID: 11500000, guid: 580e7a187b72c4a4ba8623b88fb6f648, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gridPosition: 0
-  cardPlacementOffset: {x: 0, y: 0, z: 0}
---- !u!114 &-1412325216275568201
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 868270896599410164}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 59f8146938fff824cb5fd77236b75775, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Padding:
-    m_Left: 0
-    m_Right: 0
-    m_Top: 0
-    m_Bottom: 0
-  m_ChildAlignment: 0
-  m_Spacing: -2.43
-  m_ChildForceExpandWidth: 1
-  m_ChildForceExpandHeight: 1
-  m_ChildControlWidth: 1
-  m_ChildControlHeight: 1
-  m_ChildScaleWidth: 0
-  m_ChildScaleHeight: 0
-  m_ReverseArrangement: 0
+  waveData:
+    AttackDirection: 1
+    serializedPeakData:
+    - position: 0
+      value: 1
+    - position: 1
+      value: -1
+  showWaveDetails: 1
