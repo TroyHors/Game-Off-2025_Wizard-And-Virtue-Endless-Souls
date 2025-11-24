@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using GameFlow;
 
 namespace MapSystem
 {
@@ -14,6 +15,9 @@ namespace MapSystem
         [Header("引用")]
         [Tooltip("地图管理器")]
         [SerializeField] private MapManager mapManager;
+
+        [Tooltip("游戏流程管理器")]
+        [SerializeField] private GameFlowManager gameFlowManager;
 
         [Tooltip("地图容器(所有节点和连接线将作为子对象生成在这里)")]
         [SerializeField] private RectTransform mapContainer;
@@ -65,6 +69,12 @@ namespace MapSystem
             if (mapManager == null)
             {
                 mapManager = FindObjectOfType<MapManager>();
+            }
+
+            // 如果没有手动指定,尝试自动查找GameFlowManager
+            if (gameFlowManager == null)
+            {
+                gameFlowManager = FindObjectOfType<GameFlowManager>();
             }
 
             // 监听地图生成事件
@@ -498,6 +508,16 @@ namespace MapSystem
                         // 更新可视化状态
                         UpdateNodeStates();
                         OnNodeClicked?.Invoke(nodeVisual.Node);
+
+                        // 启动节点事件流程（统一入口）
+                        if (gameFlowManager != null)
+                        {
+                            gameFlowManager.StartNodeEvent(nodeVisual.Node);
+                        }
+                        else
+                        {
+                            Debug.LogWarning("[MapVisualizer] GameFlowManager 未设置，无法启动节点事件流程");
+                        }
                     }
                 }
                 else
@@ -520,6 +540,16 @@ namespace MapSystem
                     // 更新可视化状态
                     UpdateNodeStates();
                     OnNodeClicked?.Invoke(nodeVisual.Node);
+
+                    // 启动节点事件流程（统一入口）
+                    if (gameFlowManager != null)
+                    {
+                        gameFlowManager.StartNodeEvent(nodeVisual.Node);
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[MapVisualizer] GameFlowManager 未设置，无法启动节点事件流程");
+                    }
                 }
             }
             else

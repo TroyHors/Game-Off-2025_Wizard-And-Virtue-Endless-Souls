@@ -315,14 +315,15 @@ namespace MapSystem
                 }
             }
 
-            foreach (int nodeId in path)
-            {
-                MapNode node = topology.GetNode(nodeId);
-                if (node == null || node.IsBoss)
-                {
-                    continue;
-                }
+            // 按层排序路径节点，以便正确更新层间隔信息
+            List<MapNode> pathNodes = path
+                .Select(id => topology.GetNode(id))
+                .Where(n => n != null && !n.IsBoss)
+                .OrderBy(n => n.Layer)
+                .ToList();
 
+            foreach (var node in pathNodes)
+            {
                 // 随机决定是否调整这个节点
                 if (random.NextDouble() < 0.3f) // 30%概率调整
                 {
@@ -336,7 +337,10 @@ namespace MapSystem
                     {
                         node.NodeType = newType;
                         // 更新最后出现的层数
-                        lastLayerOfType[newType] = node.Layer;
+                        if (!lastLayerOfType.ContainsKey(newType) || lastLayerOfType[newType] < node.Layer)
+                        {
+                            lastLayerOfType[newType] = node.Layer;
+                        }
                     }
                 }
             }

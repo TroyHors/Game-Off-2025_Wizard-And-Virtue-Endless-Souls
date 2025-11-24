@@ -139,6 +139,10 @@ namespace MapSystem
         [Tooltip("节点大小")]
         public Vector2 nodeSize = new Vector2(80, 80);
 
+        [Header("事件流程")]
+        [Tooltip("该节点类型对应的事件流程Prefab（必须包含实现 INodeEventFlow 的组件）")]
+        public UnityEngine.GameObject flowPrefab;
+
         public NodeTypeConfig()
         {
             layerWeightCurve = AnimationCurve.Linear(0, 1, 1, 1);
