@@ -290,6 +290,16 @@ namespace CardSystem
         /// </summary>
         public void ClearAllPiles()
         {
+            // 如果使用槽位系统，先清除所有槽位的占用状态
+            if (handSlotManager != null)
+            {
+                foreach (var slot in handSlotManager.GetAllSlots())
+                {
+                    slot.Clear();
+                }
+                Debug.Log("[CardPileManager] 已清除所有手牌槽位的占用状态");
+            }
+
             // 销毁手牌中的所有实例（牌堆和弃牌堆只存储Prefab引用，不需要销毁）
             foreach (var cardInfo in hand)
             {

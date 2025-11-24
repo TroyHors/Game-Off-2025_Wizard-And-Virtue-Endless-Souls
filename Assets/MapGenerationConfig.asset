@@ -1,0 +1,124 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77ddde55e897121468e14e769be53538, type: 3}
+  m_Name: MapGenerationConfig
+  m_EditorClassIdentifier: 
+  height: 15
+  width: 10
+  minNodesPerLayer: 2
+  maxNodesPerLayer: 5
+  avgOutDegree: 1.51
+  outDegreeVariance: 0.55
+  connectionSpan: 1
+  branchProbability: 0.266
+  mergeProbability: 0.285
+  enableContentFilling: 1
+  nodeTypeConfigs:
+  - nodeType: "\u6218\u6597"
+    globalWeight: 31.4
+    layerWeightCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0.045455933
+        value: 0.5790405
+        inSlope: -0.044065252
+        outSlope: -0.044065252
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 1.0004883
+        value: 0.5369568
+        inSlope: -0.044065252
+        outSlope: -0.044065252
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    minCount: 11
+    maxCount: 0
+    minLayerInterval: 0
+    sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+    nodeSize: {x: 20, y: 20}
+  - nodeType: "\u5546\u5E97"
+    globalWeight: 26.4
+    layerWeightCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1.0016022
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    minCount: 3
+    maxCount: 6
+    minLayerInterval: 2
+    sprite: {fileID: 10915, guid: 0000000000000000f000000000000000, type: 0}
+    nodeSize: {x: 20, y: 20}
+  - nodeType: "\u7CBE\u82F1"
+    globalWeight: 26.4
+    layerWeightCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1.0016022
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    minCount: 3
+    maxCount: 6
+    minLayerInterval: 2
+    sprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+    nodeSize: {x: 20, y: 20}
+  enablePathValidation: 0
+  minRestNodesPerPath: 2
+  maxConsecutiveEliteNodes: 2
+  bossNodeSprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  bossNodeSize: {x: 30, y: 30}
+  defaultNodeSprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}

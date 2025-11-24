@@ -79,6 +79,19 @@ namespace CardSystem
         }
 
         /// <summary>
+        /// 清除槽位（直接清空，不检查卡牌）
+        /// 用于重置槽位状态
+        /// </summary>
+        public void Clear()
+        {
+            if (currentCard != null)
+            {
+                currentCard = null;
+                Debug.Log($"[HandSlot] {gameObject.name} 槽位已清除");
+            }
+        }
+
+        /// <summary>
         /// 卡牌开始拖动时调用
         /// </summary>
         public void OnCardBeginDrag(CardDragHandler card)

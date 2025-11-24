@@ -124,6 +124,49 @@ namespace CardSystem
         }
 
         /// <summary>
+        /// 战斗开始时初始化牌堆和手牌堆，做好战斗前准备
+        /// 清空所有牌堆，然后重新从卡组初始化牌堆
+        /// </summary>
+        public void PrepareForCombat()
+        {
+            if (pileManager == null)
+            {
+                Debug.LogError("[CardSystem] 无法准备战斗：CardPileManager未设置");
+                return;
+            }
+
+            List<GameObject> deckCards;
+
+            // 优先使用动态卡组数据
+            if (deckData != null)
+            {
+                deckCards = BuildDeckFromData(deckData);
+                if (deckCards == null || deckCards.Count == 0)
+                {
+                    Debug.LogWarning("[CardSystem] 无法从卡组数据构建卡组，请检查CardPrefabRegistry和CardDeckData设置");
+                    return;
+                }
+                Debug.Log($"[CardSystem] 战斗准备：使用动态卡组数据，卡组大小：{deckCards.Count}");
+            }
+            else
+            {
+                // 使用传统卡组
+                if (deck.IsEmpty())
+                {
+                    Debug.LogWarning("[CardSystem] 卡组为空，无法准备战斗");
+                    return;
+                }
+                deckCards = deck.CreateCopy();
+                Debug.Log($"[CardSystem] 战斗准备：使用传统卡组，卡组大小：{deckCards.Count}");
+            }
+
+            // 清空所有牌堆并重新初始化牌堆
+            pileManager.InitializeDrawPile(deckCards);
+
+            Debug.Log($"[CardSystem] 战斗准备完成，牌堆已重置，卡组大小：{deckCards.Count}");
+        }
+
+        /// <summary>
         /// 根据卡组数据动态构建卡组（Prefab列表）
         /// </summary>
         /// <param name="data">卡组数据</param>
