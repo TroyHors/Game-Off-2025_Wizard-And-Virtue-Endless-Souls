@@ -163,6 +163,11 @@ namespace CharacterSystem
                         Wave wave = Wave.FromData(configData.waveData);
                         waveManager.SetEnemyWave(wave);
                     }
+                    else
+                    {
+                        // 如果没有配置波数据，更新显示（显示空波）
+                        waveManager.UpdateWaveDisplay();
+                    }
                 }
 
                 currentEnemies.Add(enemyEntity);

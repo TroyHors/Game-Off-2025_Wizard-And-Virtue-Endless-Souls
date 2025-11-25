@@ -991,6 +991,95 @@ public class GameController : MonoBehaviour
 - 添加波牌的拖拽放置功能
 - 实现格表的动态生成
 
+### 波显示系统 (Wave Visualization System)
+
+#### 概述
+
+波显示系统用于在Unity UI中可视化显示手牌波和敌人波的波形。系统采用局部正弦片段的方式绘制波峰，支持手牌波对齐slot、敌人波独立显示等功能。
+
+#### 核心组件
+
+1. **WaveVisualizer** (`Assets/Scripts/WaveSystem/WaveVisualizer.cs`)
+   - 通用波显示器组件
+   - **自动挂载在波显示容器上，无需手动添加**
+   - 负责根据波数据绘制波形
+
+#### 配置方法（非常简单）
+
+**重要：WaveVisualizer 组件会自动创建，无需手动挂载！你只需要设置容器即可。**
+
+##### 1. 配置手牌波显示
+
+1. **创建波显示容器**：
+   - 在场景中创建一个UI GameObject（例如：Image或空GameObject），命名为 "HandWaveContainer"
+   - 添加 `RectTransform` 组件（如果是空GameObject会自动添加）
+
+2. **在 HandWaveGridManager 中设置**：
+   - 找到 `HandWaveGridManager` 组件
+   - 在 "波显示设置" 部分
+   - 将 "HandWaveContainer" 拖拽到 `Wave Container` 字段
+
+3. **完成！** 
+   - 系统会在运行时自动在 `Wave Container` 上创建 `WaveVisualizer` 组件
+   - 你可以在Hierarchy中看到 `HandWaveContainer` 下自动添加了 `WaveVisualizer` 组件
+
+##### 2. 配置敌人波显示
+
+1. **创建波显示容器**：
+   - 在场景中创建一个UI GameObject（例如：Image或空GameObject），命名为 "EnemyWaveContainer"
+   - 添加 `RectTransform` 组件（如果是空GameObject会自动添加）
+
+2. **在 EnemyWaveManager 中设置**：
+   - 找到 `EnemyWaveManager` 组件（通常挂载在敌人实体Prefab上）
+   - 在 "波显示设置" 部分
+   - 将 "EnemyWaveContainer" 拖拽到 `Wave Container` 字段
+
+3. **完成！**
+   - 系统会在运行时自动在 `Wave Container` 上创建 `WaveVisualizer` 组件
+
+##### 3. 调整显示参数（可选）
+
+如果需要调整波显示的外观，可以在运行时查看 `WaveVisualizer` 组件（自动创建在容器上）：
+- `Peak Unit Height`: 强度为1的波峰高度（默认50）
+- `Peak Width`: 每个波峰的宽度（默认100）
+- `Line Width`: 波显示线条宽度（默认2）
+- `Line Color`: 波显示线条颜色（默认白色）
+
+**注意**：这些参数在运行时可以调整，但不会保存。如果需要永久保存，可以在代码中设置默认值。
+
+#### 工作原理
+
+1. **手牌波显示**：
+   - 战斗开始时，系统自动获取所有slot的中心x坐标
+   - 每个波峰点与对应slot的x值对齐（一一对应）
+   - 波数据变化时（放置/撤回波牌）自动更新显示
+
+2. **敌人波显示**：
+   - 使用与手牌波相同的尺寸参数
+   - 不对齐slot，使用默认间距
+   - 敌人波数据变化时自动更新显示
+
+3. **波峰绘制**：
+   - 每个波峰是一个局部正弦片段（0到π），不是一个完整的sine周期
+   - 不考虑两个波峰间的连接
+   - 正值波峰向上，负值向下
+   - 波峰高度与强度线性关系（强度1=基准高度，强度2=2倍高度）
+   - 空位和强度为0的波峰绘制为直线
+   - 初始图像是一条直线（长度是波长，即波峰数）
+
+#### 配置总结
+
+**你只需要做两件事**：
+1. 创建一个UI GameObject作为容器（例如：Image或空GameObject）
+2. 将这个容器拖拽到 `HandWaveGridManager` 或 `EnemyWaveManager` 的 `Wave Container` 字段
+
+**系统会自动完成**：
+- 在容器上创建 `WaveVisualizer` 组件
+- 配置对齐设置（手牌波对齐slot，敌人波不对齐）
+- 在波数据变化时自动更新显示
+
+**不需要手动挂载任何组件！**
+
 ---
 
 ## 地图生成系统 (Map Generation System)

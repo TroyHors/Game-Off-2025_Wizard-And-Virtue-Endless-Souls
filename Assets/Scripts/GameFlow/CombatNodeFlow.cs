@@ -208,6 +208,27 @@ namespace GameFlow
                 Debug.LogWarning("[CombatNodeFlow] CardSystem 未找到，无法初始化牌堆");
             }
 
+            // 初始化手牌波显示（更新slot位置并显示初始波）
+            if (handWaveGridManager != null)
+            {
+                handWaveGridManager.UpdateWaveDisplay();
+            }
+
+            // 初始化敌人波显示
+            if (enemySpawner != null && enemySpawner.CurrentEnemies.Count > 0)
+            {
+                // 获取第一个敌人的EnemyWaveManager
+                GameObject firstEnemy = enemySpawner.CurrentEnemies[0];
+                if (firstEnemy != null)
+                {
+                    EnemyWaveManager enemyWaveManager = firstEnemy.GetComponent<EnemyWaveManager>();
+                    if (enemyWaveManager != null)
+                    {
+                        enemyWaveManager.UpdateWaveDisplay();
+                    }
+                }
+            }
+
             // 开始回合系统
             EnterTurnStart();
         }

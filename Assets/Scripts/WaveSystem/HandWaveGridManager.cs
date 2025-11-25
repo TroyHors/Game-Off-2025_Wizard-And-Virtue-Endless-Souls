@@ -22,6 +22,10 @@ namespace WaveSystem
         
         [Tooltip("格子Prefab（必须包含WaveGridSlot组件）")]
         [SerializeField] private GameObject slotPrefab;
+
+        [Header("波显示设置")]
+        [Tooltip("手牌波显示容器（用于显示手牌波波形，必须设置）")]
+        [SerializeField] private RectTransform waveContainer;
         
         [Header("卡牌系统引用")]
         [Tooltip("卡牌系统（用于将待使用的卡牌放入弃牌堆）")]
@@ -68,6 +72,7 @@ namespace WaveSystem
         private void Awake()
         {
             InitializeGrid();
+            InitializeWaveVisualizer();
         }
 
         /// <summary>
@@ -125,6 +130,7 @@ namespace WaveSystem
             }
 
             Debug.Log($"[HandWaveGridManager] 格表初始化完成，共 {gridSlots.Count} 个格子（位置范围：{minGridPosition} 到 {maxGridPosition}）");
+
         }
 
         /// <summary>
@@ -195,6 +201,9 @@ namespace WaveSystem
                 PrintHandWaveDetails();
             }
 
+            // 更新波显示
+            UpdateWaveDisplay();
+
             return handWaveManager.HandWave.Clone();
         }
 
@@ -245,6 +254,9 @@ namespace WaveSystem
                 PrintHandWaveDetails();
             }
 
+            // 更新波显示
+            UpdateWaveDisplay();
+
             return handWaveManager.HandWave.Clone();
         }
 
@@ -269,6 +281,10 @@ namespace WaveSystem
                 Debug.Log("[HandWaveGridManager] 发出手牌波");
                 PrintWaveDetails(emittedWave, "发出的波");
             }
+
+            // 注意：不在这里更新波显示，因为发波后手牌波会被清空
+            // 波形显示应该显示当前的手牌波状态，而不是发出的波
+            // 发波后应该由调用者负责调用 ResetHandWave() 和 UpdateWaveDisplay()
 
             return emittedWave;
         }
@@ -365,6 +381,10 @@ namespace WaveSystem
                 Debug.LogWarning("[HandWaveGridManager] 卡牌系统未设置，无法将待使用的卡牌放入弃牌堆");
             }
 
+            // 弃牌后，重置手牌波（确保手牌波被完全清空）
+            // 注意：这应该在弃牌之后调用，因为弃牌过程中可能会触发WithdrawCard，但最终手牌波应该被清空
+            ResetHandWave();
+
             return successCount;
         }
 
@@ -383,6 +403,9 @@ namespace WaveSystem
                     slot.RemoveCard();
                 }
             }
+
+            // 更新波显示（显示重置后的空波）
+            UpdateWaveDisplay();
 
             if (debugPrintWaveDetails)
             {
@@ -441,6 +464,52 @@ namespace WaveSystem
         {
             InitializeGrid();
         }
+
+        /// <summary>
+        /// 波显示器（自动创建，无需手动挂载）
+        /// </summary>
+        private WaveVisualizer waveVisualizer;
+
+        /// <summary>
+        /// 初始化波显示器
+        /// </summary>
+        private void InitializeWaveVisualizer()
+        {
+            if (waveContainer == null)
+            {
+                Debug.LogWarning("[HandWaveGridManager] 波显示容器未设置，无法初始化波显示器");
+                return;
+            }
+
+            // 自动获取或创建 WaveVisualizer 组件（挂载在 waveContainer 上）
+            waveVisualizer = waveContainer.GetComponent<WaveVisualizer>();
+            if (waveVisualizer == null)
+            {
+                waveVisualizer = waveContainer.gameObject.AddComponent<WaveVisualizer>();
+                Debug.Log("[HandWaveGridManager] 自动创建 WaveVisualizer 组件");
+            }
+
+            // 设置波显示器的容器
+            waveVisualizer.WaveContainer = waveContainer;
+            
+            // 设置波的位置范围（使用slot的范围）
+            waveVisualizer.SetPositionRange(minGridPosition, maxGridPosition);
+
+            // 注意：不在启动时自动显示波，等待用户操作后再显示
+        }
+
+
+        /// <summary>
+        /// 更新手牌波显示
+        /// </summary>
+        public void UpdateWaveDisplay()
+        {
+            if (waveVisualizer != null)
+            {
+                waveVisualizer.DisplayWave(HandWave);
+            }
+        }
+
     }
 }
 

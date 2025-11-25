@@ -21,6 +21,16 @@ namespace WaveSystem
         [Tooltip("当前使用的预设波索引（-1表示使用自定义波）")]
         [SerializeField] private int currentPresetIndex = -1;
 
+        [Header("波显示设置")]
+        [Tooltip("敌人波显示容器（用于显示敌人波波形，必须设置）")]
+        [SerializeField] private RectTransform waveContainer;
+
+        [Tooltip("波位置范围（从HandWaveGridManager获取，用于确定波的长度）")]
+        [SerializeField] private int minPosition = -10;
+
+        [Tooltip("波位置范围（从HandWaveGridManager获取，用于确定波的长度）")]
+        [SerializeField] private int maxPosition = 10;
+
         /// <summary>
         /// 当前敌人的波（只读）
         /// </summary>
@@ -38,6 +48,8 @@ namespace WaveSystem
             {
                 LoadPresetWave(currentPresetIndex);
             }
+
+            InitializeWaveVisualizer();
         }
 
         /// <summary>
@@ -51,11 +63,13 @@ namespace WaveSystem
                 Debug.LogWarning("[EnemyWaveManager] 尝试设置空的敌人波");
                 currentEnemyWave = new Wave();
                 currentPresetIndex = -1;
+                UpdateWaveDisplay();
                 return;
             }
 
             currentEnemyWave = wave.Clone();
             currentPresetIndex = -1; // 使用自定义波，不再使用预设
+            UpdateWaveDisplay();
         }
 
         /// <summary>
@@ -82,6 +96,7 @@ namespace WaveSystem
             currentPresetIndex = presetIndex;
 
             Debug.Log($"[EnemyWaveManager] 加载预设波 {presetIndex}，包含 {currentEnemyWave.PeakCount} 个波峰");
+            UpdateWaveDisplay();
         }
 
         /// <summary>
@@ -106,6 +121,57 @@ namespace WaveSystem
         {
             currentEnemyWave = new Wave();
             currentPresetIndex = -1;
+            UpdateWaveDisplay();
+        }
+
+        /// <summary>
+        /// 波显示器（自动创建，无需手动挂载）
+        /// </summary>
+        private WaveVisualizer waveVisualizer;
+
+        /// <summary>
+        /// 初始化波显示器
+        /// </summary>
+        private void InitializeWaveVisualizer()
+        {
+            if (waveContainer == null)
+            {
+                Debug.LogWarning("[EnemyWaveManager] 波显示容器未设置，无法初始化波显示器");
+                return;
+            }
+
+            // 自动获取或创建 WaveVisualizer 组件（挂载在 waveContainer 上）
+            waveVisualizer = waveContainer.GetComponent<WaveVisualizer>();
+            if (waveVisualizer == null)
+            {
+                waveVisualizer = waveContainer.gameObject.AddComponent<WaveVisualizer>();
+                Debug.Log("[EnemyWaveManager] 自动创建 WaveVisualizer 组件");
+            }
+
+            // 设置波显示器的容器
+            waveVisualizer.WaveContainer = waveContainer;
+            
+            // 设置波的位置范围（使用与手牌波相同的范围）
+            // 尝试从HandWaveGridManager获取范围，如果没有则使用默认值
+            HandWaveGridManager handWaveGridManager = FindObjectOfType<HandWaveGridManager>();
+            if (handWaveGridManager != null)
+            {
+                minPosition = handWaveGridManager.MinGridPosition;
+                maxPosition = handWaveGridManager.MaxGridPosition;
+            }
+            
+            waveVisualizer.SetPositionRange(minPosition, maxPosition);
+        }
+
+        /// <summary>
+        /// 更新敌人波显示
+        /// </summary>
+        public void UpdateWaveDisplay()
+        {
+            if (waveVisualizer != null)
+            {
+                waveVisualizer.DisplayWave(currentEnemyWave);
+            }
         }
 
         /// <summary>
