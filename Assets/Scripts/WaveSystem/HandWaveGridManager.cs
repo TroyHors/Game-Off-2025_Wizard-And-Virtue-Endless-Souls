@@ -471,6 +471,11 @@ namespace WaveSystem
         private WaveVisualizer waveVisualizer;
 
         /// <summary>
+        /// 手牌波WaveVisualizer（只读）
+        /// </summary>
+        public WaveVisualizer WaveVisualizer => waveVisualizer;
+
+        /// <summary>
         /// 初始化波显示器
         /// </summary>
         private void InitializeWaveVisualizer()

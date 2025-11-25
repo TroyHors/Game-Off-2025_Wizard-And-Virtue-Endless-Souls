@@ -15,8 +15,14 @@ namespace WaveSystem
         [Tooltip("波显示容器（LineRenderer或UI Image将绘制在这里）")]
         [SerializeField] private RectTransform waveContainer;
 
-        [Tooltip("波峰单位高度（强度为1的波峰高度）")]
-        [SerializeField] private float peakUnitHeight = 50f;
+        [Tooltip("波峰单位高度（强度为1的波峰高度，如果为0则根据容器高度自动计算）")]
+        [SerializeField] private float peakUnitHeight = 0f;
+
+        [Tooltip("容器内边距（上下各留出的空间）")]
+        [SerializeField] private float padding = 20f;
+
+        [Tooltip("最大波峰强度（用于自动计算单位高度，强度为这个值的波峰不会超过容器）")]
+        [SerializeField] private int maxPeakIntensity = 5;
 
         [Tooltip("波峰宽度（每个波峰的宽度，如果为0则根据容器宽度自动计算）")]
         [SerializeField] private float peakWidth = 0f;
@@ -44,6 +50,11 @@ namespace WaveSystem
         private float calculatedPeakWidth = 0f;
 
         /// <summary>
+        /// 计算后的波峰单位高度（根据容器高度自动计算）
+        /// </summary>
+        private float calculatedPeakUnitHeight = 0f;
+
+        /// <summary>
         /// 波显示容器
         /// </summary>
         public RectTransform WaveContainer
@@ -60,6 +71,11 @@ namespace WaveSystem
             get => peakUnitHeight;
             set => peakUnitHeight = Mathf.Max(0.1f, value);
         }
+
+        /// <summary>
+        /// 计算后的波峰单位高度（只读）
+        /// </summary>
+        public float CalculatedPeakUnitHeight => calculatedPeakUnitHeight;
 
         /// <summary>
         /// 波峰宽度
@@ -96,6 +112,9 @@ namespace WaveSystem
 
             // 计算波峰宽度（根据容器宽度自动计算，确保所有位置连续显示）
             CalculatePeakWidth();
+
+            // 计算波峰单位高度（根据容器高度自动计算，确保最大强度波峰不超过容器）
+            CalculatePeakUnitHeight();
 
             // 保存波数据（使用Clone确保数据不被修改）
             if (wave != null && !wave.IsEmpty)
@@ -182,6 +201,66 @@ namespace WaveSystem
                 
                 // 使用较小的值，确保不会超出容器
                 calculatedPeakWidth = Mathf.Min(peakWidth, maxAllowedWidth);
+            }
+        }
+
+        /// <summary>
+        /// 计算波峰单位高度（根据容器高度自动计算，确保最大强度波峰不超过容器）
+        /// </summary>
+        private void CalculatePeakUnitHeight()
+        {
+            if (waveContainer == null)
+            {
+                calculatedPeakUnitHeight = peakUnitHeight > 0 ? peakUnitHeight : 50f; // 默认值
+                return;
+            }
+
+            // 如果peakUnitHeight为0，则根据容器高度自动计算
+            if (peakUnitHeight <= 0)
+            {
+                float containerHeight = waveContainer.rect.height;
+                
+                if (containerHeight > 0 && maxPeakIntensity > 0)
+                {
+                    // 计算可用高度（减去上下padding）
+                    float availableHeight = containerHeight - (padding * 2f);
+                    
+                    if (availableHeight > 0)
+                    {
+                        // 强度为maxPeakIntensity的波峰应该正好填满可用高度
+                        // 波峰高度 = peakUnitHeight * maxPeakIntensity
+                        // 所以：peakUnitHeight = availableHeight / maxPeakIntensity
+                        calculatedPeakUnitHeight = availableHeight / maxPeakIntensity;
+                    }
+                    else
+                    {
+                        calculatedPeakUnitHeight = 50f; // 默认值
+                        Debug.LogWarning($"[WaveVisualizer] 容器高度不足（高度：{containerHeight}，padding：{padding * 2f}），使用默认单位高度");
+                    }
+                }
+                else
+                {
+                    calculatedPeakUnitHeight = 50f; // 默认值
+                }
+            }
+            else
+            {
+                // 使用手动设置的高度，但确保不超过容器高度
+                float containerHeight = waveContainer.rect.height;
+                float availableHeight = containerHeight - (padding * 2f);
+                
+                if (availableHeight > 0 && maxPeakIntensity > 0)
+                {
+                    // 计算最大允许的单位高度
+                    float maxAllowedUnitHeight = availableHeight / maxPeakIntensity;
+                    
+                    // 使用较小的值，确保不会超出容器
+                    calculatedPeakUnitHeight = Mathf.Min(peakUnitHeight, maxAllowedUnitHeight);
+                }
+                else
+                {
+                    calculatedPeakUnitHeight = peakUnitHeight;
+                }
             }
         }
 
@@ -308,7 +387,7 @@ namespace WaveSystem
         private void DrawPeakSegment(int position, int value)
         {
             float centerX = GetXPosition(position);
-            float amplitude = peakUnitHeight * Mathf.Abs(value); // 振幅（线性关系：强度1=基准高度，强度2=2倍高度）
+            float amplitude = calculatedPeakUnitHeight * Mathf.Abs(value); // 振幅（线性关系：强度1=基准高度，强度2=2倍高度）
             float direction = value > 0 ? 1f : -1f; // 方向（正值向上，负值向下）
             float halfWidth = calculatedPeakWidth / 2f;
 

@@ -214,16 +214,24 @@ namespace GameFlow
                 handWaveGridManager.UpdateWaveDisplay();
             }
 
-            // 初始化敌人波显示
-            if (enemySpawner != null && enemySpawner.CurrentEnemies.Count > 0)
+            // 初始化敌人波显示（EnemyWaveManager和HandWaveGridManager在一起）
+            if (handWaveGridManager != null)
             {
-                // 获取第一个敌人的EnemyWaveManager
-                GameObject firstEnemy = enemySpawner.CurrentEnemies[0];
-                if (firstEnemy != null)
+                EnemyWaveManager enemyWaveManager = handWaveGridManager.GetComponent<EnemyWaveManager>();
+                if (enemyWaveManager != null)
                 {
-                    EnemyWaveManager enemyWaveManager = firstEnemy.GetComponent<EnemyWaveManager>();
-                    if (enemyWaveManager != null)
+                    // 初始化敌人波显示器（使用手牌波的参数）
+                    enemyWaveManager.InitializeWaveVisualizer(handWaveGridManager);
+                    
+                    // 加载预设波数据（如果有预设波，加载第一个；否则显示空波）
+                    if (enemyWaveManager.PresetWaveCount > 0)
                     {
+                        // 加载第一个预设波（或可以根据战斗计数选择）
+                        enemyWaveManager.LoadPresetWave(0);
+                    }
+                    else
+                    {
+                        // 如果没有预设波，更新显示（显示空波）
                         enemyWaveManager.UpdateWaveDisplay();
                     }
                 }

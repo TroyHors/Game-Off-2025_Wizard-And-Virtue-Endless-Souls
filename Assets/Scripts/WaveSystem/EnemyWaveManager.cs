@@ -25,12 +25,6 @@ namespace WaveSystem
         [Tooltip("敌人波显示容器（用于显示敌人波波形，必须设置）")]
         [SerializeField] private RectTransform waveContainer;
 
-        [Tooltip("波位置范围（从HandWaveGridManager获取，用于确定波的长度）")]
-        [SerializeField] private int minPosition = -10;
-
-        [Tooltip("波位置范围（从HandWaveGridManager获取，用于确定波的长度）")]
-        [SerializeField] private int maxPosition = 10;
-
         /// <summary>
         /// 当前敌人的波（只读）
         /// </summary>
@@ -43,13 +37,7 @@ namespace WaveSystem
 
         private void Awake()
         {
-            // 如果当前使用的是预设波，加载预设波
-            if (currentPresetIndex >= 0 && currentPresetIndex < presetWaves.Count)
-            {
-                LoadPresetWave(currentPresetIndex);
-            }
-
-            InitializeWaveVisualizer();
+            // 注意：不在启动时初始化波显示，等待战斗开始时再初始化
         }
 
         /// <summary>
@@ -130,15 +118,34 @@ namespace WaveSystem
         private WaveVisualizer waveVisualizer;
 
         /// <summary>
-        /// 初始化波显示器
+        /// 初始化波显示器（使用手牌波的参数）
         /// </summary>
-        private void InitializeWaveVisualizer()
+        /// <param name="handWaveGridManager">手牌波格表管理器（用于获取位置范围和容器参数）</param>
+        public void InitializeWaveVisualizer(HandWaveGridManager handWaveGridManager)
         {
+            if (handWaveGridManager == null)
+            {
+                Debug.LogWarning("[EnemyWaveManager] HandWaveGridManager未设置，无法初始化波显示器");
+                return;
+            }
+
             if (waveContainer == null)
             {
                 Debug.LogWarning("[EnemyWaveManager] 波显示容器未设置，无法初始化波显示器");
                 return;
             }
+
+            // 获取手牌波的WaveVisualizer（用于获取计算后的参数）
+            WaveVisualizer handWaveVisualizer = handWaveGridManager.WaveVisualizer;
+            if (handWaveVisualizer == null)
+            {
+                Debug.LogWarning("[EnemyWaveManager] 无法找到手牌波的WaveVisualizer，无法获取计算后的参数");
+                return;
+            }
+            
+            // 确保手牌波已经计算了单位高度（通过触发一次显示来确保计算完成）
+            // 手牌波会在战斗开始时更新显示，此时会计算单位高度
+            handWaveGridManager.UpdateWaveDisplay();
 
             // 自动获取或创建 WaveVisualizer 组件（挂载在 waveContainer 上）
             waveVisualizer = waveContainer.GetComponent<WaveVisualizer>();
@@ -152,15 +159,24 @@ namespace WaveSystem
             waveVisualizer.WaveContainer = waveContainer;
             
             // 设置波的位置范围（使用与手牌波相同的范围）
-            // 尝试从HandWaveGridManager获取范围，如果没有则使用默认值
-            HandWaveGridManager handWaveGridManager = FindObjectOfType<HandWaveGridManager>();
-            if (handWaveGridManager != null)
+            int minPosition = handWaveGridManager.MinGridPosition;
+            int maxPosition = handWaveGridManager.MaxGridPosition;
+            waveVisualizer.SetPositionRange(minPosition, maxPosition);
+            
+            // 获取手牌波计算后的波峰单位高度
+            float calculatedPeakUnitHeight = handWaveVisualizer.CalculatedPeakUnitHeight;
+            if (calculatedPeakUnitHeight > 0)
             {
-                minPosition = handWaveGridManager.MinGridPosition;
-                maxPosition = handWaveGridManager.MaxGridPosition;
+                // 直接设置计算后的单位高度（这样敌人波会使用相同的单位高度）
+                waveVisualizer.PeakUnitHeight = calculatedPeakUnitHeight;
+                Debug.Log($"[EnemyWaveManager] 使用手牌波计算后的单位高度: {calculatedPeakUnitHeight}");
+            }
+            else
+            {
+                Debug.LogWarning("[EnemyWaveManager] 手牌波的单位高度未计算，敌人波将使用默认值");
             }
             
-            waveVisualizer.SetPositionRange(minPosition, maxPosition);
+            Debug.Log($"[EnemyWaveManager] 初始化波显示器，位置范围: {minPosition} 到 {maxPosition}");
         }
 
         /// <summary>
@@ -171,6 +187,10 @@ namespace WaveSystem
             if (waveVisualizer != null)
             {
                 waveVisualizer.DisplayWave(currentEnemyWave);
+            }
+            else
+            {
+                Debug.LogWarning("[EnemyWaveManager] WaveVisualizer未初始化，无法更新显示。请先调用 InitializeWaveVisualizer(HandWaveGridManager)");
             }
         }
 
