@@ -1847,4 +1847,190 @@ public class GameController : MonoBehaviour
 - 实现敌人AI系统
 - 添加角色动画和特效
 - 实现角色升级系统
+
+---
+
+## 金币系统 (Coin System)
+
+### 概述
+
+金币系统是一个独立的货币管理系统,提供简单的数值加减逻辑,供其他系统调用。系统采用数据与逻辑分离的设计,使用 ScriptableObject 持久化金币数据,支持金币变化事件通知。
+
+### 系统架构
+
+#### 核心组件
+
+1. **CoinData** (`Assets/Scripts/CurrencySystem/CoinData.cs`)
+   - 金币数据（ScriptableObject,持久化数据）
+   - 存储当前金币数量
+   - 提供增加、减少、检查金币的方法
+   - 扣金币时检查是否足够,如果不够返回 false
+
+2. **CoinSystem** (`Assets/Scripts/CurrencySystem/CoinSystem.cs`)
+   - 金币系统管理器（MonoBehaviour）
+   - 提供金币的增减逻辑,配合 CoinData 使用
+   - 提供事件通知（金币变化、花费失败）
+   - 扣金币时配合检测金币是否足够的逻辑,如果不够返回给调用者处理
+
+### 使用方法
+
+#### 1. 创建金币数据
+
+1. 在Project窗口中右键 → Create → Currency System → Coin Data
+2. 配置金币数据:
+   - `Current Coins`: 当前金币数量（默认0）
+
+#### 2. 设置场景
+
+1. 在场景中创建一个GameObject,命名为 "CoinSystem"
+2. 添加 `CoinSystem` 组件
+3. 在 `Coin System` 组件中,将创建的金币数据拖拽到 `Coin Data` 字段
+
+#### 3. 代码使用示例
+
+**基本使用:**
+
+```csharp
+using CurrencySystem;
+
+// 获取 CoinSystem 引用
+CoinSystem coinSystem = FindObjectOfType<CoinSystem>();
+
+// 增加金币
+coinSystem.AddCoins(100); // 增加100枚金币
+
+// 检查金币是否足够
+if (coinSystem.HasEnoughCoins(50))
+{
+    Debug.Log("金币足够");
+}
+
+// 尝试花费金币（推荐方式）
+if (coinSystem.TrySpendCoins(50))
+{
+    Debug.Log("成功花费50枚金币");
+    // 执行购买逻辑
+}
+else
+{
+    Debug.Log("金币不足,无法购买");
+    // 处理金币不足的逻辑（例如显示提示UI）
+}
+
+// 直接减少金币（不推荐,不会检查是否足够）
+coinSystem.RemoveCoins(30); // 直接减少30枚金币（如果不足会变成0）
+
+// 设置金币数量
+coinSystem.SetCoins(200); // 设置金币为200
+
+// 重置金币
+coinSystem.ResetCoins(0); // 重置为0
+```
+
+**监听事件:**
+
+```csharp
+// 监听金币变化事件
+coinSystem.OnCoinsChanged.AddListener((currentCoins) =>
+{
+    Debug.Log($"金币数量变化: {currentCoins}");
+    // 更新UI显示
+});
+
+// 监听花费失败事件
+coinSystem.OnSpendFailed.AddListener((requiredAmount, currentCoins) =>
+{
+    Debug.Log($"金币不足: 需要 {requiredAmount}, 当前只有 {currentCoins}");
+    // 显示提示UI
+});
+```
+
+**在UnityEvent中使用:**
+
+1. 在Inspector中找到需要调用金币系统的地方（例如商店UI按钮）
+2. 将 `CoinSystem` 的 `TrySpendCoins` 方法拖拽到 UnityEvent
+3. 设置需要花费的金币数量
+4. 如果花费失败,可以监听 `OnSpendFailed` 事件来处理
+
+### API 文档
+
+#### CoinSystem 主要方法
+
+- `AddCoins(int amount)`: 增加金币
+  - 参数: `amount` - 增加的金币数量（必须为正数）
+  - 返回: 实际增加的金币数量
+  - 说明: 成功增加后触发 `OnCoinsChanged` 事件
+
+- `TrySpendCoins(int amount)`: 尝试花费金币（推荐方式）
+  - 参数: `amount` - 需要花费的金币数量（必须为正数）
+  - 返回: `bool` - 是否成功花费（金币足够返回 true,不足返回 false）
+  - 说明: 
+    - 如果金币足够,扣除金币并返回 true,触发 `OnCoinsChanged` 事件
+    - 如果金币不足,不扣除金币,返回 false,触发 `OnSpendFailed` 事件
+    - **这是推荐的方式,因为会自动检查金币是否足够**
+
+- `RemoveCoins(int amount)`: 减少金币（不检查是否足够）
+  - 参数: `amount` - 减少的金币数量（必须为正数）
+  - 返回: 实际减少的金币数量
+  - 说明: 如果金币不足会变成0（不会变成负数）,不推荐使用,建议使用 `TrySpendCoins`
+
+- `HasEnoughCoins(int amount)`: 检查金币是否足够
+  - 参数: `amount` - 需要的金币数量
+  - 返回: `bool` - 是否足够
+
+- `SetCoins(int amount)`: 设置金币数量
+  - 参数: `amount` - 新的金币数量（不能为负数）
+  - 说明: 用于初始化或重置
+
+- `ResetCoins(int initialAmount = 0)`: 重置金币
+  - 参数: `initialAmount` - 初始金币数量（默认为0）
+
+#### CoinSystem 主要属性
+
+- `CurrentCoins`: 当前金币数量（只读）
+- `CoinData`: 金币数据（可读写）
+- `OnCoinsChanged`: 金币数量变化事件（UnityEvent<int>）
+- `OnSpendFailed`: 尝试花费金币失败事件（UnityEvent<int, int>）
+
+#### CoinData 主要方法
+
+- `AddCoins(int amount)`: 增加金币
+- `TrySpendCoins(int amount)`: 尝试花费金币（检查是否足够）
+- `RemoveCoins(int amount)`: 减少金币（不检查是否足够）
+- `HasEnoughCoins(int amount)`: 检查金币是否足够
+- `SetCoins(int amount)`: 设置金币数量
+- `ResetCoins(int initialAmount = 0)`: 重置金币
+
+#### CoinData 主要属性
+
+- `CurrentCoins`: 当前金币数量（只读）
+
+### 设计原则
+
+1. **数据与逻辑分离**: CoinData 存储数据,CoinSystem 提供逻辑和事件
+2. **检查后扣费**: 扣金币时检查是否足够,如果不够返回 false,由调用者处理
+3. **事件通知**: 提供金币变化和花费失败事件,方便UI更新
+4. **持久化**: 使用 ScriptableObject 持久化数据,数据在游戏运行期间保持
+
+### 注意事项
+
+1. **推荐使用 TrySpendCoins**: 扣金币时应该使用 `TrySpendCoins` 方法,它会自动检查金币是否足够
+2. **处理花费失败**: 如果 `TrySpendCoins` 返回 false,应该处理金币不足的逻辑（例如显示提示UI）
+3. **事件监听**: 建议监听 `OnCoinsChanged` 事件来更新UI显示
+4. **数据持久化**: CoinData 是 ScriptableObject,数据在游戏运行期间保持,但不会自动保存到磁盘（需要手动保存或使用其他持久化方案）
+5. **游戏开始重置**: 在 `GameFlowManager` 中已配置自动重置金币功能,每次游戏开始时（地图生成后）会自动重置金币为初始值
+   - 在 `GameFlowManager` 的 Inspector 中可以设置:
+     - `Reset Coins On Game Start`: 是否在游戏开始时自动重置金币（默认开启）
+     - `Initial Coins`: 游戏开始时的初始金币数量（默认0）
+     - `Coin System`: 金币系统引用（如果为空,会自动查找）
+6. **调试信息**: 所有调试信息都带有 `[CoinSystem]` 或 `[CoinData]` 前缀,方便在日志中搜索
+
+### 扩展建议
+
+如果需要扩展功能,可以考虑:
+- 添加金币上限
+- 实现金币历史记录
+- 添加多种货币类型（钻石、银币等）
+- 实现金币奖励系统
+- 添加金币动画和特效
 - 添加角色装备系统

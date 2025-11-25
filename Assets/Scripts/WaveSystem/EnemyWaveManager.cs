@@ -163,6 +163,10 @@ namespace WaveSystem
             int maxPosition = handWaveGridManager.MaxGridPosition;
             waveVisualizer.SetPositionRange(minPosition, maxPosition);
             
+            // 设置敌人波显示方向为正常（不翻转）
+            waveVisualizer.ReverseDirection = false;
+            Debug.Log("[EnemyWaveManager] 设置敌人波显示方向为正常（不翻转）");
+            
             // 获取手牌波计算后的波峰单位高度
             float calculatedPeakUnitHeight = handWaveVisualizer.CalculatedPeakUnitHeight;
             if (calculatedPeakUnitHeight > 0)

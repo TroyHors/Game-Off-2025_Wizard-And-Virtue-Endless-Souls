@@ -33,6 +33,9 @@ namespace WaveSystem
         [Tooltip("波显示线条颜色")]
         [SerializeField] private Color lineColor = Color.white;
 
+        [Tooltip("是否翻转显示方向（左右翻转）")]
+        [SerializeField] private bool reverseDirection = false;
+
         [Header("波位置范围（从HandWaveGridManager获取）")]
         [Tooltip("波的最小位置（slot的最小位置，从HandWaveGridManager获取）")]
         [SerializeField] private int minPosition;
@@ -84,6 +87,15 @@ namespace WaveSystem
         {
             get => peakWidth;
             set => peakWidth = Mathf.Max(0.1f, value);
+        }
+
+        /// <summary>
+        /// 是否翻转显示方向（左右翻转）
+        /// </summary>
+        public bool ReverseDirection
+        {
+            get => reverseDirection;
+            set => reverseDirection = value;
         }
 
 
@@ -457,8 +469,18 @@ namespace WaveSystem
         private float GetXPosition(int position)
         {
             // 使用计算后的波峰宽度，确保连续显示
-            // 翻转方向：从maxPosition到minPosition，而不是从minPosition到maxPosition
-            int relativePosition = maxPosition - position; // 翻转：使用maxPosition减去position
+            int relativePosition;
+            if (reverseDirection)
+            {
+                // 翻转方向：从maxPosition到minPosition
+                relativePosition = maxPosition - position;
+            }
+            else
+            {
+                // 正常方向：从minPosition到maxPosition
+                relativePosition = position - minPosition;
+            }
+            
             int positionCount = maxPosition - minPosition + 1;
             float totalWidth = (positionCount - 1) * calculatedPeakWidth; // 总宽度（最后一个位置不需要额外宽度）
             // 从容器中心开始，向左偏移一半总宽度，然后加上相对位置

@@ -1,6 +1,7 @@
 using MapSystem;
 using UnityEngine;
 using UnityEngine.Events;
+using CurrencySystem;
 
 namespace GameFlow
 {
@@ -16,6 +17,16 @@ namespace GameFlow
 
         [Tooltip("UI管理器")]
         [SerializeField] private UIManager uiManager;
+
+        [Header("金币系统设置")]
+        [Tooltip("是否在游戏开始时自动重置金币")]
+        [SerializeField] private bool resetCoinsOnGameStart = true;
+
+        [Tooltip("游戏开始时的初始金币数量")]
+        [SerializeField] private int initialCoins = 0;
+
+        [Tooltip("金币系统（如果为空，会自动查找）")]
+        [SerializeField] private CoinSystem coinSystem;
 
         [Header("游戏流程事件")]
         [Tooltip("游戏开始时触发（地图生成后，第一次进入节点前，用于初始化牌堆等）")]
@@ -137,7 +148,36 @@ namespace GameFlow
             {
                 isGameStarted = true;
                 Debug.Log("[GameFlowManager] 游戏开始");
+                
+                // 在游戏开始时重置金币（如果启用）
+                if (resetCoinsOnGameStart)
+                {
+                    ResetCoinsOnGameStart();
+                }
+                
                 onGameStart?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// 在游戏开始时重置金币
+        /// </summary>
+        private void ResetCoinsOnGameStart()
+        {
+            // 自动查找 CoinSystem（如果未设置）
+            if (coinSystem == null)
+            {
+                coinSystem = FindObjectOfType<CoinSystem>();
+            }
+
+            if (coinSystem != null)
+            {
+                coinSystem.ResetCoins(initialCoins);
+                Debug.Log($"[GameFlowManager] 游戏开始时重置金币为 {initialCoins}");
+            }
+            else
+            {
+                Debug.LogWarning("[GameFlowManager] 未找到 CoinSystem，无法重置金币");
             }
         }
 

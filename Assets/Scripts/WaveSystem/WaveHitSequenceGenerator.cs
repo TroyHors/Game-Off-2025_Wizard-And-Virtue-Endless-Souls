@@ -92,8 +92,16 @@ namespace WaveSystem
                 
                 if (target == null)
                 {
-                    Debug.LogWarning($"[WaveHitSequenceGenerator] 位置 {position} 的波峰无法找到目标（攻击方向：{(peak.AttackDirection ? "攻向敌人" : "攻向玩家")}）");
+                    string directionStr = peak.AttackDirection ? "攻向敌人" : "攻向玩家";
+                    Debug.LogWarning($"[WaveHitSequenceGenerator] 位置 {position} 的波峰无法找到目标（攻击方向：{directionStr}）");
+                    Debug.LogWarning($"[WaveHitSequenceGenerator] TargetManager状态 - Player: {targetManager.Player?.name ?? "null"}, Enemy: {targetManager.Enemy?.name ?? "null"}");
                     continue;
+                }
+                
+                // 调试信息：确认目标是否正确
+                if (peak.AttackDirection == false) // 攻向玩家
+                {
+                    Debug.Log($"[WaveHitSequenceGenerator] 位置 {position} 的波峰攻向玩家，目标：{target.name}，伤害：{Mathf.Abs(peak.Value)}");
                 }
 
                 // 使用强度绝对值确定伤害值

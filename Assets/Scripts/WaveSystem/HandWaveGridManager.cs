@@ -22,7 +22,7 @@ namespace WaveSystem
         
         [Tooltip("格子Prefab（必须包含WaveGridSlot组件）")]
         [SerializeField] private GameObject slotPrefab;
-
+        
         [Header("波显示设置")]
         [Tooltip("手牌波显示容器（用于显示手牌波波形，必须设置）")]
         [SerializeField] private RectTransform waveContainer;
@@ -499,6 +499,10 @@ namespace WaveSystem
             
             // 设置波的位置范围（使用slot的范围）
             waveVisualizer.SetPositionRange(minGridPosition, maxGridPosition);
+
+            // 设置手牌波显示方向为翻转（左右翻转）
+            waveVisualizer.ReverseDirection = true;
+            Debug.Log("[HandWaveGridManager] 设置手牌波显示方向为翻转");
 
             // 注意：不在启动时自动显示波，等待用户操作后再显示
         }

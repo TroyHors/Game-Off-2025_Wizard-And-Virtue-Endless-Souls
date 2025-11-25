@@ -90,11 +90,37 @@ namespace DamageSystem
             
             if (debugLog)
             {
+                Debug.Log($"[DamageSystemHelper] ========== 发波匹配完成 ==========");
                 Debug.Log($"[DamageSystemHelper] 玩家波和敌人波配对完成，生成 {pairedWaves.Count} 个结果波");
-                foreach (var wave in pairedWaves)
+                
+                for (int i = 0; i < pairedWaves.Count; i++)
                 {
-                    Debug.Log($"[DamageSystemHelper] 结果波：方向={(wave.AttackDirection.HasValue ? (wave.AttackDirection.Value ? "攻向玩家" : "攻向敌人") : "空")}，波峰数={wave.PeakCount}");
+                    Wave wave = pairedWaves[i];
+                    string directionStr = wave.AttackDirection.HasValue 
+                        ? (wave.AttackDirection.Value ? "攻向敌人" : "攻向玩家") 
+                        : "空";
+                    
+                    Debug.Log($"[DamageSystemHelper] --- 结果波 #{i + 1} ---");
+                    Debug.Log($"[DamageSystemHelper] 方向: {directionStr}");
+                    Debug.Log($"[DamageSystemHelper] 波峰数: {wave.PeakCount}");
+                    
+                    if (wave.PeakCount > 0)
+                    {
+                        // 获取所有波峰（按位置排序）
+                        var sortedPeaks = wave.GetSortedPeaks();
+                        Debug.Log($"[DamageSystemHelper] 波峰详情:");
+                        foreach (var (position, peak) in sortedPeaks)
+                        {
+                            string peakDirectionStr = peak.AttackDirection ? "攻向敌人" : "攻向玩家";
+                            Debug.Log($"[DamageSystemHelper]   位置 {position}: 强度={peak.Value}, 方向={peakDirectionStr}");
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log($"[DamageSystemHelper] 波峰详情: 无波峰（空波）");
+                    }
                 }
+                Debug.Log($"[DamageSystemHelper] ========================================");
             }
 
             // 步骤4：从配对后的波生成伤害序列
