@@ -28,6 +28,13 @@ namespace GameFlow
         [Tooltip("金币系统（如果为空，会自动查找）")]
         [SerializeField] private CoinSystem coinSystem;
 
+        [Header("玩家数据设置")]
+        [Tooltip("是否在游戏开始时自动重置玩家数据")]
+        [SerializeField] private bool resetPlayerDataOnGameStart = true;
+
+        [Tooltip("玩家实体管理器（如果为空，会自动查找）")]
+        [SerializeField] private CharacterSystem.PlayerEntityManager playerEntityManager;
+
         [Header("游戏流程事件")]
         [Tooltip("游戏开始时触发（地图生成后，第一次进入节点前，用于初始化牌堆等）")]
         [SerializeField] private UnityEvent onGameStart = new UnityEvent();
@@ -115,6 +122,9 @@ namespace GameFlow
                 mapManager = FindObjectOfType<MapManager>();
             }
 
+            // 订阅游戏开始事件，在事件触发时执行重置操作
+            onGameStart.AddListener(OnGameStartHandler);
+
             // 订阅地图生成事件，在游戏开始时触发
             if (mapManager != null)
             {
@@ -136,6 +146,9 @@ namespace GameFlow
             {
                 mapManager.OnMapGenerated -= HandleMapGenerated;
             }
+            
+            // 取消订阅游戏开始事件
+            onGameStart.RemoveListener(OnGameStartHandler);
         }
 
         /// <summary>
@@ -149,13 +162,27 @@ namespace GameFlow
                 isGameStarted = true;
                 Debug.Log("[GameFlowManager] 游戏开始");
                 
-                // 在游戏开始时重置金币（如果启用）
-                if (resetCoinsOnGameStart)
-                {
-                    ResetCoinsOnGameStart();
-                }
-                
+                // 触发游戏开始事件（重置操作会在事件处理中执行）
                 onGameStart?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// 游戏开始事件处理器
+        /// 在 onGameStart 事件触发时执行重置操作
+        /// </summary>
+        private void OnGameStartHandler()
+        {
+            // 在游戏开始时重置金币（如果启用）
+            if (resetCoinsOnGameStart)
+            {
+                ResetCoinsOnGameStart();
+            }
+            
+            // 在游戏开始时重置玩家数据（如果启用）
+            if (resetPlayerDataOnGameStart)
+            {
+                ResetPlayerDataOnGameStart();
             }
         }
 
@@ -178,6 +205,28 @@ namespace GameFlow
             else
             {
                 Debug.LogWarning("[GameFlowManager] 未找到 CoinSystem，无法重置金币");
+            }
+        }
+
+        /// <summary>
+        /// 在游戏开始时重置玩家数据
+        /// </summary>
+        private void ResetPlayerDataOnGameStart()
+        {
+            // 自动查找 PlayerEntityManager（如果未设置）
+            if (playerEntityManager == null)
+            {
+                playerEntityManager = FindObjectOfType<CharacterSystem.PlayerEntityManager>();
+            }
+
+            if (playerEntityManager != null && playerEntityManager.PlayerData != null)
+            {
+                playerEntityManager.PlayerData.ResetHealth();
+                Debug.Log($"[GameFlowManager] 游戏开始时重置玩家数据：生命值 {playerEntityManager.PlayerData.CurrentHealth}/{playerEntityManager.PlayerData.MaxHealth}");
+            }
+            else
+            {
+                Debug.LogWarning("[GameFlowManager] 未找到 PlayerEntityManager 或 PlayerData，无法重置玩家数据");
             }
         }
 

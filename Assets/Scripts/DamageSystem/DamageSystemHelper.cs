@@ -85,17 +85,19 @@ namespace DamageSystem
                 return;
             }
 
-            // 步骤3：配对两个波
-            List<Wave> pairedWaves = WavePairing.PairWaves(playerWave, enemyWave);
+            // 步骤3：计算结果波（使用新的结果波计算器）
+            int minPosition = handWaveGridManager.MinGridPosition;
+            int maxPosition = handWaveGridManager.MaxGridPosition;
+            List<Wave> resultWaves = WaveResultCalculator.CalculateResultWaves(playerWave, enemyWave, minPosition, maxPosition);
             
             if (debugLog)
             {
                 Debug.Log($"[DamageSystemHelper] ========== 发波匹配完成 ==========");
-                Debug.Log($"[DamageSystemHelper] 玩家波和敌人波配对完成，生成 {pairedWaves.Count} 个结果波");
+                Debug.Log($"[DamageSystemHelper] 玩家波和敌人波配对完成，生成 {resultWaves.Count} 个结果波");
                 
-                for (int i = 0; i < pairedWaves.Count; i++)
+                for (int i = 0; i < resultWaves.Count; i++)
                 {
-                    Wave wave = pairedWaves[i];
+                    Wave wave = resultWaves[i];
                     string directionStr = wave.AttackDirection.HasValue 
                         ? (wave.AttackDirection.Value ? "攻向敌人" : "攻向玩家") 
                         : "空";
@@ -111,8 +113,12 @@ namespace DamageSystem
                         Debug.Log($"[DamageSystemHelper] 波峰详情:");
                         foreach (var (position, peak) in sortedPeaks)
                         {
-                            string peakDirectionStr = peak.AttackDirection ? "攻向敌人" : "攻向玩家";
-                            Debug.Log($"[DamageSystemHelper]   位置 {position}: 强度={peak.Value}, 方向={peakDirectionStr}");
+                            // 只显示强度不为0的波峰
+                            if (peak.Value != 0)
+                            {
+                                string peakDirectionStr = peak.AttackDirection ? "攻向敌人" : "攻向玩家";
+                                Debug.Log($"[DamageSystemHelper]   位置 {position}: 强度={peak.Value}, 方向={peakDirectionStr}");
+                            }
                         }
                     }
                     else
@@ -123,8 +129,8 @@ namespace DamageSystem
                 Debug.Log($"[DamageSystemHelper] ========================================");
             }
 
-            // 步骤4：从配对后的波生成伤害序列
-            List<PeakHit> pairedHitSequence = WaveHitSequenceGenerator.GenerateHitSequenceFromPairedWaves(pairedWaves, targetManager);
+            // 步骤4：从结果波生成伤害序列
+            List<PeakHit> pairedHitSequence = WaveHitSequenceGenerator.GenerateHitSequenceFromPairedWaves(resultWaves, targetManager);
 
             if (pairedHitSequence == null || pairedHitSequence.Count == 0)
             {

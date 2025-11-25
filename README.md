@@ -2033,4 +2033,250 @@ coinSystem.OnSpendFailed.AddListener((requiredAmount, currentCoins) =>
 - 添加多种货币类型（钻石、银币等）
 - 实现金币奖励系统
 - 添加金币动画和特效
+
+---
+
+## 角色特殊状态系统 (Status Effect System)
+
+### 概述
+
+角色特殊状态系统是一个通用的状态效果管理系统,用于玩家和敌人。系统支持四种状态类型:受到伤害减少、攻击伤害减少、受到伤害增加、攻击伤害增加。状态效果互相影响是相乘关系,顺序不影响结果。
+
+### 系统架构
+
+#### 核心组件
+
+1. **StatusEffect** (`Assets/Scripts/StatusSystem/StatusEffect.cs`)
+   - 状态效果数据类
+   - 包含:状态名称（tag）、状态类型、数值（倍数）、持续回合数
+   - 支持永久状态（持续回合数为-1）
+
+2. **StatusEffectManager** (`Assets/Scripts/StatusSystem/StatusEffectManager.cs`)
+   - 状态效果管理器（MonoBehaviour组件）
+   - 管理角色身上的所有状态效果
+   - 处理状态效果的叠加、持续回合、效果计算
+   - 提供添加、移除、查询状态效果的接口
+
+### 状态类型
+
+- **DamageTakenReduction**: 受到伤害减少（数值为倍数,例如0.8表示减少20%,即受到80%伤害）
+- **DamageDealtReduction**: 攻击伤害减少（数值为倍数,例如0.8表示减少20%,即造成80%伤害）
+- **DamageTakenIncrease**: 受到伤害增加（数值为倍数,例如1.2表示增加20%,即受到120%伤害）
+- **DamageDealtIncrease**: 攻击伤害增加（数值为倍数,例如1.2表示增加20%,即造成120%伤害）
+
+### 使用方法
+
+#### 1. 为角色添加状态效果管理器
+
+在玩家或敌人的Prefab上添加 `StatusEffectManager` 组件:
+
+1. 选择角色Prefab
+2. 添加组件 → Status System → Status Effect Manager
+3. 组件会自动处理状态效果的添加、移除和计算
+
+#### 2. 代码使用示例
+
+**添加状态效果:**
+
+```csharp
+using StatusSystem;
+
+// 获取角色的状态效果管理器
+StatusEffectManager statusManager = character.GetComponent<StatusEffectManager>();
+
+// 方式1: 使用便捷方法添加状态
+statusManager.AddStatusEffect("护甲", StatusEffectType.DamageTakenReduction, 0.8f, 3);
+// 添加"护甲"状态:受到伤害减少20%（0.8倍）,持续3回合
+
+statusManager.AddStatusEffect("虚弱", StatusEffectType.DamageDealtReduction, 0.7f, 2);
+// 添加"虚弱"状态:攻击伤害减少30%（0.7倍）,持续2回合
+
+statusManager.AddStatusEffect("易伤", StatusEffectType.DamageTakenIncrease, 1.5f, 1);
+// 添加"易伤"状态:受到伤害增加50%（1.5倍）,持续1回合
+
+statusManager.AddStatusEffect("力量", StatusEffectType.DamageDealtIncrease, 1.3f, -1);
+// 添加"力量"状态:攻击伤害增加30%（1.3倍）,永久（-1表示永久）
+
+// 方式2: 创建StatusEffect对象后添加
+StatusEffect status = new StatusEffect("护盾", StatusEffectType.DamageTakenReduction, 0.5f, 2);
+statusManager.AddStatusEffect(status);
+```
+
+**查询状态效果:**
+
+```csharp
+// 检查是否有指定名称的状态效果
+if (statusManager.HasStatusEffect("护甲"))
+{
+    Debug.Log("角色有护甲状态");
+}
+
+// 获取指定名称的状态效果数量
+int armorCount = statusManager.GetStatusEffectCount("护甲");
+
+// 获取指定类型的状态效果列表
+List<StatusEffect> reductionStatuses = statusManager.GetStatusEffectsByType(StatusEffectType.DamageTakenReduction);
+
+// 获取所有状态效果
+foreach (var status in statusManager.StatusEffects)
+{
+    Debug.Log($"状态: {status.StatusName}, 类型: {status.EffectType}, 数值: {status.Value}, 持续: {status.Duration}回合");
+}
+```
+
+**移除状态效果:**
+
+```csharp
+// 移除指定名称的状态效果（移除所有同名状态）
+int removedCount = statusManager.RemoveStatusEffect("护甲");
+
+// 移除所有状态效果
+statusManager.ClearAllStatusEffects();
+```
+
+**手动应用状态效果修正:**
+
+```csharp
+// 应用受到伤害修正（通常在HealthComponent中自动调用）
+int originalDamage = 100;
+int modifiedDamage = statusManager.ApplyDamageTakenModifier(originalDamage);
+
+// 应用造成伤害修正（通常在WaveHitSequenceGenerator中自动调用）
+int originalDamage = 100;
+int modifiedDamage = statusManager.ApplyDamageDealtModifier(originalDamage);
+```
+
+**监听状态变化事件:**
+
+```csharp
+// 监听状态添加事件
+statusManager.OnStatusAdded.AddListener((status) =>
+{
+    Debug.Log($"添加状态: {status.StatusName}");
+    // 更新UI显示
+});
+
+// 监听状态移除事件
+statusManager.OnStatusRemoved.AddListener((statusName) =>
+{
+    Debug.Log($"移除状态: {statusName}");
+    // 更新UI显示
+});
+
+// 监听状态更新事件
+statusManager.OnStatusUpdated.AddListener((statusList) =>
+{
+    Debug.Log($"状态列表更新,当前有 {statusList.Count} 个状态");
+    // 更新UI显示
+});
+```
+
+### 状态效果计算规则
+
+1. **状态效果相乘**: 多个同类型状态效果会相乘,顺序不影响结果
+   - 例如: 有"护甲"(0.8倍)和"护盾"(0.5倍),最终受到伤害 = 原始伤害 × 0.8 × 0.5 = 原始伤害 × 0.4
+
+2. **不同类型状态独立计算**:
+   - "受到伤害减少/增加"状态在受到伤害时应用
+   - "攻击伤害减少/增加"状态在造成伤害时应用
+
+3. **回合结束处理**: 回合结束时,所有状态效果的持续回合数会减少1,持续回合数为0的状态会被自动移除
+
+### API 文档
+
+#### StatusEffectManager 主要方法
+
+- `AddStatusEffect(StatusEffect statusEffect)`: 添加状态效果
+- `AddStatusEffect(string statusName, StatusEffectType effectType, float value, int duration)`: 添加状态效果（便捷方法）
+- `RemoveStatusEffect(string statusName)`: 移除指定名称的状态效果
+- `ClearAllStatusEffects()`: 移除所有状态效果
+- `OnTurnEnd()`: 回合结束处理（减少持续回合数,移除过期状态）
+- `GetDamageTakenMultiplier()`: 获取受到伤害的修正倍数
+- `GetDamageDealtMultiplier()`: 获取造成伤害的修正倍数
+- `ApplyDamageTakenModifier(int originalDamage)`: 应用受到伤害修正
+- `ApplyDamageDealtModifier(int originalDamage)`: 应用造成伤害修正
+- `GetStatusEffectsByType(StatusEffectType effectType)`: 获取指定类型的状态效果列表
+- `HasStatusEffect(string statusName)`: 检查是否有指定名称的状态效果
+- `GetStatusEffectCount(string statusName)`: 获取指定名称的状态效果数量
+
+#### StatusEffectManager 主要属性
+
+- `StatusEffects`: 当前所有状态效果列表（只读）
+- `OnStatusAdded`: 状态效果添加事件（UnityEvent<StatusEffect>）
+- `OnStatusRemoved`: 状态效果移除事件（UnityEvent<string>）
+- `OnStatusUpdated`: 状态效果更新事件（UnityEvent<List<StatusEffect>>）
+
+#### StatusEffect 主要属性
+
+- `StatusName`: 状态名称（用于UI显示和识别）
+- `EffectType`: 状态类型
+- `Value`: 状态数值（倍数）
+- `Duration`: 持续回合数（-1表示永久）
+- `IsExpired`: 是否已过期
+- `IsPermanent`: 是否永久
+
+### 自动集成
+
+系统已自动集成到伤害系统中:
+
+1. **受到伤害时**: `HealthComponent.TakeDamage()` 会自动应用"受到伤害减少/增加"状态
+2. **造成伤害时**: `WaveHitSequenceGenerator.GenerateHitSequence()` 会自动应用"攻击伤害减少/增加"状态
+3. **回合结束时**: `CombatNodeFlow.EnterTurnEnd()` 会自动处理所有角色状态效果的回合结束逻辑
+
+### 注意事项
+
+1. **状态效果叠加**: 同类型状态效果会相乘,不是相加
+2. **状态名称**: 状态名称用于识别和UI显示,建议使用有意义的名称（如"护甲"、"虚弱"等）
+3. **数值范围**: 状态数值是倍数,建议范围在0.1到10之间
+4. **持续回合数**: 
+   - 正数表示持续N回合
+   - -1表示永久状态
+   - 0表示已过期（会被自动移除）
+5. **回合结束处理**: 系统会在回合结束时自动减少持续回合数,无需手动调用
+6. **调试信息**: 所有调试信息都带有 `[StatusEffectManager]` 前缀,方便在日志中搜索
+
+### 快速测试
+
+**使用测试脚本（推荐）**
+
+1. 在场景中创建一个GameObject,命名为 "StatusEffectTester"
+2. 添加 `StatusEffectTester` 组件
+3. 在Inspector中设置:
+   - `Player Target`: 玩家实体（可选,会自动查找）
+   - `Enemy Target`: 敌人实体（可选,会自动查找）
+   - `Test Damage`: 测试伤害值（默认100）
+   - `Test Status Value`: 测试状态数值（默认0.8）
+   - `Test Status Duration`: 测试状态持续回合数（默认3）
+4. 在Inspector中右键点击 `StatusEffectTester` 组件,选择测试方法:
+   - **运行所有测试（敌人重点测试）**: 运行完整的测试套件,重点测试敌人状态效果
+   - **测试2: 为敌人添加受到伤害减少状态**: 测试敌人状态添加
+   - **测试7: 测试敌人受到伤害修正**: 测试敌人受到伤害时的状态效果应用
+   - **测试8: 测试敌人造成伤害修正**: 测试敌人造成伤害时的状态效果应用
+   - **测试9: 测试状态效果叠加**: 测试多个状态效果相乘
+   - **测试10: 测试敌人状态效果回合结束**: 测试回合结束时状态效果减少
+   - **测试11: 综合测试 - 敌人完整状态效果流程**: 完整的敌人状态效果测试流程
+
+**测试内容:**
+
+- ✅ 基础功能: 添加、移除、查询状态效果
+- ✅ 受到伤害修正: 测试"受到伤害减少/增加"状态是否正确应用
+- ✅ 造成伤害修正: 测试"攻击伤害减少/增加"状态是否正确应用
+- ✅ 状态叠加: 测试多个同类型状态效果相乘计算
+- ✅ 回合结束: 测试状态效果持续回合数减少和过期移除
+- ✅ 敌人测试: 重点测试敌人身上的所有状态效果功能
+
+**注意事项:**
+
+1. 确保测试目标（玩家/敌人）已挂载 `StatusEffectManager` 和 `HealthComponent` 组件
+2. 测试前建议先运行"清除所有状态效果"确保测试环境干净
+3. 所有测试结果会在Console中输出,带有 `[StatusEffectTester]` 前缀
+
+### 扩展建议
+
+如果需要扩展功能,可以考虑:
+- 添加更多状态类型（如移动速度、攻击速度等）
+- 实现状态效果图标和UI显示
+- 添加状态效果动画和特效
+- 实现状态效果组合系统（如"燃烧+冰冻=蒸汽"）
+- 添加状态效果免疫系统
 - 添加角色装备系统

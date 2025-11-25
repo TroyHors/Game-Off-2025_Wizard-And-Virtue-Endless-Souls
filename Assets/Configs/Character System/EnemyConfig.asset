@@ -22,7 +22,7 @@ MonoBehaviour:
         value: 1
     presetWaveIndex: 0
   - enemyName: 1
-    maxHealth: 1
+    maxHealth: 38
     waveData:
       AttackDirection: 0
       serializedPeakData:

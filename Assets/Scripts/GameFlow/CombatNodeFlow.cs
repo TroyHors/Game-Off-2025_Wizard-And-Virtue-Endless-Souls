@@ -4,6 +4,7 @@ using WaveSystem;
 using DamageSystem;
 using System.Collections.Generic;
 using System.Linq;
+using StatusSystem;
 using CardSystemManager = CardSystem.CardSystem;
 
 namespace GameFlow
@@ -69,6 +70,11 @@ namespace GameFlow
         private int deadEnemyCount = 0;
 
         /// <summary>
+        /// 所有敌人是否已死亡（但等待伤害序列处理完成）
+        /// </summary>
+        private bool allEnemiesDead = false;
+
+        /// <summary>
         /// 当前回合状态
         /// </summary>
         public CombatTurnState CurrentState => currentState;
@@ -104,10 +110,11 @@ namespace GameFlow
 
         private void OnEnable()
         {
-            // 订阅伤害系统的死亡事件
+            // 订阅伤害系统的死亡事件和伤害序列完成事件
             if (damageSystem != null)
             {
                 damageSystem.OnTargetDeath.AddListener(OnEnemyDeath);
+                damageSystem.OnHitSequenceComplete.AddListener(OnHitSequenceComplete);
             }
         }
 
@@ -117,6 +124,7 @@ namespace GameFlow
             if (damageSystem != null)
             {
                 damageSystem.OnTargetDeath.RemoveListener(OnEnemyDeath);
+                damageSystem.OnHitSequenceComplete.RemoveListener(OnHitSequenceComplete);
             }
         }
 
@@ -299,7 +307,27 @@ namespace GameFlow
             // 检查是否所有敌人都已死亡
             if (deadEnemyCount >= enemies.Count)
             {
-                Debug.Log("[CombatNodeFlow] 所有敌人已死亡，战斗结束");
+                Debug.Log("[CombatNodeFlow] 所有敌人已死亡，等待伤害序列处理完成后再结束战斗");
+                allEnemiesDead = true;
+                // 不立即调用 FinishCombat()，等待伤害序列处理完成
+            }
+        }
+
+        /// <summary>
+        /// 伤害序列处理完成回调（由DamageSystem触发）
+        /// 在所有伤害处理完成后，检查是否应该结束战斗
+        /// </summary>
+        private void OnHitSequenceComplete(int totalHits, int deaths)
+        {
+            if (isCombatFinished)
+            {
+                return;
+            }
+
+            // 如果所有敌人已死亡，且伤害序列处理完成，则结束战斗
+            if (allEnemiesDead)
+            {
+                Debug.Log("[CombatNodeFlow] 伤害序列处理完成，所有敌人已死亡，战斗结束");
                 FinishCombat();
             }
         }
@@ -379,6 +407,9 @@ namespace GameFlow
                 {
                     Debug.LogWarning("[CombatNodeFlow] HandWaveGridManager 未找到，无法弃牌");
                 }
+
+                // 处理状态效果的回合结束（减少持续回合数）
+                ProcessStatusEffectsTurnEnd();
                 
                 // 检查战斗是否应该结束
                 // 敌人死亡检查通过 DamageSystem 的 OnTargetDeath 事件自动处理
@@ -397,6 +428,40 @@ namespace GameFlow
         }
 
         /// <summary>
+        /// 处理状态效果的回合结束（减少持续回合数）
+        /// </summary>
+        private void ProcessStatusEffectsTurnEnd()
+        {
+            // 处理玩家状态效果
+            if (playerEntityManager != null && playerEntityManager.CurrentPlayerEntity != null)
+            {
+                StatusEffectManager playerStatusManager = playerEntityManager.CurrentPlayerEntity.GetComponent<StatusEffectManager>();
+                if (playerStatusManager != null)
+                {
+                    playerStatusManager.OnTurnEnd();
+                }
+            }
+
+            // 处理所有敌人状态效果（通过TargetManager获取）
+            DamageSystem.TargetManager targetManager = FindObjectOfType<DamageSystem.TargetManager>();
+            if (targetManager != null)
+            {
+                GameObject[] allEnemies = targetManager.GetAllEnemies();
+                foreach (GameObject enemy in allEnemies)
+                {
+                    if (enemy != null)
+                    {
+                        StatusEffectManager enemyStatusManager = enemy.GetComponent<StatusEffectManager>();
+                        if (enemyStatusManager != null)
+                        {
+                            enemyStatusManager.OnTurnEnd();
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// 完成战斗
         /// 由战斗系统在战斗结束时调用（当所有敌人死亡时自动调用）
         /// </summary>
@@ -410,10 +475,11 @@ namespace GameFlow
             isCombatFinished = true;
             Debug.Log($"[CombatNodeFlow] 战斗完成: Node[{currentNodeData.NodeId}]");
 
-            // 取消订阅死亡事件
+            // 取消订阅死亡事件和伤害序列完成事件
             if (damageSystem != null)
             {
                 damageSystem.OnTargetDeath.RemoveListener(OnEnemyDeath);
+                damageSystem.OnHitSequenceComplete.RemoveListener(OnHitSequenceComplete);
             }
 
             // 同步玩家实体数据回玩家数据，然后销毁玩家实体
@@ -439,9 +505,10 @@ namespace GameFlow
                 Debug.Log($"[CombatNodeFlow] 手动清除了 {enemyObjects.Length} 个敌人实体");
             }
 
-            // 清空敌人列表
+            // 清空敌人列表和状态标志
             enemies.Clear();
             deadEnemyCount = 0;
+            allEnemiesDead = false;
 
             // 完成流程
             FinishFlow();
