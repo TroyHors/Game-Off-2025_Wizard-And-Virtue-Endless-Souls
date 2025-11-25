@@ -24,25 +24,30 @@ namespace WaveSystem
             Wave waveToEnemy = CreateInitializedWave(true, minPosition, maxPosition);  // 攻向敌人
             Wave waveToPlayer = CreateInitializedWave(false, minPosition, maxPosition); // 攻向玩家
 
-            if (playerWave == null || enemyWave == null)
+            // 将空波转换为所有位置强度为0的波（如果为null或空，视为所有位置都是0）
+            if (playerWave == null)
             {
-                Debug.LogWarning("[WaveResultCalculator] 玩家波或敌人波为null，返回空结果波");
-                return new List<Wave> { waveToEnemy, waveToPlayer };
+                playerWave = CreateInitializedWave(true, minPosition, maxPosition); // 默认方向，实际不会使用
+            }
+            else if (playerWave.IsEmpty)
+            {
+                // 空波转换为所有位置强度为0的波
+                playerWave = CreateInitializedWave(true, minPosition, maxPosition);
             }
 
-            // 获取所有需要配对的位置（两个波中至少有一个存在波峰的位置）
-            HashSet<int> allPositions = new HashSet<int>();
-            foreach (var pos in playerWave.Positions)
+            if (enemyWave == null)
             {
-                allPositions.Add(pos);
+                enemyWave = CreateInitializedWave(false, minPosition, maxPosition); // 默认方向，实际不会使用
             }
-            foreach (var pos in enemyWave.Positions)
+            else if (enemyWave.IsEmpty)
             {
-                allPositions.Add(pos);
+                // 空波转换为所有位置强度为0的波
+                enemyWave = CreateInitializedWave(false, minPosition, maxPosition);
             }
 
-            // 遍历所有位置，进行配对计算
-            foreach (int position in allPositions)
+            // 遍历所有位置（从minPosition到maxPosition），进行配对计算
+            // 空位被视为强度为0的波峰
+            for (int position = minPosition; position <= maxPosition; position++)
             {
                 bool hasPlayerPeak = playerWave.TryGetPeak(position, out WavePeak playerPeak);
                 bool hasEnemyPeak = enemyWave.TryGetPeak(position, out WavePeak enemyPeak);
@@ -62,6 +67,7 @@ namespace WaveSystem
                     // 只有敌人波有波峰，直接放入对应方向的结果波
                     AddPeakToResultWave(enemyPeak, position, waveToEnemy, waveToPlayer);
                 }
+                // 如果两个波都没有波峰（空位），结果波在该位置已经是0，无需处理
             }
 
             return new List<Wave> { waveToEnemy, waveToPlayer };

@@ -35,6 +35,13 @@ namespace GameFlow
         [Tooltip("玩家实体管理器（如果为空，会自动查找）")]
         [SerializeField] private CharacterSystem.PlayerEntityManager playerEntityManager;
 
+        [Header("小队数据设置")]
+        [Tooltip("是否在游戏开始时自动重置小队数据")]
+        [SerializeField] private bool resetSquadDataOnGameStart = true;
+
+        [Tooltip("小队管理器（如果为空，会自动查找）")]
+        [SerializeField] private SquadSystem.SquadManager squadManager;
+
         [Header("游戏流程事件")]
         [Tooltip("游戏开始时触发（地图生成后，第一次进入节点前，用于初始化牌堆等）")]
         [SerializeField] private UnityEvent onGameStart = new UnityEvent();
@@ -184,6 +191,12 @@ namespace GameFlow
             {
                 ResetPlayerDataOnGameStart();
             }
+
+            // 在游戏开始时重置小队数据（如果启用）
+            if (resetSquadDataOnGameStart)
+            {
+                ResetSquadDataOnGameStart();
+            }
         }
 
         /// <summary>
@@ -227,6 +240,28 @@ namespace GameFlow
             else
             {
                 Debug.LogWarning("[GameFlowManager] 未找到 PlayerEntityManager 或 PlayerData，无法重置玩家数据");
+            }
+        }
+
+        /// <summary>
+        /// 在游戏开始时重置小队数据
+        /// </summary>
+        private void ResetSquadDataOnGameStart()
+        {
+            // 自动查找 SquadManager（如果未设置）
+            if (squadManager == null)
+            {
+                squadManager = FindObjectOfType<SquadSystem.SquadManager>();
+            }
+
+            if (squadManager != null && squadManager.SquadData != null)
+            {
+                squadManager.SquadData.ClearSquad();
+                Debug.Log("[GameFlowManager] 游戏开始时重置小队数据：清空所有成员");
+            }
+            else
+            {
+                Debug.LogWarning("[GameFlowManager] 未找到 SquadManager 或 SquadData，无法重置小队数据");
             }
         }
 

@@ -55,6 +55,9 @@ namespace GameFlow
         [Tooltip("敌人生成器（用于生成和销毁敌人实体）")]
         [SerializeField] private CharacterSystem.EnemySpawner enemySpawner;
 
+        [Tooltip("小队管理器（用于生成和管理小队成员）")]
+        [SerializeField] private SquadSystem.SquadManager squadManager;
+
         [Header("战斗状态")]
         [Tooltip("战斗是否已结束")]
         [SerializeField] private bool isCombatFinished = false;
@@ -69,10 +72,6 @@ namespace GameFlow
         /// </summary>
         private int deadEnemyCount = 0;
 
-        /// <summary>
-        /// 所有敌人是否已死亡（但等待伤害序列处理完成）
-        /// </summary>
-        private bool allEnemiesDead = false;
 
         /// <summary>
         /// 当前回合状态
@@ -110,10 +109,9 @@ namespace GameFlow
 
         private void OnEnable()
         {
-            // 订阅伤害系统的死亡事件和伤害序列完成事件
+            // 订阅伤害序列完成事件
             if (damageSystem != null)
             {
-                damageSystem.OnTargetDeath.AddListener(OnEnemyDeath);
                 damageSystem.OnHitSequenceComplete.AddListener(OnHitSequenceComplete);
             }
         }
@@ -123,9 +121,10 @@ namespace GameFlow
             // 取消订阅
             if (damageSystem != null)
             {
-                damageSystem.OnTargetDeath.RemoveListener(OnEnemyDeath);
                 damageSystem.OnHitSequenceComplete.RemoveListener(OnHitSequenceComplete);
             }
+            // 取消所有敌人的死亡事件订阅
+            UnsubscribeAllEnemyDeathEvents();
         }
 
         /// <summary>
@@ -171,6 +170,11 @@ namespace GameFlow
                 enemySpawner = FindObjectOfType<CharacterSystem.EnemySpawner>();
             }
 
+            if (squadManager == null)
+            {
+                squadManager = FindObjectOfType<SquadSystem.SquadManager>();
+            }
+
             // 生成玩家实体
             if (playerEntityManager != null)
             {
@@ -192,14 +196,21 @@ namespace GameFlow
                 Debug.LogWarning("[CombatNodeFlow] EnemySpawner 未找到，将使用场景中现有的敌人实体");
             }
 
+            // 生成小队成员（战斗开始时）
+            if (squadManager != null)
+            {
+                squadManager.SpawnSquadMembers();
+            }
+            else
+            {
+                Debug.Log("[CombatNodeFlow] SquadManager 未找到，跳过生成小队成员");
+            }
+
             // 查找所有敌人（包括动态生成的）
             FindAllEnemies();
 
-            // 订阅伤害系统的死亡事件
-            if (damageSystem != null)
-            {
-                damageSystem.OnTargetDeath.AddListener(OnEnemyDeath);
-            }
+            // 订阅所有敌人的死亡事件（通过 HealthComponent.OnDeath）
+            SubscribeAllEnemyDeathEvents();
 
             isCombatFinished = false;
             deadEnemyCount = 0;
@@ -284,9 +295,38 @@ namespace GameFlow
         }
 
         /// <summary>
-        /// 敌人死亡回调（由DamageSystem触发）
+        /// 订阅所有敌人的死亡事件（通过 HealthComponent.OnDeath）
         /// </summary>
-        private void OnEnemyDeath(GameObject deadTarget)
+        private void SubscribeAllEnemyDeathEvents()
+        {
+            foreach (HealthComponent enemyHealth in enemies)
+            {
+                if (enemyHealth != null)
+                {
+                    enemyHealth.OnDeath.AddListener(() => OnEnemyDeathByHealthComponent(enemyHealth.gameObject));
+                    Debug.Log($"[CombatNodeFlow] 订阅敌人 {enemyHealth.gameObject.name} 的死亡事件");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 取消所有敌人的死亡事件订阅
+        /// </summary>
+        private void UnsubscribeAllEnemyDeathEvents()
+        {
+            foreach (HealthComponent enemyHealth in enemies)
+            {
+                if (enemyHealth != null)
+                {
+                    enemyHealth.OnDeath.RemoveAllListeners();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 敌人死亡回调（由HealthComponent.OnDeath触发）
+        /// </summary>
+        private void OnEnemyDeathByHealthComponent(GameObject deadTarget)
         {
             if (isCombatFinished)
             {
@@ -302,34 +342,24 @@ namespace GameFlow
             }
 
             deadEnemyCount++;
-            Debug.Log($"[CombatNodeFlow] 敌人 {deadTarget.name} 死亡，已死亡敌人数: {deadEnemyCount}/{enemies.Count}");
+            Debug.Log($"[CombatNodeFlow] 敌人 {deadTarget.name} 死亡（通过HealthComponent.OnDeath），已死亡敌人数: {deadEnemyCount}/{enemies.Count}");
 
-            // 检查是否所有敌人都已死亡
+            // 检查是否所有敌人都已死亡，如果全部死亡则立即结束战斗
             if (deadEnemyCount >= enemies.Count)
             {
-                Debug.Log("[CombatNodeFlow] 所有敌人已死亡，等待伤害序列处理完成后再结束战斗");
-                allEnemiesDead = true;
-                // 不立即调用 FinishCombat()，等待伤害序列处理完成
+                Debug.Log("[CombatNodeFlow] 所有敌人已死亡，立即结束战斗");
+                FinishCombat();
             }
         }
 
         /// <summary>
         /// 伤害序列处理完成回调（由DamageSystem触发）
-        /// 在所有伤害处理完成后，检查是否应该结束战斗
+        /// 注意：战斗结束不再依赖此事件，只要所有敌人死亡就立即结束战斗
         /// </summary>
         private void OnHitSequenceComplete(int totalHits, int deaths)
         {
-            if (isCombatFinished)
-            {
-                return;
-            }
-
-            // 如果所有敌人已死亡，且伤害序列处理完成，则结束战斗
-            if (allEnemiesDead)
-            {
-                Debug.Log("[CombatNodeFlow] 伤害序列处理完成，所有敌人已死亡，战斗结束");
-                FinishCombat();
-            }
+            // 战斗结束判断已改为在敌人死亡时立即执行，此事件仅用于日志记录
+            Debug.Log($"[CombatNodeFlow] 伤害序列处理完成，总伤害数：{totalHits}，死亡数：{deaths}");
         }
 
         /// <summary>
@@ -353,6 +383,12 @@ namespace GameFlow
                 else
                 {
                     Debug.LogWarning("[CombatNodeFlow] CardSystem 未找到，无法抽牌");
+                }
+                
+                // 执行小队成员的回合开始能力
+                if (squadManager != null)
+                {
+                    squadManager.ExecuteAbilitiesOnTurnStart();
                 }
                 
                 // 自动进入回合进行中状态
@@ -410,6 +446,12 @@ namespace GameFlow
 
                 // 处理状态效果的回合结束（减少持续回合数）
                 ProcessStatusEffectsTurnEnd();
+                
+                // 执行小队成员的回合结束能力
+                if (squadManager != null)
+                {
+                    squadManager.ExecuteAbilitiesOnTurnEnd();
+                }
                 
                 // 检查战斗是否应该结束
                 // 敌人死亡检查通过 DamageSystem 的 OnTargetDeath 事件自动处理
@@ -475,12 +517,14 @@ namespace GameFlow
             isCombatFinished = true;
             Debug.Log($"[CombatNodeFlow] 战斗完成: Node[{currentNodeData.NodeId}]");
 
-            // 取消订阅死亡事件和伤害序列完成事件
+            // 取消订阅伤害序列完成事件
             if (damageSystem != null)
             {
-                damageSystem.OnTargetDeath.RemoveListener(OnEnemyDeath);
                 damageSystem.OnHitSequenceComplete.RemoveListener(OnHitSequenceComplete);
             }
+
+            // 取消所有敌人的死亡事件订阅
+            UnsubscribeAllEnemyDeathEvents();
 
             // 同步玩家实体数据回玩家数据，然后销毁玩家实体
             if (playerEntityManager != null)
@@ -505,10 +549,15 @@ namespace GameFlow
                 Debug.Log($"[CombatNodeFlow] 手动清除了 {enemyObjects.Length} 个敌人实体");
             }
 
+            // 清除所有小队成员
+            if (squadManager != null)
+            {
+                squadManager.ClearMembers();
+            }
+
             // 清空敌人列表和状态标志
             enemies.Clear();
             deadEnemyCount = 0;
-            allEnemiesDead = false;
 
             // 完成流程
             FinishFlow();

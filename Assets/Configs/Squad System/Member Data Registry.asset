@@ -9,7 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6707119ae7833954687dbe51f18a6b44, type: 3}
-  m_Name: CoinData
+  m_Script: {fileID: 11500000, guid: a3649677dfd28eb41878e0b78f1e2a7d, type: 3}
+  m_Name: Member Data Registry
   m_EditorClassIdentifier: 
-  currentCoins: 25
+  memberEntries:
+  - memberData: {fileID: 11400000, guid: 00fbe15ed8d471b47bfa6355bfab7eac, type: 2}

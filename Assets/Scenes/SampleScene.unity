@@ -1024,6 +1024,7 @@ GameObject:
   - component: {fileID: 528951213}
   - component: {fileID: 528951214}
   - component: {fileID: 528951215}
+  - component: {fileID: 528951216}
   m_Layer: 0
   m_Name: Character Manager
   m_TagString: Untagged
@@ -1082,6 +1083,24 @@ MonoBehaviour:
   defaultSpacing: 2
   currentEnemies: []
   combatCounter: 0
+--- !u!114 &528951216
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 528951212}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb56757d6b2a6bb449743893db10e1c3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  squadData: {fileID: 11400000, guid: df76869edbc485f4388ce52b126ccdf4, type: 2}
+  memberDataRegistry: {fileID: 11400000, guid: 4548368bae85018448f153fdcc2bc29b, type: 2}
+  memberSpawnContainer: {fileID: 1010538223}
+  coinSystem: {fileID: 852481711}
+  targetManager: {fileID: 222499152}
+  currentMembers: []
 --- !u!1 &620889676
 GameObject:
   m_ObjectHideFlags: 0
@@ -1349,6 +1368,53 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -4.45, y: 0.79, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1010538221
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1010538223}
+  - component: {fileID: 1010538222}
+  m_Layer: 0
+  m_Name: SS
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1010538222
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1010538221}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6799254f9c8c9bc46be4fc7eadeb2ab4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  squadManager: {fileID: 528951216}
+  memberDataRegistry: {fileID: 11400000, guid: 4548368bae85018448f153fdcc2bc29b, type: 2}
+  memberIndex: 0
+--- !u!4 &1010538223
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1010538221}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -0.008667879}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1852,6 +1918,8 @@ MonoBehaviour:
   coinSystem: {fileID: 0}
   resetPlayerDataOnGameStart: 1
   playerEntityManager: {fileID: 0}
+  resetSquadDataOnGameStart: 1
+  squadManager: {fileID: 0}
   onGameStart:
     m_PersistentCalls:
       m_Calls: []
@@ -1900,3 +1968,4 @@ SceneRoots:
   - {fileID: 389237905}
   - {fileID: 962369000}
   - {fileID: 373397561}
+  - {fileID: 1010538223}

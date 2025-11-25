@@ -62,30 +62,12 @@ namespace DamageSystem
 
             // 步骤1：发出玩家波
             Wave playerWave = handWaveGridManager.EmitHandWaveWithResult();
-            if (playerWave.IsEmpty)
-            {
-                if (debugLog)
-                {
-                    Debug.Log("[DamageSystemHelper] 玩家波为空，无需处理");
-                }
-                return;
-            }
-
+            
             // 步骤2：获取敌人波
             Wave enemyWave = enemyWaveManager.CurrentEnemyWave;
-            if (enemyWave.IsEmpty)
-            {
-                if (debugLog)
-                {
-                    Debug.Log("[DamageSystemHelper] 敌人波为空，直接使用玩家波生成伤害序列");
-                }
-                // 如果敌人波为空，直接使用玩家波生成伤害序列
-                List<PeakHit> emptyEnemyHitSequence = WaveHitSequenceGenerator.GenerateHitSequence(playerWave, targetManager);
-                ProcessHitSequence(emptyEnemyHitSequence);
-                return;
-            }
 
             // 步骤3：计算结果波（使用新的结果波计算器）
+            // 空波会被转换为所有位置强度为0的波，正常处理
             int minPosition = handWaveGridManager.MinGridPosition;
             int maxPosition = handWaveGridManager.MaxGridPosition;
             List<Wave> resultWaves = WaveResultCalculator.CalculateResultWaves(playerWave, enemyWave, minPosition, maxPosition);
