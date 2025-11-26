@@ -125,7 +125,7 @@ namespace DamageSystem
                 }
 
                 // 调用目标扣血函数
-                int actualDamage = healthComponent.TakeDamage(hit.damage);
+                float actualDamage = healthComponent.TakeDamage(hit.damage);
                 totalHits++;
 
                 // 获取结算后的状态
@@ -141,14 +141,14 @@ namespace DamageSystem
                     deaths++;
                     if (debugLog)
                     {
-                        Debug.Log($"[DamageSystem] 目标 {hit.target.name} 在受到 {hit.damage} 点伤害后死亡（实际造成 {actualDamage} 点生命值伤害）");
+                        Debug.Log($"[DamageSystem] 目标 {hit.target.name} 在受到 {hit.damage:F2} 点伤害后死亡（实际造成 {actualDamage:F2} 点生命值伤害）");
                     }
                     // 触发目标死亡事件
                     onTargetDeath?.Invoke(hit.target);
                 }
                 else if (debugLog)
                 {
-                    Debug.Log($"[DamageSystem] 目标 {hit.target.name} 受到 {hit.damage} 点伤害（实际造成 {actualDamage} 点生命值伤害），剩余生命值：{remainingHealth}，剩余护盾：{remainingShield}");
+                    Debug.Log($"[DamageSystem] 目标 {hit.target.name} 受到 {hit.damage:F2} 点伤害（实际造成 {actualDamage:F2} 点生命值伤害），剩余生命值：{remainingHealth}，剩余护盾：{remainingShield}");
                 }
             }
 
@@ -229,7 +229,7 @@ namespace DamageSystem
                 }
 
                 // 调用目标扣血函数
-                int actualDamage = healthComponent.TakeDamage(hit.damage);
+                float actualDamage = healthComponent.TakeDamage(hit.damage);
                 totalHits++;
 
                 // 获取结算后的状态
@@ -245,14 +245,14 @@ namespace DamageSystem
                     deaths++;
                     if (debugLog)
                     {
-                        Debug.Log($"[DamageSystem] 目标 {hit.target.name} 在受到 {hit.damage} 点伤害后死亡（实际造成 {actualDamage} 点生命值伤害）");
+                        Debug.Log($"[DamageSystem] 目标 {hit.target.name} 在受到 {hit.damage:F2} 点伤害后死亡（实际造成 {actualDamage:F2} 点生命值伤害）");
                     }
                     // 触发目标死亡事件
                     onTargetDeath?.Invoke(hit.target);
                 }
                 else if (debugLog)
                 {
-                    Debug.Log($"[DamageSystem] 目标 {hit.target.name} 受到 {hit.damage} 点伤害（实际造成 {actualDamage} 点生命值伤害），剩余生命值：{remainingHealth}，剩余护盾：{remainingShield}");
+                    Debug.Log($"[DamageSystem] 目标 {hit.target.name} 受到 {hit.damage:F2} 点伤害（实际造成 {actualDamage:F2} 点生命值伤害），剩余生命值：{remainingHealth}，剩余护盾：{remainingShield}");
                 }
 
                 // 延迟，用于表现层播放动画

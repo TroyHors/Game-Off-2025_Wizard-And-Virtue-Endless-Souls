@@ -991,6 +991,95 @@ public class GameController : MonoBehaviour
 - 添加波牌的拖拽放置功能
 - 实现格表的动态生成
 
+### 波显示系统 (Wave Visualization System)
+
+#### 概述
+
+波显示系统用于在Unity UI中可视化显示手牌波和敌人波的波形。系统采用局部正弦片段的方式绘制波峰，支持手牌波对齐slot、敌人波独立显示等功能。
+
+#### 核心组件
+
+1. **WaveVisualizer** (`Assets/Scripts/WaveSystem/WaveVisualizer.cs`)
+   - 通用波显示器组件
+   - **自动挂载在波显示容器上，无需手动添加**
+   - 负责根据波数据绘制波形
+
+#### 配置方法（非常简单）
+
+**重要：WaveVisualizer 组件会自动创建，无需手动挂载！你只需要设置容器即可。**
+
+##### 1. 配置手牌波显示
+
+1. **创建波显示容器**：
+   - 在场景中创建一个UI GameObject（例如：Image或空GameObject），命名为 "HandWaveContainer"
+   - 添加 `RectTransform` 组件（如果是空GameObject会自动添加）
+
+2. **在 HandWaveGridManager 中设置**：
+   - 找到 `HandWaveGridManager` 组件
+   - 在 "波显示设置" 部分
+   - 将 "HandWaveContainer" 拖拽到 `Wave Container` 字段
+
+3. **完成！** 
+   - 系统会在运行时自动在 `Wave Container` 上创建 `WaveVisualizer` 组件
+   - 你可以在Hierarchy中看到 `HandWaveContainer` 下自动添加了 `WaveVisualizer` 组件
+
+##### 2. 配置敌人波显示
+
+1. **创建波显示容器**：
+   - 在场景中创建一个UI GameObject（例如：Image或空GameObject），命名为 "EnemyWaveContainer"
+   - 添加 `RectTransform` 组件（如果是空GameObject会自动添加）
+
+2. **在 EnemyWaveManager 中设置**：
+   - 找到 `EnemyWaveManager` 组件（通常挂载在敌人实体Prefab上）
+   - 在 "波显示设置" 部分
+   - 将 "EnemyWaveContainer" 拖拽到 `Wave Container` 字段
+
+3. **完成！**
+   - 系统会在运行时自动在 `Wave Container` 上创建 `WaveVisualizer` 组件
+
+##### 3. 调整显示参数（可选）
+
+如果需要调整波显示的外观，可以在运行时查看 `WaveVisualizer` 组件（自动创建在容器上）：
+- `Peak Unit Height`: 强度为1的波峰高度（默认50）
+- `Peak Width`: 每个波峰的宽度（默认100）
+- `Line Width`: 波显示线条宽度（默认2）
+- `Line Color`: 波显示线条颜色（默认白色）
+
+**注意**：这些参数在运行时可以调整，但不会保存。如果需要永久保存，可以在代码中设置默认值。
+
+#### 工作原理
+
+1. **手牌波显示**：
+   - 战斗开始时，系统自动获取所有slot的中心x坐标
+   - 每个波峰点与对应slot的x值对齐（一一对应）
+   - 波数据变化时（放置/撤回波牌）自动更新显示
+
+2. **敌人波显示**：
+   - 使用与手牌波相同的尺寸参数
+   - 不对齐slot，使用默认间距
+   - 敌人波数据变化时自动更新显示
+
+3. **波峰绘制**：
+   - 每个波峰是一个局部正弦片段（0到π），不是一个完整的sine周期
+   - 不考虑两个波峰间的连接
+   - 正值波峰向上，负值向下
+   - 波峰高度与强度线性关系（强度1=基准高度，强度2=2倍高度）
+   - 空位和强度为0的波峰绘制为直线
+   - 初始图像是一条直线（长度是波长，即波峰数）
+
+#### 配置总结
+
+**你只需要做两件事**：
+1. 创建一个UI GameObject作为容器（例如：Image或空GameObject）
+2. 将这个容器拖拽到 `HandWaveGridManager` 或 `EnemyWaveManager` 的 `Wave Container` 字段
+
+**系统会自动完成**：
+- 在容器上创建 `WaveVisualizer` 组件
+- 配置对齐设置（手牌波对齐slot，敌人波不对齐）
+- 在波数据变化时自动更新显示
+
+**不需要手动挂载任何组件！**
+
 ---
 
 ## 地图生成系统 (Map Generation System)
@@ -1448,3 +1537,1345 @@ public class MapUIController : MonoBehaviour
 - 实现动态难度调整
 - 添加地图预览功能
 - 实现地图分享和种子系统
+
+---
+
+## 角色动态创建系统 (Character Dynamic Creation System)
+
+### 概述
+
+角色动态创建系统负责在战斗时动态生成玩家和敌人实体,战斗结束后自动清理。系统采用数据与实体分离的设计,玩家数据长期存在,实体仅在战斗时生成。
+
+### 系统架构
+
+#### 核心组件
+
+1. **PlayerData** (`Assets/Scripts/CharacterSystem/PlayerData.cs`)
+   - 玩家数据（ScriptableObject,持久化数据）
+   - 存储:最大生命值、当前生命值、资源等
+   - 即使实体不在场也可以修改数据（例如地图上的回复事件）
+
+2. **PlayerEntityManager** (`Assets/Scripts/CharacterSystem/PlayerEntityManager.cs`)
+   - 玩家实体管理器
+   - 负责根据玩家数据动态生成和销毁玩家实体
+   - 战斗开始时生成实体,战斗结束时同步数据并销毁实体
+
+3. **EnemyConfig** (`Assets/Scripts/CharacterSystem/EnemyConfig.cs`)
+   - 敌人配置（ScriptableObject）
+   - 存储一组敌人的配置数据（生命值、波数据等）
+   - 每次战斗根据当前关卡需要生成敌人
+
+4. **EnemySpawner** (`Assets/Scripts/CharacterSystem/EnemySpawner.cs`)
+   - 敌人生成器
+   - 根据敌人配置动态生成敌人实体
+   - 支持依次生成:第一次战斗生成第一个配置的敌人,第二次战斗生成第二个配置的敌人
+
+### 使用方法
+
+#### 1. 创建玩家数据
+
+1. 在Project窗口中右键 → Create → Character System → Player Data
+2. 配置玩家数据:
+   - `Max Health`: 最大生命值（默认100）
+   - `Current Health`: 当前生命值（默认100）
+   - `Current Resource`: 当前资源值（可用于后续扩展）
+
+#### 2. 创建玩家实体Prefab
+
+**必须挂载的组件:**
+- **HealthComponent** (`Assets/Scripts/DamageSystem/HealthComponent.cs`)
+  - 生命值组件,用于管理生命值、护盾、死亡等
+  - 在Inspector中设置初始最大生命值（会在生成时被玩家数据覆盖）
+
+**可选组件:**
+- 模型组件（SpriteRenderer、MeshRenderer等）
+- UI组件（用于显示生命值等）
+- 其他游戏逻辑组件
+
+**设置Tag:**
+- 将GameObject的Tag设置为 "Player"（或与PlayerEntityManager中的playerTag一致）
+
+**示例步骤:**
+1. 创建一个GameObject,命名为 "PlayerEntityPrefab"
+2. 添加 `HealthComponent` 组件
+3. 在 `HealthComponent` 中设置初始最大生命值（可选,会被玩家数据覆盖）
+4. 添加玩家模型、UI等组件
+5. 设置Tag为 "Player"
+6. 保存为Prefab
+
+#### 3. 创建敌人配置
+
+1. 在Project窗口中右键 → Create → Character System → Enemy Config
+2. 配置敌人实体设置:
+   - `Enemy Entity Prefab`: 拖拽敌人实体Prefab
+   - `Enemy Tag`: 设置敌人Tag（默认 "Enemy"）
+3. 在 `Enemy Configs` 数组中添加敌人配置:
+   - `Enemy Name`: 敌人名称
+   - `Max Health`: 最大生命值
+   - `Wave Data`: 敌人波数据（可选）
+   - `Preset Wave Index`: 预设波索引（-1表示使用自定义waveData）
+
+**敌人依次生成说明:**
+- 第一次战斗:生成 `Enemy Configs[0]` 的敌人
+- 第二次战斗:生成 `Enemy Configs[1]` 的敌人
+- 第三次战斗:生成 `Enemy Configs[2]` 的敌人
+- 以此类推
+- 如果配置数量不足,会循环使用（例如有3个配置,第4次战斗会使用第1个配置）
+- **所有敌人都生成在同一个位置**（使用第一个生成位置或默认位置）
+
+#### 4. 创建敌人实体Prefab
+
+**必须挂载的组件:**
+- **HealthComponent** (`Assets/Scripts/DamageSystem/HealthComponent.cs`)
+  - 生命值组件,用于管理生命值、护盾、死亡等
+  - 在Inspector中设置初始最大生命值（会在生成时被敌人配置覆盖）
+
+**可选但推荐挂载的组件:**
+- **EnemyWaveManager** (`Assets/Scripts/WaveSystem/EnemyWaveManager.cs`)
+  - 敌人波管理器,用于管理敌人的波数据
+  - 如果挂载此组件,系统会自动应用配置中的波数据
+  - 在Inspector中配置预设波列表（如果使用预设波索引）
+
+**可选组件:**
+- 模型组件（SpriteRenderer、MeshRenderer等）
+- UI组件（用于显示生命值等）
+- 其他游戏逻辑组件
+
+**设置Tag:**
+- 将GameObject的Tag设置为 "Enemy"（或与EnemyConfig中的enemyTag一致）
+
+**示例步骤:**
+1. 创建一个GameObject,命名为 "EnemyEntityPrefab"
+2. 添加 `HealthComponent` 组件
+3. 在 `HealthComponent` 中设置初始最大生命值（可选,会被敌人配置覆盖）
+4. 添加 `EnemyWaveManager` 组件（推荐）
+5. 在 `EnemyWaveManager` 中配置预设波列表（如果使用预设波索引）
+6. 添加敌人模型、UI等组件
+7. 设置Tag为 "Enemy"
+8. 保存为Prefab
+
+#### 5. 设置场景
+
+**设置玩家实体管理器:**
+1. 在场景中创建一个GameObject,命名为 "PlayerEntityManager"
+2. 添加 `PlayerEntityManager` 组件
+3. 配置组件:
+   - `Player Data`: 拖拽创建的PlayerData ScriptableObject
+   - `Player Entity Prefab`: 拖拽创建的玩家实体Prefab
+   - `Player Spawn Point`: 创建空GameObject作为生成位置,拖拽到此字段（可选,不设置则使用默认位置）
+   - `Player Tag`: 设置玩家Tag（默认 "Player"）
+
+**设置敌人生成器:**
+1. 在场景中创建一个GameObject,命名为 "EnemySpawner"
+2. 添加 `EnemySpawner` 组件
+3. 配置组件:
+   - `Enemy Config`: 拖拽创建的EnemyConfig ScriptableObject
+   - `Spawn Points`: 创建空GameObject作为生成位置,添加到列表（可选,不设置则使用默认位置）
+     - **注意**: 所有敌人都生成在同一个位置（使用第一个生成位置或默认位置）
+   - `Default Offset`: 默认生成位置偏移（当没有设置生成位置时使用）
+   - `Default Spacing`: 默认生成间距（当没有设置生成位置时使用,但所有敌人生成在同一位置,此参数实际不使用）
+
+**设置战斗流程:**
+1. 在 `CombatNodeFlow` 组件中（如果存在）:
+   - `Player Entity Manager`: 拖拽PlayerEntityManager组件（可选,系统会自动查找）
+   - `Enemy Spawner`: 拖拽EnemySpawner组件（可选,系统会自动查找）
+
+#### 6. 代码使用示例
+
+```csharp
+using CharacterSystem;
+using UnityEngine;
+
+public class GameController : MonoBehaviour
+{
+    [SerializeField] private PlayerEntityManager playerEntityManager;
+    [SerializeField] private EnemySpawner enemySpawner;
+    [SerializeField] private PlayerData playerData;
+
+    void Start()
+    {
+        // 在地图上回复生命值（即使实体不在场）
+        playerData.Heal(20);
+        
+        // 在地图上受到伤害（即使实体不在场）
+        playerData.TakeDamage(10);
+    }
+
+    void OnCombatStart()
+    {
+        // 生成玩家实体（战斗开始时自动调用）
+        playerEntityManager.SpawnPlayerEntity();
+        
+        // 生成敌人实体（战斗开始时自动调用,依次生成）
+        enemySpawner.SpawnEnemies();
+    }
+
+    void OnCombatEnd()
+    {
+        // 销毁玩家实体并同步数据（战斗结束时自动调用）
+        playerEntityManager.DestroyPlayerEntity();
+        
+        // 清除所有敌人实体（战斗结束时自动调用）
+        enemySpawner.ClearAllEnemies();
+    }
+
+    void OnGameRestart()
+    {
+        // 重置战斗计数（重新开始游戏时）
+        enemySpawner.ResetCombatCounter();
+    }
+}
+```
+
+### 工作流程
+
+#### 玩家实体流程
+
+1. **战斗开始**:
+   - `CombatNodeFlow.StartFlow()` 被调用
+   - 自动调用 `playerEntityManager.SpawnPlayerEntity()`
+   - 从 `PlayerData` 读取数据并应用到实体
+   - 实体显示在场景中
+
+2. **战斗进行中**:
+   - 玩家实体参与战斗逻辑
+   - 生命值变化实时反映在实体上
+
+3. **战斗结束**:
+   - `CombatNodeFlow.FinishCombat()` 被调用
+   - 自动调用 `playerEntityManager.DestroyPlayerEntity()`
+   - 实体数据同步回 `PlayerData`
+   - 实体被销毁
+
+4. **地图上**:
+   - 即使实体不在场,也可以修改 `PlayerData`
+   - 例如:营火节点回复生命值、事件节点受到伤害等
+
+#### 敌人实体流程
+
+1. **战斗开始**:
+   - `CombatNodeFlow.StartFlow()` 被调用
+   - 自动调用 `enemySpawner.SpawnEnemies()`
+   - 根据战斗计数依次生成敌人:
+     - 第一次战斗:生成配置[0]的敌人
+     - 第二次战斗:生成配置[1]的敌人
+     - 以此类推
+   - 所有敌人都生成在同一个位置
+   - 应用配置的生命值和波数据
+
+2. **战斗进行中**:
+   - 敌人实体参与战斗逻辑
+   - 生命值变化实时反映在实体上
+
+3. **战斗结束**:
+   - `CombatNodeFlow.FinishCombat()` 被调用
+   - 自动调用 `enemySpawner.ClearAllEnemies()`
+   - 所有敌人实体被销毁
+
+4. **下次战斗**:
+   - 战斗计数自动增加
+   - 生成下一个配置的敌人
+
+### API 文档
+
+#### PlayerData 主要方法
+
+**生命值操作:**
+- `Heal(int healAmount)`: 回复生命值（即使实体不在场也可以调用）
+- `TakeDamage(int damage)`: 受到伤害（即使实体不在场也可以调用）
+- `SetMaxHealth(int newMaxHealth)`: 设置最大生命值
+- `ResetHealth()`: 重置生命值
+
+**数据同步:**
+- `SyncFromEntity(HealthComponent entityHealth)`: 从实体同步数据到玩家数据（战斗结束时调用）
+- `ApplyToEntity(HealthComponent entityHealth)`: 将数据应用到实体（战斗开始时调用）
+
+#### PlayerEntityManager 主要方法
+
+- `SpawnPlayerEntity()`: 生成玩家实体（战斗开始时调用）
+- `DestroyPlayerEntity()`: 销毁玩家实体并同步数据（战斗结束时调用）
+- `HidePlayerEntity()`: 隐藏玩家实体（不销毁）
+- `ShowPlayerEntity()`: 显示玩家实体（如果被隐藏）
+
+#### EnemySpawner 主要方法
+
+- `SpawnEnemies(List<int> configIndices = null)`: 生成敌人实体（战斗开始时调用）
+  - 如果不指定 `configIndices`,会按战斗计数依次生成单个敌人
+  - 如果指定 `configIndices`,会生成指定配置的敌人
+- `ClearAllEnemies()`: 清除所有敌人实体（战斗结束时调用）
+- `RemoveEnemy(GameObject enemy)`: 清除指定敌人
+- `ResetCombatCounter()`: 重置战斗计数（重新开始游戏时调用）
+
+#### EnemyConfig 主要方法
+
+- `GetEnemyConfig(int index)`: 获取指定索引的敌人配置
+- `ConfigCount`: 获取配置数量
+
+### 注意事项
+
+1. **Prefab组件要求**:
+   - 玩家实体Prefab必须包含 `HealthComponent` 组件
+   - 敌人实体Prefab必须包含 `HealthComponent` 组件
+   - 敌人实体Prefab推荐包含 `EnemyWaveManager` 组件（用于管理波数据）
+
+2. **Tag设置**:
+   - 玩家实体Prefab的Tag必须设置为 "Player"（或与PlayerEntityManager中的playerTag一致）
+   - 敌人实体Prefab的Tag必须设置为 "Enemy"（或与EnemyConfig中的enemyTag一致）
+
+3. **敌人依次生成**:
+   - 敌人依次生成指的是以战斗为单位依次生成
+   - 第一次战斗生成第一个配置的敌人,第二次战斗生成第二个配置的敌人
+   - 所有敌人都生成在同一个位置（使用第一个生成位置或默认位置）
+   - 如果配置数量不足,会循环使用
+
+4. **数据同步**:
+   - 战斗开始时,玩家数据会自动应用到实体
+   - 战斗结束时,实体数据会自动同步回玩家数据
+   - 即使实体不在场,也可以修改玩家数据
+
+5. **自动集成**:
+   - 如果设置了 `PlayerEntityManager` 和 `EnemySpawner`, `CombatNodeFlow` 会自动调用生成和清理方法
+   - 如果没有设置,系统会使用场景中现有的玩家/敌人实体（向后兼容）
+
+6. **调试信息**:
+   - 所有调试信息都带有 `[PlayerEntityManager]`、`[EnemySpawner]`、`[PlayerData]` 等前缀,方便在日志中搜索
+
+### 扩展建议
+
+如果需要扩展功能,可以考虑:
+- 添加玩家资源系统（能量、金币等）
+- 实现敌人AI系统
+- 添加角色动画和特效
+- 实现角色升级系统
+
+---
+
+## 金币系统 (Coin System)
+
+### 概述
+
+金币系统是一个独立的货币管理系统,提供简单的数值加减逻辑,供其他系统调用。系统采用数据与逻辑分离的设计,使用 ScriptableObject 持久化金币数据,支持金币变化事件通知。
+
+### 系统架构
+
+#### 核心组件
+
+1. **CoinData** (`Assets/Scripts/CurrencySystem/CoinData.cs`)
+   - 金币数据（ScriptableObject,持久化数据）
+   - 存储当前金币数量
+   - 提供增加、减少、检查金币的方法
+   - 扣金币时检查是否足够,如果不够返回 false
+
+2. **CoinSystem** (`Assets/Scripts/CurrencySystem/CoinSystem.cs`)
+   - 金币系统管理器（MonoBehaviour）
+   - 提供金币的增减逻辑,配合 CoinData 使用
+   - 提供事件通知（金币变化、花费失败）
+   - 扣金币时配合检测金币是否足够的逻辑,如果不够返回给调用者处理
+
+### 使用方法
+
+#### 1. 创建金币数据
+
+1. 在Project窗口中右键 → Create → Currency System → Coin Data
+2. 配置金币数据:
+   - `Current Coins`: 当前金币数量（默认0）
+
+#### 2. 设置场景
+
+1. 在场景中创建一个GameObject,命名为 "CoinSystem"
+2. 添加 `CoinSystem` 组件
+3. 在 `Coin System` 组件中,将创建的金币数据拖拽到 `Coin Data` 字段
+
+#### 3. 代码使用示例
+
+**基本使用:**
+
+```csharp
+using CurrencySystem;
+
+// 获取 CoinSystem 引用
+CoinSystem coinSystem = FindObjectOfType<CoinSystem>();
+
+// 增加金币
+coinSystem.AddCoins(100); // 增加100枚金币
+
+// 检查金币是否足够
+if (coinSystem.HasEnoughCoins(50))
+{
+    Debug.Log("金币足够");
+}
+
+// 尝试花费金币（推荐方式）
+if (coinSystem.TrySpendCoins(50))
+{
+    Debug.Log("成功花费50枚金币");
+    // 执行购买逻辑
+}
+else
+{
+    Debug.Log("金币不足,无法购买");
+    // 处理金币不足的逻辑（例如显示提示UI）
+}
+
+// 直接减少金币（不推荐,不会检查是否足够）
+coinSystem.RemoveCoins(30); // 直接减少30枚金币（如果不足会变成0）
+
+// 设置金币数量
+coinSystem.SetCoins(200); // 设置金币为200
+
+// 重置金币
+coinSystem.ResetCoins(0); // 重置为0
+```
+
+**监听事件:**
+
+```csharp
+// 监听金币变化事件
+coinSystem.OnCoinsChanged.AddListener((currentCoins) =>
+{
+    Debug.Log($"金币数量变化: {currentCoins}");
+    // 更新UI显示
+});
+
+// 监听花费失败事件
+coinSystem.OnSpendFailed.AddListener((requiredAmount, currentCoins) =>
+{
+    Debug.Log($"金币不足: 需要 {requiredAmount}, 当前只有 {currentCoins}");
+    // 显示提示UI
+});
+```
+
+**在UnityEvent中使用:**
+
+1. 在Inspector中找到需要调用金币系统的地方（例如商店UI按钮）
+2. 将 `CoinSystem` 的 `TrySpendCoins` 方法拖拽到 UnityEvent
+3. 设置需要花费的金币数量
+4. 如果花费失败,可以监听 `OnSpendFailed` 事件来处理
+
+### API 文档
+
+#### CoinSystem 主要方法
+
+- `AddCoins(int amount)`: 增加金币
+  - 参数: `amount` - 增加的金币数量（必须为正数）
+  - 返回: 实际增加的金币数量
+  - 说明: 成功增加后触发 `OnCoinsChanged` 事件
+
+- `TrySpendCoins(int amount)`: 尝试花费金币（推荐方式）
+  - 参数: `amount` - 需要花费的金币数量（必须为正数）
+  - 返回: `bool` - 是否成功花费（金币足够返回 true,不足返回 false）
+  - 说明: 
+    - 如果金币足够,扣除金币并返回 true,触发 `OnCoinsChanged` 事件
+    - 如果金币不足,不扣除金币,返回 false,触发 `OnSpendFailed` 事件
+    - **这是推荐的方式,因为会自动检查金币是否足够**
+
+- `RemoveCoins(int amount)`: 减少金币（不检查是否足够）
+  - 参数: `amount` - 减少的金币数量（必须为正数）
+  - 返回: 实际减少的金币数量
+  - 说明: 如果金币不足会变成0（不会变成负数）,不推荐使用,建议使用 `TrySpendCoins`
+
+- `HasEnoughCoins(int amount)`: 检查金币是否足够
+  - 参数: `amount` - 需要的金币数量
+  - 返回: `bool` - 是否足够
+
+- `SetCoins(int amount)`: 设置金币数量
+  - 参数: `amount` - 新的金币数量（不能为负数）
+  - 说明: 用于初始化或重置
+
+- `ResetCoins(int initialAmount = 0)`: 重置金币
+  - 参数: `initialAmount` - 初始金币数量（默认为0）
+
+#### CoinSystem 主要属性
+
+- `CurrentCoins`: 当前金币数量（只读）
+- `CoinData`: 金币数据（可读写）
+- `OnCoinsChanged`: 金币数量变化事件（UnityEvent<int>）
+- `OnSpendFailed`: 尝试花费金币失败事件（UnityEvent<int, int>）
+
+#### CoinData 主要方法
+
+- `AddCoins(int amount)`: 增加金币
+- `TrySpendCoins(int amount)`: 尝试花费金币（检查是否足够）
+- `RemoveCoins(int amount)`: 减少金币（不检查是否足够）
+- `HasEnoughCoins(int amount)`: 检查金币是否足够
+- `SetCoins(int amount)`: 设置金币数量
+- `ResetCoins(int initialAmount = 0)`: 重置金币
+
+#### CoinData 主要属性
+
+- `CurrentCoins`: 当前金币数量（只读）
+
+### 设计原则
+
+1. **数据与逻辑分离**: CoinData 存储数据,CoinSystem 提供逻辑和事件
+2. **检查后扣费**: 扣金币时检查是否足够,如果不够返回 false,由调用者处理
+3. **事件通知**: 提供金币变化和花费失败事件,方便UI更新
+4. **持久化**: 使用 ScriptableObject 持久化数据,数据在游戏运行期间保持
+
+### 注意事项
+
+1. **推荐使用 TrySpendCoins**: 扣金币时应该使用 `TrySpendCoins` 方法,它会自动检查金币是否足够
+2. **处理花费失败**: 如果 `TrySpendCoins` 返回 false,应该处理金币不足的逻辑（例如显示提示UI）
+3. **事件监听**: 建议监听 `OnCoinsChanged` 事件来更新UI显示
+4. **数据持久化**: CoinData 是 ScriptableObject,数据在游戏运行期间保持,但不会自动保存到磁盘（需要手动保存或使用其他持久化方案）
+5. **游戏开始重置**: 在 `GameFlowManager` 中已配置自动重置金币功能,每次游戏开始时（地图生成后）会自动重置金币为初始值
+   - 在 `GameFlowManager` 的 Inspector 中可以设置:
+     - `Reset Coins On Game Start`: 是否在游戏开始时自动重置金币（默认开启）
+     - `Initial Coins`: 游戏开始时的初始金币数量（默认0）
+     - `Coin System`: 金币系统引用（如果为空,会自动查找）
+6. **调试信息**: 所有调试信息都带有 `[CoinSystem]` 或 `[CoinData]` 前缀,方便在日志中搜索
+
+### 扩展建议
+
+如果需要扩展功能,可以考虑:
+- 添加金币上限
+- 实现金币历史记录
+- 添加多种货币类型（钻石、银币等）
+- 实现金币奖励系统
+- 添加金币动画和特效
+
+---
+
+## 角色特殊状态系统 (Status Effect System)
+
+### 概述
+
+角色特殊状态系统是一个通用的状态效果管理系统,用于玩家和敌人。系统支持四种状态类型:受到伤害减少、攻击伤害减少、受到伤害增加、攻击伤害增加。状态效果互相影响是相乘关系,顺序不影响结果。
+
+### 系统架构
+
+#### 核心组件
+
+1. **StatusEffect** (`Assets/Scripts/StatusSystem/StatusEffect.cs`)
+   - 状态效果数据类
+   - 包含:状态名称（tag）、状态类型、数值（倍数）、持续回合数
+   - 支持永久状态（持续回合数为-1）
+
+2. **StatusEffectManager** (`Assets/Scripts/StatusSystem/StatusEffectManager.cs`)
+   - 状态效果管理器（MonoBehaviour组件）
+   - 管理角色身上的所有状态效果
+   - 处理状态效果的叠加、持续回合、效果计算
+   - 提供添加、移除、查询状态效果的接口
+
+### 状态类型
+
+- **DamageTakenReduction**: 受到伤害减少（数值为倍数,例如0.8表示减少20%,即受到80%伤害）
+- **DamageDealtReduction**: 攻击伤害减少（数值为倍数,例如0.8表示减少20%,即造成80%伤害）
+- **DamageTakenIncrease**: 受到伤害增加（数值为倍数,例如1.2表示增加20%,即受到120%伤害）
+- **DamageDealtIncrease**: 攻击伤害增加（数值为倍数,例如1.2表示增加20%,即造成120%伤害）
+
+### 使用方法
+
+#### 1. 为角色添加状态效果管理器
+
+在玩家或敌人的Prefab上添加 `StatusEffectManager` 组件:
+
+1. 选择角色Prefab
+2. 添加组件 → Status System → Status Effect Manager
+3. 组件会自动处理状态效果的添加、移除和计算
+
+#### 2. 代码使用示例
+
+**添加状态效果:**
+
+```csharp
+using StatusSystem;
+
+// 获取角色的状态效果管理器
+StatusEffectManager statusManager = character.GetComponent<StatusEffectManager>();
+
+// 方式1: 使用便捷方法添加状态
+statusManager.AddStatusEffect("护甲", StatusEffectType.DamageTakenReduction, 0.8f, 3);
+// 添加"护甲"状态:受到伤害减少20%（0.8倍）,持续3回合
+
+statusManager.AddStatusEffect("虚弱", StatusEffectType.DamageDealtReduction, 0.7f, 2);
+// 添加"虚弱"状态:攻击伤害减少30%（0.7倍）,持续2回合
+
+statusManager.AddStatusEffect("易伤", StatusEffectType.DamageTakenIncrease, 1.5f, 1);
+// 添加"易伤"状态:受到伤害增加50%（1.5倍）,持续1回合
+
+statusManager.AddStatusEffect("力量", StatusEffectType.DamageDealtIncrease, 1.3f, -1);
+// 添加"力量"状态:攻击伤害增加30%（1.3倍）,永久（-1表示永久）
+
+// 方式2: 创建StatusEffect对象后添加
+StatusEffect status = new StatusEffect("护盾", StatusEffectType.DamageTakenReduction, 0.5f, 2);
+statusManager.AddStatusEffect(status);
+```
+
+**查询状态效果:**
+
+```csharp
+// 检查是否有指定名称的状态效果
+if (statusManager.HasStatusEffect("护甲"))
+{
+    Debug.Log("角色有护甲状态");
+}
+
+// 获取指定名称的状态效果数量
+int armorCount = statusManager.GetStatusEffectCount("护甲");
+
+// 获取指定类型的状态效果列表
+List<StatusEffect> reductionStatuses = statusManager.GetStatusEffectsByType(StatusEffectType.DamageTakenReduction);
+
+// 获取所有状态效果
+foreach (var status in statusManager.StatusEffects)
+{
+    Debug.Log($"状态: {status.StatusName}, 类型: {status.EffectType}, 数值: {status.Value}, 持续: {status.Duration}回合");
+}
+```
+
+**移除状态效果:**
+
+```csharp
+// 移除指定名称的状态效果（移除所有同名状态）
+int removedCount = statusManager.RemoveStatusEffect("护甲");
+
+// 移除所有状态效果
+statusManager.ClearAllStatusEffects();
+```
+
+**手动应用状态效果修正:**
+
+```csharp
+// 应用受到伤害修正（通常在HealthComponent中自动调用）
+int originalDamage = 100;
+int modifiedDamage = statusManager.ApplyDamageTakenModifier(originalDamage);
+
+// 应用造成伤害修正（通常在WaveHitSequenceGenerator中自动调用）
+int originalDamage = 100;
+int modifiedDamage = statusManager.ApplyDamageDealtModifier(originalDamage);
+```
+
+**监听状态变化事件:**
+
+```csharp
+// 监听状态添加事件
+statusManager.OnStatusAdded.AddListener((status) =>
+{
+    Debug.Log($"添加状态: {status.StatusName}");
+    // 更新UI显示
+});
+
+// 监听状态移除事件
+statusManager.OnStatusRemoved.AddListener((statusName) =>
+{
+    Debug.Log($"移除状态: {statusName}");
+    // 更新UI显示
+});
+
+// 监听状态更新事件
+statusManager.OnStatusUpdated.AddListener((statusList) =>
+{
+    Debug.Log($"状态列表更新,当前有 {statusList.Count} 个状态");
+    // 更新UI显示
+});
+```
+
+### 状态效果计算规则
+
+1. **状态效果相乘**: 多个同类型状态效果会相乘,顺序不影响结果
+   - 例如: 有"护甲"(0.8倍)和"护盾"(0.5倍),最终受到伤害 = 原始伤害 × 0.8 × 0.5 = 原始伤害 × 0.4
+
+2. **不同类型状态独立计算**:
+   - "受到伤害减少/增加"状态在受到伤害时应用
+   - "攻击伤害减少/增加"状态在造成伤害时应用
+
+3. **回合结束处理**: 回合结束时,所有状态效果的持续回合数会减少1,持续回合数为0的状态会被自动移除
+
+### API 文档
+
+#### StatusEffectManager 主要方法
+
+- `AddStatusEffect(StatusEffect statusEffect)`: 添加状态效果
+- `AddStatusEffect(string statusName, StatusEffectType effectType, float value, int duration)`: 添加状态效果（便捷方法）
+- `RemoveStatusEffect(string statusName)`: 移除指定名称的状态效果
+- `ClearAllStatusEffects()`: 移除所有状态效果
+- `OnTurnEnd()`: 回合结束处理（减少持续回合数,移除过期状态）
+- `GetDamageTakenMultiplier()`: 获取受到伤害的修正倍数
+- `GetDamageDealtMultiplier()`: 获取造成伤害的修正倍数
+- `ApplyDamageTakenModifier(int originalDamage)`: 应用受到伤害修正
+- `ApplyDamageDealtModifier(int originalDamage)`: 应用造成伤害修正
+- `GetStatusEffectsByType(StatusEffectType effectType)`: 获取指定类型的状态效果列表
+- `HasStatusEffect(string statusName)`: 检查是否有指定名称的状态效果
+- `GetStatusEffectCount(string statusName)`: 获取指定名称的状态效果数量
+
+#### StatusEffectManager 主要属性
+
+- `StatusEffects`: 当前所有状态效果列表（只读）
+- `OnStatusAdded`: 状态效果添加事件（UnityEvent<StatusEffect>）
+- `OnStatusRemoved`: 状态效果移除事件（UnityEvent<string>）
+- `OnStatusUpdated`: 状态效果更新事件（UnityEvent<List<StatusEffect>>）
+
+#### StatusEffect 主要属性
+
+- `StatusName`: 状态名称（用于UI显示和识别）
+- `EffectType`: 状态类型
+- `Value`: 状态数值（倍数）
+- `Duration`: 持续回合数（-1表示永久）
+- `IsExpired`: 是否已过期
+- `IsPermanent`: 是否永久
+
+### 自动集成
+
+系统已自动集成到伤害系统中:
+
+1. **受到伤害时**: `HealthComponent.TakeDamage()` 会自动应用"受到伤害减少/增加"状态
+2. **造成伤害时**: `WaveHitSequenceGenerator.GenerateHitSequence()` 会自动应用"攻击伤害减少/增加"状态
+3. **回合结束时**: `CombatNodeFlow.EnterTurnEnd()` 会自动处理所有角色状态效果的回合结束逻辑
+
+### 注意事项
+
+1. **状态效果叠加**: 同类型状态效果会相乘,不是相加
+2. **状态名称**: 状态名称用于识别和UI显示,建议使用有意义的名称（如"护甲"、"虚弱"等）
+3. **数值范围**: 状态数值是倍数,建议范围在0.1到10之间
+4. **持续回合数**: 
+   - 正数表示持续N回合
+   - -1表示永久状态
+   - 0表示已过期（会被自动移除）
+5. **回合结束处理**: 系统会在回合结束时自动减少持续回合数,无需手动调用
+6. **调试信息**: 所有调试信息都带有 `[StatusEffectManager]` 前缀,方便在日志中搜索
+
+### 快速测试
+
+**使用测试脚本（推荐）**
+
+1. 在场景中创建一个GameObject,命名为 "StatusEffectTester"
+2. 添加 `StatusEffectTester` 组件
+3. 在Inspector中设置:
+   - `Player Target`: 玩家实体（可选,会自动查找）
+   - `Enemy Target`: 敌人实体（可选,会自动查找）
+   - `Test Damage`: 测试伤害值（默认100）
+   - `Test Status Value`: 测试状态数值（默认0.8）
+   - `Test Status Duration`: 测试状态持续回合数（默认3）
+4. 在Inspector中右键点击 `StatusEffectTester` 组件,选择测试方法:
+   - **运行所有测试（敌人重点测试）**: 运行完整的测试套件,重点测试敌人状态效果
+   - **测试2: 为敌人添加受到伤害减少状态**: 测试敌人状态添加
+   - **测试7: 测试敌人受到伤害修正**: 测试敌人受到伤害时的状态效果应用
+   - **测试8: 测试敌人造成伤害修正**: 测试敌人造成伤害时的状态效果应用
+   - **测试9: 测试状态效果叠加**: 测试多个状态效果相乘
+   - **测试10: 测试敌人状态效果回合结束**: 测试回合结束时状态效果减少
+   - **测试11: 综合测试 - 敌人完整状态效果流程**: 完整的敌人状态效果测试流程
+
+**测试内容:**
+
+- ✅ 基础功能: 添加、移除、查询状态效果
+- ✅ 受到伤害修正: 测试"受到伤害减少/增加"状态是否正确应用
+- ✅ 造成伤害修正: 测试"攻击伤害减少/增加"状态是否正确应用
+- ✅ 状态叠加: 测试多个同类型状态效果相乘计算
+- ✅ 回合结束: 测试状态效果持续回合数减少和过期移除
+- ✅ 敌人测试: 重点测试敌人身上的所有状态效果功能
+
+**注意事项:**
+
+1. 确保测试目标（玩家/敌人）已挂载 `StatusEffectManager` 和 `HealthComponent` 组件
+2. 测试前建议先运行"清除所有状态效果"确保测试环境干净
+3. 所有测试结果会在Console中输出,带有 `[StatusEffectTester]` 前缀
+
+### 扩展建议
+
+如果需要扩展功能,可以考虑:
+- 添加更多状态类型（如移动速度、攻击速度等）
+- 实现状态效果图标和UI显示
+- 添加状态效果动画和特效
+- 实现状态效果组合系统（如"燃烧+冰冻=蒸汽"）
+- 添加状态效果免疫系统
+
+---
+
+## 波牌注册表系统 (Wave Card Registry System)
+
+### 概述
+
+波牌注册表系统用于管理所有不同的波牌类型，类似于成员数据注册表。系统包含波牌数据（WaveCardData）和波牌注册表（WaveCardDataRegistry），支持通过ID快速查找波牌配置。
+
+### 系统架构
+
+#### 核心组件
+
+1. **WaveCardData** (`Assets/Scripts/WaveSystem/WaveCardData.cs`)
+   - ScriptableObject，定义单个波牌类型的配置信息
+   - 包含：波牌ID、名称、波数据、价格、Prefab
+
+2. **WaveCardDataRegistry** (`Assets/Scripts/WaveSystem/WaveCardDataRegistry.cs`)
+   - ScriptableObject，管理所有波牌数据
+   - 提供通过ID或索引查找波牌数据的方法
+
+3. **WaveCardComponent** (`Assets/Scripts/WaveSystem/WaveCardComponent.cs`)
+   - MonoBehaviour，挂载在波牌Prefab上
+   - 包含波数据和价格参数
+
+### 配置说明
+
+#### 1. 创建波牌数据
+
+1. 在 Unity 中右键 → `Create → Wave System → Wave Card Data`
+2. 设置波牌配置：
+   - **Card Id**: 波牌唯一ID（如 "wave_card_001"）
+   - **Card Name**: 波牌名称（用于UI显示）
+   - **Wave Data**: 波数据（定义波牌的波峰信息）
+   - **Card Price**: 波牌价格（购买所需的金币）
+   - **Card Prefab**: 波牌Prefab（可选，如果使用Prefab系统）
+
+#### 2. 创建波牌注册表
+
+1. 在 Unity 中右键 → `Create → Wave System → Wave Card Data Registry`
+2. 将所有波牌数据添加到注册表中：
+   - 在 Inspector 中展开 `Card Entries`
+   - 点击 `+` 添加条目
+   - 将创建的 `WaveCardData` 拖拽到 `Wave Card Data` 字段
+
+#### 3. 配置波牌组件
+
+1. 在波牌Prefab上添加 `WaveCardComponent` 组件
+2. 设置组件参数：
+   - **Wave Data**: 波数据（定义波牌的波峰信息）
+   - **Card Price**: 波牌价格（购买所需的金币）
+
+### 使用方法
+
+#### 代码示例
+
+```csharp
+// 获取波牌注册表
+WaveCardDataRegistry registry = ...; // 获取注册表引用
+
+// 通过ID获取波牌数据
+WaveCardData cardData = registry.GetWaveCardData("wave_card_001");
+
+// 通过索引获取波牌数据
+WaveCardData cardData = registry.GetWaveCardDataByIndex(0);
+
+// 获取所有波牌数据
+List<WaveCardData> allCards = registry.GetAllWaveCardData();
+
+// 检查波牌是否存在
+bool exists = registry.HasWaveCardData("wave_card_001");
+
+// 从波牌数据创建波
+Wave wave = Wave.FromData(cardData.WaveData);
+```
+
+### API 文档
+
+#### WaveCardDataRegistry 主要方法
+
+- `GetWaveCardData(string cardId)`: 根据波牌ID获取波牌数据
+- `GetWaveCardDataByIndex(int index)`: 根据索引获取波牌数据
+- `GetAllWaveCardData()`: 获取所有波牌数据
+- `HasWaveCardData(string cardId)`: 检查波牌ID是否存在
+- `CardCount`: 获取波牌数据数量
+
+#### WaveCardData 主要属性
+
+- `CardId`: 波牌ID（唯一标识符）
+- `CardName`: 波牌名称
+- `WaveData`: 波数据
+- `CardPrice`: 波牌价格
+- `CardPrefab`: 波牌Prefab（可选）
+
+#### WaveCardComponent 主要属性
+
+- `Wave`: 波牌的波数据（只读）
+- `CardPrice`: 波牌价格（只读）
+
+### 注意事项
+
+1. **波牌ID唯一性**: 每个波牌必须有唯一的ID，注册表中不能有重复ID
+2. **价格设置**: 波牌价格可以在 `WaveCardData` 和 `WaveCardComponent` 中设置，`WaveCardComponent` 的价格会覆盖 `WaveCardData` 的价格
+3. **Prefab可选**: 波牌Prefab是可选的，但如果设置了，建议包含 `WaveCardComponent` 组件
+4. **数据验证**: `WaveCardData.Validate()` 方法可以验证数据有效性
+
+---
+
+## 奖励系统 (Reward System)
+
+### 概述
+
+奖励系统用于在战斗结束后根据节点类型发放不同的奖励。系统支持战斗、精英、Boss三种节点类型，每种节点类型有不同的奖励配置。
+
+### 系统架构
+
+#### 核心组件
+
+1. **RewardManager** (`Assets/Scripts/GameFlow/RewardManager.cs`)
+   - MonoBehaviour，管理战斗结束后的奖励发放
+   - 根据节点类型自动发放对应奖励
+
+2. **PurchaseButton** (`Assets/Scripts/UI/PurchaseButton.cs`)
+   - MonoBehaviour，购买按钮组件
+   - 支持购买波牌和成员，自动处理金币扣除和物品添加
+
+### 配置说明
+
+#### 1. 配置 RewardManager
+
+1. 在场景中创建一个GameObject，命名为 "RewardManager"
+2. 添加 `RewardManager` 组件
+3. 在 Inspector 中配置：
+
+   **金币奖励设置**:
+   - `Combat Coin Range`: 战斗节点金币奖励范围（最小值，最大值），默认 (10, 20)
+   - `Elite Coin Range`: 精英节点金币奖励范围（最小值，最大值），默认 (20, 30)
+   - `Boss Coin Range`: Boss节点金币奖励范围（最小值，最大值），默认 (50, 100)
+
+   **精英节点卡牌奖励设置**:
+   - `Elite Card Reward Count`: 精英节点奖励的波牌数量，默认 3
+
+   **系统引用**（如果为空，会自动查找）:
+   - `Coin System`: 金币系统
+   - `Card System`: 卡牌系统
+   - `Card Prefab Registry`: 卡牌Prefab注册表（用于根据波牌ID获取Prefab）
+   - `UI Manager`: UI管理器（用于控制奖励面板显示，如果为空，会自动查找）
+   - `Combat Node Flow`: 战斗流程（用于结束流程，如果为空，会自动查找）
+
+   **UI设置**:
+   - `Reward Container`: 奖励容器（用于放置奖励物品和按钮的Transform）
+   - `Purchase Button Prefab`: 购买按钮Prefab（用于生成购买按钮）
+   
+   **注意**: 
+   - 波牌Prefab不需要手动设置，系统会从 `Card Prefab Registry` 中根据随机抽取的波牌ID自动获取并生成
+   - 奖励面板的显示和隐藏由 `UIManager` 控制，战斗结束时会自动显示，但不会自动隐藏（需要玩家点击确认按钮）
+
+#### 2. 配置 CombatNodeFlow
+
+1. 在战斗流程Prefab上找到 `CombatNodeFlow` 组件
+2. 在 Inspector 中设置：
+   - `Reward Manager`: 将配置好的 `RewardManager` 拖拽到此字段
+   - 如果为空，系统会自动查找场景中的 `RewardManager`
+
+#### 3. 配置奖励确认按钮
+
+1. 在奖励面板UI容器中创建一个UI Button GameObject，命名为 "ConfirmRewardButton"
+2. 在按钮的 `OnClick` 事件中配置：
+   - 点击 `+` 号添加一个事件监听器
+   - 将场景中带有 `RewardManager` 组件的GameObject拖拽到对象字段
+   - 在下拉菜单中选择：`RewardManager` -> `FinishRewardAndFlow()`
+   
+   **注意**: 
+   - 这个按钮让玩家自己控制结束时机，战斗结束后会显示奖励面板，玩家选择完奖励后点击此按钮才会进入事件结束状态
+   - `FinishRewardAndFlow()` 是一个 public void 无参数方法，完全兼容Unity Button组件的OnClick事件
+   - 如果找不到方法，请确保 `RewardManager` 组件已正确添加到GameObject上
+
+#### 4. 创建购买按钮Prefab
+
+1. 创建一个UI Button GameObject作为购买按钮Prefab
+2. 添加 `PurchaseButton` 组件
+3. 配置按钮组件：
+   - **UI组件**:
+     - `Button`: 按钮组件（如果为空，会自动获取）
+   - **事件**:
+     - `On Purchase Success`: 购买成功事件（UnityEvent<string>，传递物品ID）
+   
+   **注意**: 
+   - 除了 `Button` 引用需要在Prefab中设置外，其他所有参数（物品ID、类型、价格等）都会在生成时通过 `Initialize()` 方法自动设置
+   - 按钮不需要显示价格文本
+
+4. 将按钮Prefab保存，并在 `RewardManager` 的 `Purchase Button Prefab` 字段中引用
+
+### 奖励规则
+
+#### 战斗节点奖励
+- **金币**: 从 `Combat Coin Range` 范围中随机一个值
+
+#### 精英节点奖励
+- **金币**: 从 `Elite Coin Range` 范围中随机一个值
+- **卡牌**: 从 `Card Prefab Registry` 中随机选择 `Elite Card Reward Count` 个波牌ID
+  - 系统会根据随机抽取的波牌ID，从注册表中自动获取对应的Prefab并生成实例
+  - 每个波牌会生成一个实例和对应的购买按钮
+  - 购买按钮价格为 0（因为是奖励）
+  - 点击购买按钮后，波牌会添加到牌堆，实例和按钮会被销毁
+
+#### Boss节点奖励
+- **金币**: 从 `Boss Coin Range` 范围中随机一个值
+
+### 使用方法
+
+#### 代码示例
+
+```csharp
+// 获取奖励管理器
+RewardManager rewardManager = FindObjectOfType<RewardManager>();
+
+// 发放奖励（根据节点类型）
+rewardManager.GiveReward("Combat", isBoss: false);  // 战斗节点
+rewardManager.GiveReward("Elite", isBoss: false);   // 精英节点
+rewardManager.GiveReward("Boss", isBoss: true);      // Boss节点
+
+// 清理奖励实例
+rewardManager.ClearRewards();
+
+// 从奖励实例获取波牌ID
+string cardId = rewardManager.GetCardIdFromInstance(cardInstance);
+```
+
+### PurchaseButton 使用方法
+
+#### 代码示例
+
+```csharp
+// 获取购买按钮组件
+PurchaseButton purchaseButton = buttonInstance.GetComponent<PurchaseButton>();
+
+// 初始化按钮（设置物品ID和类型）
+purchaseButton.Initialize("wave_card_001", PurchaseButton.ItemType.WaveCard, customPrice: 100);
+
+// 订阅购买成功事件
+purchaseButton.OnPurchaseSuccess.AddListener((string purchasedItemId) =>
+{
+    Debug.Log($"成功购买物品: {purchasedItemId}");
+    // 可以在这里销毁按钮或更新UI
+});
+
+// 获取物品ID
+string itemId = purchaseButton.ItemId;
+
+// 获取价格
+int price = purchaseButton.Price;
+```
+
+### API 文档
+
+#### RewardManager 主要方法
+
+- `GiveReward(string nodeType, bool isBoss)`: 发放奖励（根据节点类型）
+- `ClearRewards()`: 清理所有奖励实例
+- `GetCardIdFromInstance(GameObject cardInstance)`: 从奖励实例获取波牌ID
+
+#### PurchaseButton 主要方法
+
+- `Initialize(string id, ItemType type, int customPrice = -1)`: 初始化按钮
+- `ItemId`: 物品ID（可读写）
+- `Type`: 物品类型（可读写）
+- `Price`: 价格（只读）
+- `OnPurchaseSuccess`: 购买成功事件（UnityEvent<string>）
+
+#### PurchaseButton.ItemType 枚举
+
+- `WaveCard`: 波牌
+- `Member`: 成员
+
+### 自动集成
+
+系统已自动集成到战斗流程中:
+
+1. **战斗结束时**: `CombatNodeFlow.FinishCombat()` 会自动调用 `RewardManager.GiveReward()`
+2. **节点类型判断**: 系统会根据 `CombatNodeFlow.CurrentNodeType` 和 `IsBossNode` 自动判断奖励类型
+3. **奖励发放**: 奖励会在战斗结束后自动发放，无需手动调用
+
+### 工作流程
+
+1. **战斗结束**: 当所有敌人死亡时，`CombatNodeFlow.FinishCombat()` 被调用
+2. **发放奖励**: 系统根据节点类型自动发放奖励（金币和/或波牌）
+3. **显示奖励面板**: 自动调用 `UIManager.ShowRewardPanel()` 显示奖励面板
+4. **玩家选择奖励**: 玩家点击购买按钮选择奖励（精英节点可以选择波牌）
+5. **确认奖励**: 玩家点击"确认奖励"按钮，调用 `RewardManager.FinishRewardAndFlow()`
+6. **结束流程**: 流程结束，返回地图界面
+
+**注意**: 奖励波牌在被领取完成后不会自动隐藏奖励面板，让玩家自己控制结束时机
+
+### 注意事项
+
+1. **奖励容器**: 必须设置 `Reward Container`，否则奖励物品和按钮无法正确生成
+2. **购买按钮Prefab**: 必须设置 `Purchase Button Prefab`，否则无法生成购买按钮
+3. **卡牌Prefab注册表**: 必须设置 `Card Prefab Registry`，否则精英节点的卡牌奖励无法生成（系统会根据随机抽取的波牌ID自动获取Prefab）
+4. **波牌Prefab**: 不需要手动设置，系统会从 `Card Prefab Registry` 中根据波牌ID自动获取
+5. **购买按钮参数**: 除了 `Button` 引用需要在Prefab中设置外，其他所有参数（物品ID、类型、价格等）都会在生成时自动设置
+6. **价格显示**: 按钮不需要显示价格文本
+7. **购买成功**: 购买成功后，奖励实例和按钮会自动销毁（通过订阅 `OnPurchaseSuccess` 事件）
+8. **金币检查**: 购买按钮会自动检查金币是否足够，不足时会显示警告并取消购买
+9. **物品添加**: 购买成功后，波牌会自动添加到牌堆，成员会自动添加到小队数据
+10. **奖励确认按钮**: 必须在奖励面板中配置一个按钮，调用 `RewardManager.FinishRewardAndFlow()` 方法，让玩家自己控制结束时机
+11. **流程控制**: 战斗结束后不会立即结束流程，而是等待玩家点击确认按钮后才进入事件结束状态
+
+### 扩展建议
+
+如果需要扩展功能,可以考虑:
+- 添加更多奖励类型（如经验值、道具等）
+- 实现奖励预览UI
+- 添加奖励动画和特效
+- 实现奖励选择系统（让玩家从多个奖励中选择）
+- 添加奖励历史记录
+- 添加角色装备系统
+
+---
+
+## 商店系统 (Shop System)
+
+### 概述
+
+商店系统负责处理商店节点的商品展示和购买。系统会随机从波牌注册表中选择商品，生成商品实例和购买按钮，玩家可以花费金币购买波牌。
+
+### 核心组件
+
+1. **ShopManager** (`Assets/Scripts/GameFlow/ShopManager.cs`)
+   - MonoBehaviour，管理商店的商品展示和购买
+   - 随机选择商品，生成商品实例和购买按钮
+
+2. **ShopNodeFlow** (`Assets/Scripts/GameFlow/ShopNodeFlow.cs`)
+   - 继承自 `NodeEventFlowBase`，处理商店节点的事件流程
+   - 在流程开始时初始化商店
+
+3. **PurchaseButton** (`Assets/Scripts/UI/PurchaseButton.cs`)
+   - 购买按钮组件，处理购买逻辑（已在奖励系统中使用）
+
+### 配置说明
+
+#### 1. 配置 ShopManager
+
+1. 在商店流程Prefab中创建一个GameObject，命名为 "ShopManager"
+2. 添加 `ShopManager` 组件
+3. 在 Inspector 中配置：
+
+   **商店设置**:
+   - `Shop Item Count`: 商店商品数量（随机选择的波牌数量），默认 3
+
+   **系统引用**（如果为空，会自动查找）:
+   - `Coin System`: 金币系统
+   - `Card System`: 卡牌系统
+   - `Card Prefab Registry`: 卡牌Prefab注册表（用于根据波牌ID获取Prefab）
+   - `UI Manager`: UI管理器（用于控制商店面板显示）
+
+   **UI设置**:
+   - `Shop Container`: 商店容器（用于放置商品和按钮的Transform，如果为空，会自动查找名为'ShopContainer'的子对象）
+   - `Purchase Button Prefab`: 购买按钮Prefab（用于生成购买按钮）
+
+#### 2. 配置 ShopNodeFlow
+
+1. 创建商店流程Prefab，添加 `ShopNodeFlow` 组件
+2. 在 Prefab 中创建一个子对象，命名为 "ShopContainer"（作为商店容器）
+3. 在 Inspector 中配置：
+   - `Shop Manager`: 将配置好的 `ShopManager` 拖拽到此字段（如果为空，会自动查找）
+   - `Shop Container`: 将 "ShopContainer" 子对象拖拽到此字段（如果为空，会自动查找）
+
+#### 3. 配置 UIManager
+
+1. 在场景中找到 `UIManager` 组件
+2. 在 Inspector 中设置：
+   - `Shop Panel Container`: 商店面板UI容器（商店节点时显示，玩家离开商店后隐藏）
+
+#### 4. 配置商店确认按钮
+
+1. 在商店面板UI容器中创建一个UI Button GameObject，命名为 "ConfirmShopButton"
+2. 在按钮的 `OnClick` 事件中配置：
+   - 点击 `+` 号添加一个事件监听器
+   - **推荐方式**：将场景中带有 `ShopManager` 组件的GameObject拖拽到对象字段（通常是商店流程Prefab的子对象）
+   - 在下拉菜单中选择：`ShopManager` -> `FinishShopAndFlow()`
+   - **备选方式**：如果找不到 ShopManager，可以将场景中带有 `ShopNodeFlow` 组件的GameObject拖拽到对象字段，然后选择：`ShopNodeFlow` -> `FinishShopAndFlow()`
+   
+   **注意**: 
+   - 这个按钮让玩家自己控制结束时机，进入商店后会显示商店面板，玩家购买完商品后点击此按钮才会进入事件结束状态
+   - `FinishShopAndFlow()` 是一个 public void 无参数方法，完全兼容Unity Button组件的OnClick事件
+   - 推荐使用 `ShopManager.FinishShopAndFlow()`，因为它会自动查找 `ShopNodeFlow`，更加可靠
+
+### 工作流程
+
+1. **进入商店**: 当玩家进入商店节点时，`ShopNodeFlow.StartFlow()` 被调用
+2. **初始化商店**: 系统随机从 `CardPrefabRegistry` 中选择指定数量的波牌ID
+3. **生成商品**: 为每个选中的波牌生成实例和购买按钮（按钮作为卡牌的子对象）
+4. **显示商店面板**: 自动调用 `UIManager.ShowShopPanel()` 显示商店面板
+5. **玩家购买**: 玩家点击购买按钮购买商品（使用物品数据中的默认价格）
+6. **确认离开**: 玩家点击"确认"按钮，调用 `ShopNodeFlow.FinishShopAndFlow()`
+7. **结束流程**: 流程结束，返回地图界面
+
+### API 文档
+
+#### ShopManager 主要方法
+
+- `InitializeShop()`: 初始化商店（随机选择商品并生成）
+- `ClearShop()`: 清理所有商店商品并隐藏面板
+- `GetShopItemIds()`: 获取当前商店的所有商品ID列表
+- `GetShopItemId(int index)`: 获取指定索引的商品ID
+- `GetCardIdFromInstance(GameObject cardInstance)`: 从商品实例获取波牌ID
+- `SetShopContainer(Transform container)`: 设置商店容器（供ShopNodeFlow调用）
+- `FinishShopAndFlow()`: 完成商店并结束流程（供按钮调用，推荐使用此方法）
+
+#### ShopNodeFlow 主要方法
+
+- `StartFlow()`: 开始执行商店流程（自动初始化商店）
+- `FinishShopAndFlow()`: 完成商店并结束流程（供按钮调用）
+
+### 使用方法
+
+#### 代码示例
+
+```csharp
+// 获取商店管理器
+ShopManager shopManager = FindObjectOfType<ShopManager>();
+
+// 初始化商店
+shopManager.InitializeShop();
+
+// 获取所有商品ID
+List<string> itemIds = shopManager.GetShopItemIds();
+
+// 获取指定索引的商品ID
+string itemId = shopManager.GetShopItemId(0);
+
+// 从商品实例获取波牌ID
+string cardId = shopManager.GetCardIdFromInstance(cardInstance);
+
+// 清理商店
+shopManager.ClearShop();
+```
+
+### 注意事项
+
+1. **商店容器**: 必须在商店流程Prefab中创建一个名为 "ShopContainer" 的子对象，或者手动设置 `Shop Container` 字段
+2. **购买按钮Prefab**: 必须设置 `Purchase Button Prefab`，否则无法生成购买按钮
+3. **卡牌Prefab注册表**: 必须设置 `Card Prefab Registry`，否则无法生成商品（系统会从CardSystem获取）
+4. **商品价格**: 购买按钮会使用物品数据中的默认价格（从 `WaveCardDataRegistry` 或 `CardPrefabRegistry` 获取）
+5. **按钮位置**: 购买按钮会自动作为卡牌的子对象，绑定在卡牌下方
+6. **商店确认按钮**: 必须在商店面板中配置一个按钮，调用 `ShopNodeFlow.FinishShopAndFlow()` 方法，让玩家自己控制结束时机
+7. **流程控制**: 进入商店后不会立即结束流程，而是等待玩家点击确认按钮后才进入事件结束状态
+
+### 扩展建议
+
+1. **商品刷新**: 可以添加商品刷新功能，让玩家花费金币刷新商品列表
+2. **商品折扣**: 可以添加商品折扣功能
+3. **特殊商品**: 可以添加特殊商品类型（如限时商品、稀有商品等）
+4. **购买动画**: 可以添加购买成功的动画效果
+
+---
+
+## 酒馆系统 (Tavern System)
+
+### 概述
+
+酒馆系统负责处理酒馆节点的成员展示和购买。系统会随机从成员注册表中选择成员，生成成员实例和购买按钮，玩家可以花费金币购买成员并加入小队。
+
+### 核心组件
+
+1. **TavernManager** (`Assets/Scripts/GameFlow/TavernManager.cs`)
+   - MonoBehaviour，管理酒馆的成员展示和购买
+   - 随机选择成员，生成成员实例和购买按钮
+
+2. **TavernNodeFlow** (`Assets/Scripts/GameFlow/TavernNodeFlow.cs`)
+   - 继承自 `NodeEventFlowBase`，处理酒馆节点的事件流程
+   - 在流程开始时初始化酒馆
+
+3. **PurchaseButton** (`Assets/Scripts/UI/PurchaseButton.cs`)
+   - 购买按钮组件，处理购买逻辑（支持成员购买）
+
+### 配置说明
+
+#### 1. 配置 TavernManager
+
+1. 在酒馆流程Prefab中创建一个GameObject，命名为 "TavernManager"
+2. 添加 `TavernManager` 组件
+3. 在 Inspector 中配置：
+
+   **酒馆设置**:
+   - `Tavern Item Count`: 酒馆商品数量（随机选择的成员数量），默认 3
+
+   **系统引用**（如果为空，会自动查找）:
+   - `Coin System`: 金币系统
+   - `Squad Manager`: 小队管理器
+   - `Member Data Registry`: 成员数据注册表（用于根据成员ID获取成员数据）
+   - `UI Manager`: UI管理器（用于控制酒馆面板显示）
+
+   **UI设置**:
+   - `Tavern Container`: 酒馆容器（用于放置商品和按钮的Transform，如果为空，会自动查找名为'TavernContainer'的子对象）
+   - `Purchase Button Prefab`: 购买按钮Prefab（用于生成购买按钮）
+
+#### 2. 配置 TavernNodeFlow
+
+1. 创建酒馆流程Prefab，添加 `TavernNodeFlow` 组件
+2. 在 Prefab 中创建一个子对象，命名为 "TavernContainer"（作为酒馆容器）
+3. 在 Inspector 中配置：
+   - `Tavern Manager`: 将配置好的 `TavernManager` 拖拽到此字段（如果为空，会自动查找）
+   - `Tavern Container`: 将 "TavernContainer" 子对象拖拽到此字段（如果为空，会自动查找）
+
+#### 3. 配置 UIManager
+
+1. 在场景中找到 `UIManager` 组件
+2. 在 Inspector 中设置：
+   - `Tavern Panel Container`: 酒馆面板UI容器（酒馆节点时显示，玩家离开酒馆后隐藏）
+
+#### 4. 配置酒馆确认按钮
+
+1. 在酒馆面板UI容器中创建一个UI Button GameObject，命名为 "ConfirmTavernButton"
+2. 在按钮的 `OnClick` 事件中配置：
+   - 点击 `+` 号添加一个事件监听器
+   - **推荐方式**：将场景中带有 `TavernManager` 组件的GameObject拖拽到对象字段（通常是酒馆流程Prefab的子对象）
+   - 在下拉菜单中选择：`TavernManager` -> `FinishTavernAndFlow()`
+   - **备选方式**：如果找不到 TavernManager，可以将场景中带有 `TavernNodeFlow` 组件的GameObject拖拽到对象字段，然后选择：`TavernNodeFlow` -> `FinishTavernAndFlow()`
+   
+   **注意**: 
+   - 这个按钮让玩家自己控制结束时机，进入酒馆后会显示酒馆面板，玩家购买完成员后点击此按钮才会进入事件结束状态
+   - `FinishTavernAndFlow()` 是一个 public void 无参数方法，完全兼容Unity Button组件的OnClick事件
+   - 推荐使用 `TavernManager.FinishTavernAndFlow()`，因为它会自动查找 `TavernNodeFlow`，更加可靠
+
+### 工作流程
+
+1. **进入酒馆**: 当玩家进入酒馆节点时，`TavernNodeFlow.StartFlow()` 被调用
+2. **初始化酒馆**: 系统从 `MemberDataRegistry` 中获取所有成员，排除已在小队中的成员，然后随机选择指定数量的成员ID
+3. **生成商品**: 为每个选中的成员生成实例和购买按钮（按钮作为成员的子对象）
+4. **显示酒馆面板**: 自动调用 `UIManager.ShowTavernPanel()` 显示酒馆面板
+5. **玩家购买**: 玩家点击购买按钮购买成员（使用成员数据中的默认价格）
+6. **确认离开**: 玩家点击"确认"按钮，调用 `TavernManager.FinishTavernAndFlow()`
+7. **结束流程**: 流程结束，返回地图界面
+
+**注意**: 
+- 如果所有成员都已在小队中，或注册表为空，酒馆商品列表将为空（会记录日志，不是错误）
+- 系统会自动排除已在小队中的成员，确保不会重复显示
+
+### API 文档
+
+#### TavernManager 主要方法
+
+- `InitializeTavern()`: 初始化酒馆（随机选择成员并生成）
+- `ClearTavern()`: 清理所有酒馆商品并隐藏面板
+- `GetTavernItemIds()`: 获取当前酒馆的所有商品ID列表
+- `GetTavernItemId(int index)`: 获取指定索引的商品ID
+- `GetMemberIdFromInstance(GameObject memberInstance)`: 从商品实例获取成员ID
+- `SetTavernContainer(Transform container)`: 设置酒馆容器（供TavernNodeFlow调用）
+- `FinishTavernAndFlow()`: 完成酒馆并结束流程（供按钮调用，推荐使用此方法）
+
+#### TavernNodeFlow 主要方法
+
+- `StartFlow()`: 开始执行酒馆流程（自动初始化酒馆）
+- `FinishTavernAndFlow()`: 完成酒馆并结束流程（供按钮调用）
+
+### 使用方法
+
+#### 代码示例
+
+```csharp
+// 获取酒馆管理器
+TavernManager tavernManager = FindObjectOfType<TavernManager>();
+
+// 初始化酒馆
+tavernManager.InitializeTavern();
+
+// 获取所有商品ID
+List<string> itemIds = tavernManager.GetTavernItemIds();
+
+// 获取指定索引的商品ID
+string itemId = tavernManager.GetTavernItemId(0);
+
+// 从商品实例获取成员ID
+string memberId = tavernManager.GetMemberIdFromInstance(memberInstance);
+
+// 清理酒馆
+tavernManager.ClearTavern();
+```
+
+### 注意事项
+
+1. **酒馆容器**: 必须在酒馆流程Prefab中创建一个名为 "TavernContainer" 的子对象，或者手动设置 `Tavern Container` 字段
+2. **购买按钮Prefab**: 必须设置 `Purchase Button Prefab`，否则无法生成购买按钮
+3. **成员数据注册表**: 必须设置 `Member Data Registry`，否则无法生成商品
+4. **成员价格**: 购买按钮会使用成员数据中的默认价格（从 `MemberDataRegistry` 获取）
+5. **按钮位置**: 购买按钮会自动作为成员的子对象，绑定在成员下方
+6. **酒馆确认按钮**: 必须在酒馆面板中配置一个按钮，调用 `TavernManager.FinishTavernAndFlow()` 方法，让玩家自己控制结束时机
+7. **流程控制**: 进入酒馆后不会立即结束流程，而是等待玩家点击确认按钮后才进入事件结束状态
+8. **成员购买**: 购买成功后，成员会自动添加到小队数据（通过 `SquadManager.AddMember()`）
+9. **成员排除**: 系统会自动排除已在小队中的成员，只显示可购买的成员
+10. **空数据处理**: 如果注册表为空或所有成员都已在小队中，酒馆商品列表将为空（会记录日志，不是错误）
+
+### 扩展建议
+
+1. **成员刷新**: 可以添加成员刷新功能，让玩家花费金币刷新成员列表
+2. **成员折扣**: 可以添加成员折扣功能
+3. **特殊成员**: 可以添加特殊成员类型（如限时成员、稀有成员等）
+4. **购买动画**: 可以添加购买成功的动画效果

@@ -82,6 +82,13 @@ namespace MapSystem
             {
                 mapManager.OnMapGenerated += HandleMapGenerated;
                 mapManager.OnNodeStateChanged += HandleNodeStateChanged;
+
+                // 如果地图已经生成，立即生成可视化（处理订阅时机问题）
+                if (mapManager.CurrentTopology != null)
+                {
+                    Debug.Log("[MapVisualizer] 检测到地图已生成，立即生成可视化");
+                    GenerateVisualization();
+                }
             }
         }
 
@@ -116,9 +123,21 @@ namespace MapSystem
         /// </summary>
         public void GenerateVisualization()
         {
-            if (mapManager == null || mapManager.CurrentTopology == null)
+            if (mapManager == null)
+            {
+                Debug.LogError("[MapVisualizer] MapManager 未设置,无法创建可视化");
+                return;
+            }
+
+            if (mapManager.CurrentTopology == null)
             {
                 Debug.LogWarning("[MapVisualizer] 地图未生成,无法创建可视化");
+                return;
+            }
+
+            if (mapContainer == null)
+            {
+                Debug.LogError("[MapVisualizer] mapContainer 未设置,无法创建可视化");
                 return;
             }
 
@@ -130,6 +149,8 @@ namespace MapSystem
                 Debug.LogError("[MapVisualizer] 无法获取地图配置");
                 return;
             }
+
+            Debug.Log($"[MapVisualizer] 开始生成地图可视化,节点数: {topology.Nodes.Count}");
 
             // 清除现有可视化
             ClearVisualization();

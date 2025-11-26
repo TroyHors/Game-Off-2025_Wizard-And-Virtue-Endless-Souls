@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using DamageSystem;
+using StatusSystem;
 
 namespace WaveSystem
 {
@@ -92,18 +93,39 @@ namespace WaveSystem
                 
                 if (target == null)
                 {
-                    Debug.LogWarning($"[WaveHitSequenceGenerator] 位置 {position} 的波峰无法找到目标（攻击方向：{(peak.AttackDirection ? "攻向敌人" : "攻向玩家")}）");
+                    string directionStr = peak.AttackDirection ? "攻向敌人" : "攻向玩家";
+                    Debug.LogWarning($"[WaveHitSequenceGenerator] 位置 {position} 的波峰无法找到目标（攻击方向：{directionStr}）");
+                    Debug.LogWarning($"[WaveHitSequenceGenerator] TargetManager状态 - Player: {targetManager.Player?.name ?? "null"}, Enemy: {targetManager.Enemy?.name ?? "null"}");
                     continue;
                 }
 
-                // 使用强度绝对值确定伤害值
-                int damage = Mathf.Abs(peak.Value);
+                // 调试信息：确认目标是否正确
+                if (peak.AttackDirection == false) // 攻向玩家
+                {
+                    Debug.Log($"[WaveHitSequenceGenerator] 位置 {position} 的波峰攻向玩家，目标：{target.name}，伤害：{Mathf.Abs(peak.Value)}");
+                }
+
+                // 使用强度绝对值确定伤害值（支持小数点）
+                float damage = Mathf.Abs(peak.Value);
+
+                // 确定攻击者（根据攻击方向）
+                GameObject attacker = targetManager.GetTargetByDirection(!peak.AttackDirection);
+                
+                // 应用攻击者的状态效果修正（攻击伤害增加/减少）
+                if (attacker != null)
+                {
+                    StatusEffectManager attackerStatusManager = attacker.GetComponent<StatusEffectManager>();
+                    if (attackerStatusManager != null)
+                    {
+                        damage = attackerStatusManager.ApplyDamageDealtModifier(damage);
+                    }
+                }
 
                 // 使用波峰位置确定 orderIndex（序号/时间顺序）
                 int orderIndex = position;
 
-                // 创建 PeakHit
-                PeakHit hit = new PeakHit(target, damage, orderIndex);
+                // 创建 PeakHit（包含攻击者信息）
+                PeakHit hit = new PeakHit(target, attacker, damage, orderIndex);
                 hitSequence.Add(hit);
             }
 

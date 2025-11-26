@@ -21,6 +21,10 @@ namespace WaveSystem
         [Tooltip("当前使用的预设波索引（-1表示使用自定义波）")]
         [SerializeField] private int currentPresetIndex = -1;
 
+        [Header("波显示设置")]
+        [Tooltip("敌人波显示容器（用于显示敌人波波形，必须设置）")]
+        [SerializeField] private RectTransform waveContainer;
+
         /// <summary>
         /// 当前敌人的波（只读）
         /// </summary>
@@ -33,11 +37,7 @@ namespace WaveSystem
 
         private void Awake()
         {
-            // 如果当前使用的是预设波，加载预设波
-            if (currentPresetIndex >= 0 && currentPresetIndex < presetWaves.Count)
-            {
-                LoadPresetWave(currentPresetIndex);
-            }
+            // 注意：不在启动时初始化波显示，等待战斗开始时再初始化
         }
 
         /// <summary>
@@ -51,11 +51,13 @@ namespace WaveSystem
                 Debug.LogWarning("[EnemyWaveManager] 尝试设置空的敌人波");
                 currentEnemyWave = new Wave();
                 currentPresetIndex = -1;
+                UpdateWaveDisplay();
                 return;
             }
 
             currentEnemyWave = wave.Clone();
             currentPresetIndex = -1; // 使用自定义波，不再使用预设
+            UpdateWaveDisplay();
         }
 
         /// <summary>
@@ -82,6 +84,7 @@ namespace WaveSystem
             currentPresetIndex = presetIndex;
 
             Debug.Log($"[EnemyWaveManager] 加载预设波 {presetIndex}，包含 {currentEnemyWave.PeakCount} 个波峰");
+            UpdateWaveDisplay();
         }
 
         /// <summary>
@@ -106,6 +109,93 @@ namespace WaveSystem
         {
             currentEnemyWave = new Wave();
             currentPresetIndex = -1;
+            UpdateWaveDisplay();
+        }
+
+        /// <summary>
+        /// 波显示器（自动创建，无需手动挂载）
+        /// </summary>
+        private WaveVisualizer waveVisualizer;
+
+        /// <summary>
+        /// 初始化波显示器（使用手牌波的参数）
+        /// </summary>
+        /// <param name="handWaveGridManager">手牌波格表管理器（用于获取位置范围和容器参数）</param>
+        public void InitializeWaveVisualizer(HandWaveGridManager handWaveGridManager)
+        {
+            if (handWaveGridManager == null)
+            {
+                Debug.LogWarning("[EnemyWaveManager] HandWaveGridManager未设置，无法初始化波显示器");
+                return;
+            }
+
+            if (waveContainer == null)
+            {
+                Debug.LogWarning("[EnemyWaveManager] 波显示容器未设置，无法初始化波显示器");
+                return;
+            }
+
+            // 获取手牌波的WaveVisualizer（用于获取计算后的参数）
+            WaveVisualizer handWaveVisualizer = handWaveGridManager.WaveVisualizer;
+            if (handWaveVisualizer == null)
+            {
+                Debug.LogWarning("[EnemyWaveManager] 无法找到手牌波的WaveVisualizer，无法获取计算后的参数");
+                return;
+            }
+            
+            // 确保手牌波已经计算了单位高度（通过触发一次显示来确保计算完成）
+            // 手牌波会在战斗开始时更新显示，此时会计算单位高度
+            handWaveGridManager.UpdateWaveDisplay();
+
+            // 自动获取或创建 WaveVisualizer 组件（挂载在 waveContainer 上）
+            waveVisualizer = waveContainer.GetComponent<WaveVisualizer>();
+            if (waveVisualizer == null)
+            {
+                waveVisualizer = waveContainer.gameObject.AddComponent<WaveVisualizer>();
+                Debug.Log("[EnemyWaveManager] 自动创建 WaveVisualizer 组件");
+            }
+
+            // 设置波显示器的容器
+            waveVisualizer.WaveContainer = waveContainer;
+            
+            // 设置波的位置范围（使用与手牌波相同的范围）
+            int minPosition = handWaveGridManager.MinGridPosition;
+            int maxPosition = handWaveGridManager.MaxGridPosition;
+            waveVisualizer.SetPositionRange(minPosition, maxPosition);
+            
+            // 设置敌人波显示方向为正常（不翻转）
+            waveVisualizer.ReverseDirection = false;
+            Debug.Log("[EnemyWaveManager] 设置敌人波显示方向为正常（不翻转）");
+            
+            // 获取手牌波计算后的波峰单位高度
+            float calculatedPeakUnitHeight = handWaveVisualizer.CalculatedPeakUnitHeight;
+            if (calculatedPeakUnitHeight > 0)
+            {
+                // 直接设置计算后的单位高度（这样敌人波会使用相同的单位高度）
+                waveVisualizer.PeakUnitHeight = calculatedPeakUnitHeight;
+                Debug.Log($"[EnemyWaveManager] 使用手牌波计算后的单位高度: {calculatedPeakUnitHeight}");
+            }
+            else
+            {
+                Debug.LogWarning("[EnemyWaveManager] 手牌波的单位高度未计算，敌人波将使用默认值");
+            }
+            
+            Debug.Log($"[EnemyWaveManager] 初始化波显示器，位置范围: {minPosition} 到 {maxPosition}");
+        }
+
+        /// <summary>
+        /// 更新敌人波显示
+        /// </summary>
+        public void UpdateWaveDisplay()
+        {
+            if (waveVisualizer != null)
+            {
+                waveVisualizer.DisplayWave(currentEnemyWave);
+            }
+            else
+            {
+                Debug.LogWarning("[EnemyWaveManager] WaveVisualizer未初始化，无法更新显示。请先调用 InitializeWaveVisualizer(HandWaveGridManager)");
+            }
         }
 
         /// <summary>

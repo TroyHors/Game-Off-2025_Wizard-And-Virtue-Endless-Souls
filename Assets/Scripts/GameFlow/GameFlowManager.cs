@@ -1,6 +1,7 @@
 using MapSystem;
 using UnityEngine;
 using UnityEngine.Events;
+using CurrencySystem;
 
 namespace GameFlow
 {
@@ -16,6 +17,30 @@ namespace GameFlow
 
         [Tooltip("UI管理器")]
         [SerializeField] private UIManager uiManager;
+
+        [Header("金币系统设置")]
+        [Tooltip("是否在游戏开始时自动重置金币")]
+        [SerializeField] private bool resetCoinsOnGameStart = true;
+
+        [Tooltip("游戏开始时的初始金币数量")]
+        [SerializeField] private int initialCoins = 0;
+
+        [Tooltip("金币系统（如果为空，会自动查找）")]
+        [SerializeField] private CoinSystem coinSystem;
+
+        [Header("玩家数据设置")]
+        [Tooltip("是否在游戏开始时自动重置玩家数据")]
+        [SerializeField] private bool resetPlayerDataOnGameStart = true;
+
+        [Tooltip("玩家实体管理器（如果为空，会自动查找）")]
+        [SerializeField] private CharacterSystem.PlayerEntityManager playerEntityManager;
+
+        [Header("小队数据设置")]
+        [Tooltip("是否在游戏开始时自动重置小队数据")]
+        [SerializeField] private bool resetSquadDataOnGameStart = true;
+
+        [Tooltip("小队管理器（如果为空，会自动查找）")]
+        [SerializeField] private SquadSystem.SquadManager squadManager;
 
         [Header("游戏流程事件")]
         [Tooltip("游戏开始时触发（地图生成后，第一次进入节点前，用于初始化牌堆等）")]
@@ -96,12 +121,28 @@ namespace GameFlow
             }
         }
 
-        private void OnEnable()
+        private void Start()
         {
+            // 确保在 Start 时再次查找 mapManager（避免 OnEnable 时还未初始化）
+            if (mapManager == null)
+            {
+                mapManager = FindObjectOfType<MapManager>();
+            }
+
+            // 订阅游戏开始事件，在事件触发时执行重置操作
+            onGameStart.AddListener(OnGameStartHandler);
+
             // 订阅地图生成事件，在游戏开始时触发
             if (mapManager != null)
             {
                 mapManager.OnMapGenerated += HandleMapGenerated;
+
+                // 如果地图已经生成，立即处理（处理订阅时机问题）
+                if (mapManager.CurrentTopology != null && !isGameStarted)
+                {
+                    Debug.Log("[GameFlowManager] 检测到地图已生成，立即触发游戏开始事件");
+                    HandleMapGenerated(mapManager.CurrentTopology);
+                }
             }
         }
 
@@ -112,6 +153,9 @@ namespace GameFlow
             {
                 mapManager.OnMapGenerated -= HandleMapGenerated;
             }
+            
+            // 取消订阅游戏开始事件
+            onGameStart.RemoveListener(OnGameStartHandler);
         }
 
         /// <summary>
@@ -124,7 +168,100 @@ namespace GameFlow
             {
                 isGameStarted = true;
                 Debug.Log("[GameFlowManager] 游戏开始");
+                
+                // 触发游戏开始事件（重置操作会在事件处理中执行）
                 onGameStart?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// 游戏开始事件处理器
+        /// 在 onGameStart 事件触发时执行重置操作
+        /// </summary>
+        private void OnGameStartHandler()
+        {
+            // 在游戏开始时重置金币（如果启用）
+            if (resetCoinsOnGameStart)
+            {
+                ResetCoinsOnGameStart();
+            }
+            
+            // 在游戏开始时重置玩家数据（如果启用）
+            if (resetPlayerDataOnGameStart)
+            {
+                ResetPlayerDataOnGameStart();
+            }
+
+            // 在游戏开始时重置小队数据（如果启用）
+            if (resetSquadDataOnGameStart)
+            {
+                ResetSquadDataOnGameStart();
+            }
+        }
+
+        /// <summary>
+        /// 在游戏开始时重置金币
+        /// </summary>
+        private void ResetCoinsOnGameStart()
+        {
+            // 自动查找 CoinSystem（如果未设置）
+            if (coinSystem == null)
+            {
+                coinSystem = FindObjectOfType<CoinSystem>();
+            }
+
+            if (coinSystem != null)
+            {
+                coinSystem.ResetCoins(initialCoins);
+                Debug.Log($"[GameFlowManager] 游戏开始时重置金币为 {initialCoins}");
+            }
+            else
+            {
+                Debug.LogWarning("[GameFlowManager] 未找到 CoinSystem，无法重置金币");
+            }
+        }
+
+        /// <summary>
+        /// 在游戏开始时重置玩家数据
+        /// </summary>
+        private void ResetPlayerDataOnGameStart()
+        {
+            // 自动查找 PlayerEntityManager（如果未设置）
+            if (playerEntityManager == null)
+            {
+                playerEntityManager = FindObjectOfType<CharacterSystem.PlayerEntityManager>();
+            }
+
+            if (playerEntityManager != null && playerEntityManager.PlayerData != null)
+            {
+                playerEntityManager.PlayerData.ResetHealth();
+                Debug.Log($"[GameFlowManager] 游戏开始时重置玩家数据：生命值 {playerEntityManager.PlayerData.CurrentHealth}/{playerEntityManager.PlayerData.MaxHealth}");
+            }
+            else
+            {
+                Debug.LogWarning("[GameFlowManager] 未找到 PlayerEntityManager 或 PlayerData，无法重置玩家数据");
+            }
+        }
+
+        /// <summary>
+        /// 在游戏开始时重置小队数据
+        /// </summary>
+        private void ResetSquadDataOnGameStart()
+        {
+            // 自动查找 SquadManager（如果未设置）
+            if (squadManager == null)
+            {
+                squadManager = FindObjectOfType<SquadSystem.SquadManager>();
+            }
+
+            if (squadManager != null && squadManager.SquadData != null)
+            {
+                squadManager.SquadData.ClearSquad();
+                Debug.Log("[GameFlowManager] 游戏开始时重置小队数据：清空所有成员");
+            }
+            else
+            {
+                Debug.LogWarning("[GameFlowManager] 未找到 SquadManager 或 SquadData，无法重置小队数据");
             }
         }
 

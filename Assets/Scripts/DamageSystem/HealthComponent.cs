@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Events;
+using StatusSystem;
 
 namespace DamageSystem
 {
@@ -14,8 +15,8 @@ namespace DamageSystem
         [Tooltip("最大生命值")]
         [SerializeField] private int maxHealth = 100;
 
-        [Tooltip("当前生命值")]
-        [SerializeField] private int currentHealth;
+        [Tooltip("当前生命值（支持小数点，内部存储为float）")]
+        [SerializeField] private float currentHealth;
 
         [Header("护盾设置")]
         [Tooltip("当前护盾值（独立于血量计算）")]
@@ -43,9 +44,14 @@ namespace DamageSystem
         public int MaxHealth => maxHealth;
 
         /// <summary>
-        /// 当前生命值
+        /// 当前生命值（整数，用于显示）
         /// </summary>
-        public int CurrentHealth => currentHealth;
+        public int CurrentHealth => Mathf.RoundToInt(currentHealth);
+
+        /// <summary>
+        /// 当前生命值（浮点数，精确值）
+        /// </summary>
+        public float CurrentHealthFloat => currentHealth;
 
         /// <summary>
         /// 当前护盾值
@@ -55,7 +61,7 @@ namespace DamageSystem
         /// <summary>
         /// 是否已死亡
         /// </summary>
-        public bool IsDead => currentHealth <= 0;
+        public bool IsDead => currentHealth <= 0f;
 
         /// <summary>
         /// 生命值变化事件
@@ -85,40 +91,48 @@ namespace DamageSystem
         private void Awake()
         {
             // 初始化时，如果当前生命值未设置，则设置为最大生命值
-            if (currentHealth <= 0)
+            if (currentHealth <= 0f)
             {
-                currentHealth = maxHealth;
+                currentHealth = (float)maxHealth;
             }
+            Debug.Log($"[HealthComponent] {gameObject.name} Awake: currentHealth = {currentHealth:F2}, maxHealth = {maxHealth}");
         }
 
         /// <summary>
         /// 受到伤害
-        /// 先扣除护盾，护盾不足时扣除生命值
+        /// 先应用状态效果修正，再扣除护盾，护盾不足时扣除生命值
         /// </summary>
-        /// <param name="damage">伤害值（必须为正数）</param>
+        /// <param name="damage">伤害值（必须为正数，支持小数点）</param>
         /// <returns>实际造成的伤害（扣除护盾后的生命值伤害）</returns>
-        public int TakeDamage(int damage)
+        public float TakeDamage(float damage)
         {
             if (IsDead)
             {
                 Debug.LogWarning($"[HealthComponent] {gameObject.name} 已死亡，无法受到伤害");
-                return 0;
+                return 0f;
             }
 
             if (damage <= 0)
             {
                 Debug.LogWarning($"[HealthComponent] {gameObject.name} 伤害值必须为正数，当前值：{damage}");
-                return 0;
+                return 0f;
             }
 
-            int actualHealthDamage = 0;
-            int remainingDamage = damage;
+            // 应用状态效果修正（受到伤害减少/增加）
+            StatusEffectManager statusManager = GetComponent<StatusEffectManager>();
+            if (statusManager != null)
+            {
+                damage = statusManager.ApplyDamageTakenModifier(damage);
+            }
+
+            float actualHealthDamage = 0f;
+            float remainingDamage = damage;
 
             // 先扣除护盾
             if (currentShield > 0)
             {
-                int shieldDamage = Mathf.Min(currentShield, remainingDamage);
-                currentShield -= shieldDamage;
+                float shieldDamage = Mathf.Min(currentShield, remainingDamage);
+                currentShield -= Mathf.RoundToInt(shieldDamage);
                 remainingDamage -= shieldDamage;
 
                 if (currentShield < 0)
@@ -129,22 +143,25 @@ namespace DamageSystem
                 onShieldChanged?.Invoke(currentShield);
             }
 
-            // 护盾不足时扣除生命值
+            // 护盾不足时扣除生命值（直接使用float，保留小数精度）
             if (remainingDamage > 0)
             {
+                float healthBefore = currentHealth;
                 actualHealthDamage = Mathf.Min(currentHealth, remainingDamage);
                 currentHealth -= actualHealthDamage;
 
-                if (currentHealth < 0)
+                if (currentHealth < 0f)
                 {
-                    currentHealth = 0;
+                    currentHealth = 0f;
                 }
 
-                onHealthChanged?.Invoke(currentHealth, maxHealth);
+                Debug.Log($"[HealthComponent] {gameObject.name} 扣血: {healthBefore:F2} - {actualHealthDamage:F2} = {currentHealth:F2} (显示: {CurrentHealth})");
+
+                onHealthChanged?.Invoke(CurrentHealth, maxHealth);
             }
 
-            // 触发受到伤害事件
-            onDamageTaken?.Invoke(damage, currentHealth, currentShield);
+            // 触发受到伤害事件（使用原始伤害值和当前生命值）
+            onDamageTaken?.Invoke(Mathf.RoundToInt(damage), CurrentHealth, currentShield);
 
             // 检查是否死亡
             if (IsDead)
@@ -174,14 +191,14 @@ namespace DamageSystem
                 return 0;
             }
 
-            int oldHealth = currentHealth;
-            currentHealth = Mathf.Min(currentHealth + healAmount, maxHealth);
-            int actualHeal = currentHealth - oldHealth;
+            float oldHealth = currentHealth;
+            currentHealth = Mathf.Min(currentHealth + (float)healAmount, (float)maxHealth);
+            int actualHeal = CurrentHealth - Mathf.RoundToInt(oldHealth);
 
             if (actualHeal > 0)
             {
-                onHealthChanged?.Invoke(currentHealth, maxHealth);
-                onHealed?.Invoke(actualHeal, currentHealth);
+                onHealthChanged?.Invoke(CurrentHealth, maxHealth);
+                onHealed?.Invoke(actualHeal, CurrentHealth);
             }
 
             return actualHeal;
@@ -225,8 +242,8 @@ namespace DamageSystem
             }
 
             maxHealth = newMaxHealth;
-            currentHealth = Mathf.Min(currentHealth, maxHealth);
-            onHealthChanged?.Invoke(currentHealth, maxHealth);
+            currentHealth = Mathf.Min(currentHealth, (float)maxHealth);
+            onHealthChanged?.Invoke(CurrentHealth, maxHealth);
         }
 
         /// <summary>
@@ -243,10 +260,20 @@ namespace DamageSystem
         /// </summary>
         public void ResetHealth()
         {
-            currentHealth = maxHealth;
+            currentHealth = (float)maxHealth;
             currentShield = 0;
-            onHealthChanged?.Invoke(currentHealth, maxHealth);
+            onHealthChanged?.Invoke(CurrentHealth, maxHealth);
             onShieldChanged?.Invoke(currentShield);
+        }
+
+        /// <summary>
+        /// 直接设置当前生命值（用于从数据同步到实体）
+        /// </summary>
+        /// <param name="newHealth">新的当前生命值</param>
+        public void SetCurrentHealth(int newHealth)
+        {
+            currentHealth = Mathf.Clamp((float)newHealth, 0f, (float)maxHealth);
+            onHealthChanged?.Invoke(CurrentHealth, maxHealth);
         }
     }
 }

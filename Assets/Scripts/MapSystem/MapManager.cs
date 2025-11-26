@@ -59,7 +59,12 @@ namespace MapSystem
         {
             if (generateOnStart)
             {
+                Debug.Log("[MapManager] generateOnStart 为 true，开始生成地图");
                 GenerateMap();
+            }
+            else
+            {
+                Debug.LogWarning("[MapManager] generateOnStart 为 false，地图不会自动生成。请手动调用 GenerateMap() 或设置 generateOnStart 为 true");
             }
         }
 
