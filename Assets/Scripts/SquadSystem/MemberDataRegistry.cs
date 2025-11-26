@@ -103,6 +103,16 @@ namespace SquadSystem
             Initialize();
             return memberDataDict.ContainsKey(memberId);
         }
+
+        /// <summary>
+        /// 获取所有注册的成员ID
+        /// </summary>
+        /// <returns>成员ID列表</returns>
+        public List<string> GetAllMemberIds()
+        {
+            Initialize();
+            return new List<string>(memberDataDict.Keys);
+        }
     }
 }
 

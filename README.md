@@ -2734,3 +2734,148 @@ shopManager.ClearShop();
 2. **商品折扣**: 可以添加商品折扣功能
 3. **特殊商品**: 可以添加特殊商品类型（如限时商品、稀有商品等）
 4. **购买动画**: 可以添加购买成功的动画效果
+
+---
+
+## 酒馆系统 (Tavern System)
+
+### 概述
+
+酒馆系统负责处理酒馆节点的成员展示和购买。系统会随机从成员注册表中选择成员，生成成员实例和购买按钮，玩家可以花费金币购买成员并加入小队。
+
+### 核心组件
+
+1. **TavernManager** (`Assets/Scripts/GameFlow/TavernManager.cs`)
+   - MonoBehaviour，管理酒馆的成员展示和购买
+   - 随机选择成员，生成成员实例和购买按钮
+
+2. **TavernNodeFlow** (`Assets/Scripts/GameFlow/TavernNodeFlow.cs`)
+   - 继承自 `NodeEventFlowBase`，处理酒馆节点的事件流程
+   - 在流程开始时初始化酒馆
+
+3. **PurchaseButton** (`Assets/Scripts/UI/PurchaseButton.cs`)
+   - 购买按钮组件，处理购买逻辑（支持成员购买）
+
+### 配置说明
+
+#### 1. 配置 TavernManager
+
+1. 在酒馆流程Prefab中创建一个GameObject，命名为 "TavernManager"
+2. 添加 `TavernManager` 组件
+3. 在 Inspector 中配置：
+
+   **酒馆设置**:
+   - `Tavern Item Count`: 酒馆商品数量（随机选择的成员数量），默认 3
+
+   **系统引用**（如果为空，会自动查找）:
+   - `Coin System`: 金币系统
+   - `Squad Manager`: 小队管理器
+   - `Member Data Registry`: 成员数据注册表（用于根据成员ID获取成员数据）
+   - `UI Manager`: UI管理器（用于控制酒馆面板显示）
+
+   **UI设置**:
+   - `Tavern Container`: 酒馆容器（用于放置商品和按钮的Transform，如果为空，会自动查找名为'TavernContainer'的子对象）
+   - `Purchase Button Prefab`: 购买按钮Prefab（用于生成购买按钮）
+
+#### 2. 配置 TavernNodeFlow
+
+1. 创建酒馆流程Prefab，添加 `TavernNodeFlow` 组件
+2. 在 Prefab 中创建一个子对象，命名为 "TavernContainer"（作为酒馆容器）
+3. 在 Inspector 中配置：
+   - `Tavern Manager`: 将配置好的 `TavernManager` 拖拽到此字段（如果为空，会自动查找）
+   - `Tavern Container`: 将 "TavernContainer" 子对象拖拽到此字段（如果为空，会自动查找）
+
+#### 3. 配置 UIManager
+
+1. 在场景中找到 `UIManager` 组件
+2. 在 Inspector 中设置：
+   - `Tavern Panel Container`: 酒馆面板UI容器（酒馆节点时显示，玩家离开酒馆后隐藏）
+
+#### 4. 配置酒馆确认按钮
+
+1. 在酒馆面板UI容器中创建一个UI Button GameObject，命名为 "ConfirmTavernButton"
+2. 在按钮的 `OnClick` 事件中配置：
+   - 点击 `+` 号添加一个事件监听器
+   - **推荐方式**：将场景中带有 `TavernManager` 组件的GameObject拖拽到对象字段（通常是酒馆流程Prefab的子对象）
+   - 在下拉菜单中选择：`TavernManager` -> `FinishTavernAndFlow()`
+   - **备选方式**：如果找不到 TavernManager，可以将场景中带有 `TavernNodeFlow` 组件的GameObject拖拽到对象字段，然后选择：`TavernNodeFlow` -> `FinishTavernAndFlow()`
+   
+   **注意**: 
+   - 这个按钮让玩家自己控制结束时机，进入酒馆后会显示酒馆面板，玩家购买完成员后点击此按钮才会进入事件结束状态
+   - `FinishTavernAndFlow()` 是一个 public void 无参数方法，完全兼容Unity Button组件的OnClick事件
+   - 推荐使用 `TavernManager.FinishTavernAndFlow()`，因为它会自动查找 `TavernNodeFlow`，更加可靠
+
+### 工作流程
+
+1. **进入酒馆**: 当玩家进入酒馆节点时，`TavernNodeFlow.StartFlow()` 被调用
+2. **初始化酒馆**: 系统从 `MemberDataRegistry` 中获取所有成员，排除已在小队中的成员，然后随机选择指定数量的成员ID
+3. **生成商品**: 为每个选中的成员生成实例和购买按钮（按钮作为成员的子对象）
+4. **显示酒馆面板**: 自动调用 `UIManager.ShowTavernPanel()` 显示酒馆面板
+5. **玩家购买**: 玩家点击购买按钮购买成员（使用成员数据中的默认价格）
+6. **确认离开**: 玩家点击"确认"按钮，调用 `TavernManager.FinishTavernAndFlow()`
+7. **结束流程**: 流程结束，返回地图界面
+
+**注意**: 
+- 如果所有成员都已在小队中，或注册表为空，酒馆商品列表将为空（会记录日志，不是错误）
+- 系统会自动排除已在小队中的成员，确保不会重复显示
+
+### API 文档
+
+#### TavernManager 主要方法
+
+- `InitializeTavern()`: 初始化酒馆（随机选择成员并生成）
+- `ClearTavern()`: 清理所有酒馆商品并隐藏面板
+- `GetTavernItemIds()`: 获取当前酒馆的所有商品ID列表
+- `GetTavernItemId(int index)`: 获取指定索引的商品ID
+- `GetMemberIdFromInstance(GameObject memberInstance)`: 从商品实例获取成员ID
+- `SetTavernContainer(Transform container)`: 设置酒馆容器（供TavernNodeFlow调用）
+- `FinishTavernAndFlow()`: 完成酒馆并结束流程（供按钮调用，推荐使用此方法）
+
+#### TavernNodeFlow 主要方法
+
+- `StartFlow()`: 开始执行酒馆流程（自动初始化酒馆）
+- `FinishTavernAndFlow()`: 完成酒馆并结束流程（供按钮调用）
+
+### 使用方法
+
+#### 代码示例
+
+```csharp
+// 获取酒馆管理器
+TavernManager tavernManager = FindObjectOfType<TavernManager>();
+
+// 初始化酒馆
+tavernManager.InitializeTavern();
+
+// 获取所有商品ID
+List<string> itemIds = tavernManager.GetTavernItemIds();
+
+// 获取指定索引的商品ID
+string itemId = tavernManager.GetTavernItemId(0);
+
+// 从商品实例获取成员ID
+string memberId = tavernManager.GetMemberIdFromInstance(memberInstance);
+
+// 清理酒馆
+tavernManager.ClearTavern();
+```
+
+### 注意事项
+
+1. **酒馆容器**: 必须在酒馆流程Prefab中创建一个名为 "TavernContainer" 的子对象，或者手动设置 `Tavern Container` 字段
+2. **购买按钮Prefab**: 必须设置 `Purchase Button Prefab`，否则无法生成购买按钮
+3. **成员数据注册表**: 必须设置 `Member Data Registry`，否则无法生成商品
+4. **成员价格**: 购买按钮会使用成员数据中的默认价格（从 `MemberDataRegistry` 获取）
+5. **按钮位置**: 购买按钮会自动作为成员的子对象，绑定在成员下方
+6. **酒馆确认按钮**: 必须在酒馆面板中配置一个按钮，调用 `TavernManager.FinishTavernAndFlow()` 方法，让玩家自己控制结束时机
+7. **流程控制**: 进入酒馆后不会立即结束流程，而是等待玩家点击确认按钮后才进入事件结束状态
+8. **成员购买**: 购买成功后，成员会自动添加到小队数据（通过 `SquadManager.AddMember()`）
+9. **成员排除**: 系统会自动排除已在小队中的成员，只显示可购买的成员
+10. **空数据处理**: 如果注册表为空或所有成员都已在小队中，酒馆商品列表将为空（会记录日志，不是错误）
+
+### 扩展建议
+
+1. **成员刷新**: 可以添加成员刷新功能，让玩家花费金币刷新成员列表
+2. **成员折扣**: 可以添加成员折扣功能
+3. **特殊成员**: 可以添加特殊成员类型（如限时成员、稀有成员等）
+4. **购买动画**: 可以添加购买成功的动画效果
