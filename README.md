@@ -2594,3 +2594,118 @@ int price = purchaseButton.Price;
 - 实现奖励选择系统（让玩家从多个奖励中选择）
 - 添加奖励历史记录
 - 添加角色装备系统
+
+---
+
+## 商店系统 (Shop System)
+
+### 概述
+
+商店系统用于在商店节点中随机展示波牌商品，玩家可以使用金币购买。系统会自动从波牌注册表中随机选择商品，生成商品实例和购买按钮，并处理购买逻辑。
+
+### 系统架构
+
+#### 核心组件
+
+1. **ShopManager** (`Assets/Scripts/GameFlow/ShopManager.cs`)
+   - MonoBehaviour，管理商店商品的展示和购买
+   - 随机从波牌注册表中选择商品
+   - 生成商品实例和购买按钮
+   - 提供接口供其他组件获取商品ID
+
+2. **PurchaseButton** (`Assets/Scripts/UI/PurchaseButton.cs`)
+   - 购买按钮组件（与奖励系统共用）
+   - 支持使用默认价格或自定义价格
+   - 自动处理金币扣除和物品添加
+
+### 配置说明
+
+#### 1. 配置 ShopManager
+
+1. 在场景中创建一个GameObject，命名为 "ShopManager"
+2. 添加 `ShopManager` 组件
+3. 在 Inspector 中配置：
+
+   **商店设置**:
+   - `Shop Item Count`: 商店商品数量（随机选择的波牌数量），默认 3
+
+   **系统引用**（如果为空，会自动查找）:
+   - `Card Prefab Registry`: 卡牌Prefab注册表（用于根据波牌ID获取Prefab，会从CardSystem自动获取）
+   - `UI Manager`: UI管理器（用于控制商店面板显示）
+
+   **UI设置**:
+   - `Shop Container`: 商店容器（用于放置商品和按钮的Transform）
+   - `Purchase Button Prefab`: 购买按钮Prefab（用于生成购买按钮）
+
+#### 2. 配置 UIManager
+
+1. 在场景中找到 `UIManager` 组件
+2. 在 Inspector 中设置：
+   - `Shop Panel Container`: 商店面板UI容器（商店节点时显示）
+
+#### 3. 创建购买按钮Prefab
+
+与奖励系统共用同一个购买按钮Prefab，参考奖励系统的配置说明。
+
+### 使用方法
+
+#### 代码示例
+
+```csharp
+// 获取商店管理器
+ShopManager shopManager = FindObjectOfType<ShopManager>();
+
+// 刷新商店（随机选择新的商品）
+shopManager.RefreshShop();
+
+// 显示商店面板
+shopManager.ShowShop();
+
+// 隐藏商店面板
+shopManager.HideShop();
+
+// 获取当前商店的商品ID列表
+IReadOnlyList<string> itemIds = shopManager.CurrentShopItemIds;
+foreach (string itemId in itemIds)
+{
+    Debug.Log($"商店商品ID: {itemId}");
+}
+
+// 根据索引获取商品ID
+string itemId = shopManager.GetShopItemId(0); // 获取第一个商品的ID
+
+// 获取商品数量
+int count = shopManager.GetShopItemCount();
+
+// 从商品实例获取ID
+string cardId = shopManager.GetCardIdFromInstance(cardInstance);
+
+// 清理商店商品
+shopManager.ClearShop();
+```
+
+### 工作流程
+
+1. **刷新商店**: 调用 `RefreshShop()` 随机选择新的商品
+2. **生成商品**: 系统从 `CardPrefabRegistry` 中随机选择指定数量的波牌ID
+3. **生成实例**: 为每个商品生成波牌实例和购买按钮（按钮作为卡牌的子对象）
+4. **显示商店**: 调用 `ShowShop()` 显示商店面板
+5. **玩家购买**: 玩家点击购买按钮，系统扣除金币并添加卡牌到牌堆
+6. **购买成功**: 购买成功后，商品实例和按钮自动销毁
+
+### 注意事项
+
+1. **商品数量**: 必须设置 `Shop Item Count`，否则无法生成商品
+2. **购买按钮Prefab**: 必须设置 `Purchase Button Prefab`，否则无法生成购买按钮
+3. **卡牌Prefab注册表**: 系统会从 `CardSystem` 自动获取，确保 `CardSystem` 的 `cardRegistry` 字段已正确设置
+4. **商店容器**: 必须设置 `Shop Container`，否则无法生成商品实例
+5. **价格**: 商店商品使用默认价格（从波牌数据获取，`customPrice = -1`），不是0
+6. **按钮位置**: 购买按钮作为卡牌的子对象，会自动跟随卡牌位置
+7. **商品ID接口**: 通过 `CurrentShopItemIds` 属性可以获取当前所有商品的ID列表
+
+### 扩展建议
+
+1. **商品刷新**: 可以添加定时刷新或手动刷新功能
+2. **商品折扣**: 可以添加商品折扣功能
+3. **商品限购**: 可以添加商品限购功能
+4. **商品分类**: 可以添加商品分类功能

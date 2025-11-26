@@ -12,4 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e1722fd2b6405d34fa3aaf9e925e655c, type: 3}
   m_Name: Card Prefab Registry
   m_EditorClassIdentifier: 
-  cardEntries: []
+  cardEntries:
+  - cardId: C01
+    cardPrefab: {fileID: 7089098863694528691, guid: bb46fc0ce5a8e9b4d9e0562aa176a09a, type: 3}
+  - cardId: C02
+    cardPrefab: {fileID: 7089098863694528691, guid: bb46fc0ce5a8e9b4d9e0562aa176a09a, type: 3}

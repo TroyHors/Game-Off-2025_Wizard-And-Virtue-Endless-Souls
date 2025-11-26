@@ -18,6 +18,9 @@ namespace GameFlow
         [Tooltip("奖励面板UI容器（战斗结束时显示，玩家选择奖励后隐藏）")]
         [SerializeField] private GameObject rewardPanelContainer;
 
+        [Tooltip("商店面板UI容器（商店节点时显示）")]
+        [SerializeField] private GameObject shopPanelContainer;
+
         /// <summary>
         /// 显示地图UI
         /// </summary>
@@ -37,6 +40,11 @@ namespace GameFlow
             if (rewardPanelContainer != null)
             {
                 rewardPanelContainer.SetActive(false);
+            }
+
+            if (shopPanelContainer != null)
+            {
+                shopPanelContainer.SetActive(false);
             }
         }
 
@@ -78,6 +86,30 @@ namespace GameFlow
             {
                 rewardPanelContainer.SetActive(false);
                 Debug.Log("[UIManager] 隐藏奖励面板");
+            }
+        }
+
+        /// <summary>
+        /// 显示商店面板
+        /// </summary>
+        public void ShowShopPanel()
+        {
+            if (shopPanelContainer != null)
+            {
+                shopPanelContainer.SetActive(true);
+                Debug.Log("[UIManager] 显示商店面板");
+            }
+        }
+
+        /// <summary>
+        /// 隐藏商店面板
+        /// </summary>
+        public void HideShopPanel()
+        {
+            if (shopPanelContainer != null)
+            {
+                shopPanelContainer.SetActive(false);
+                Debug.Log("[UIManager] 隐藏商店面板");
             }
         }
     }
