@@ -403,12 +403,7 @@ namespace GameFlow
                         currentRewardInstances.Remove(cardInstance);
                         currentRewardInstances.Remove(buttonInstance);
                         Debug.Log($"[RewardManager] 波牌 '{purchasedCardId}' 已被购买，已销毁奖励实例");
-                        
-                        // 检查是否所有奖励都已选择，如果是则隐藏奖励面板
-                        if (currentRewardInstances.Count == 0)
-                        {
-                            ConfirmRewardSelection();
-                        }
+                        // 注意：不自动隐藏奖励面板，让玩家自己控制结束时机
                     }
                 });
                 Debug.Log($"[RewardManager] CreateCardReward: 购买按钮初始化完成");

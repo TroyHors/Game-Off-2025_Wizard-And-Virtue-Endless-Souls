@@ -2434,7 +2434,7 @@ Wave wave = Wave.FromData(cardData.WaveData);
    
    **注意**: 
    - 波牌Prefab不需要手动设置，系统会从 `Card Prefab Registry` 中根据随机抽取的波牌ID自动获取并生成
-   - 奖励面板的显示和隐藏由 `UIManager` 控制，战斗结束时会自动显示，所有奖励选择完成后会自动隐藏
+   - 奖励面板的显示和隐藏由 `UIManager` 控制，战斗结束时会自动显示，但不会自动隐藏（需要玩家点击确认按钮）
 
 #### 2. 配置 CombatNodeFlow
 
@@ -2571,6 +2571,8 @@ int price = purchaseButton.Price;
 5. **确认奖励**: 玩家点击"确认奖励"按钮，调用 `RewardManager.FinishRewardAndFlow()`
 6. **结束流程**: 流程结束，返回地图界面
 
+**注意**: 奖励波牌在被领取完成后不会自动隐藏奖励面板，让玩家自己控制结束时机
+
 ### 注意事项
 
 1. **奖励容器**: 必须设置 `Reward Container`，否则奖励物品和按钮无法正确生成
@@ -2601,28 +2603,26 @@ int price = purchaseButton.Price;
 
 ### 概述
 
-商店系统用于在商店节点中随机展示波牌商品，玩家可以使用金币购买。系统会自动从波牌注册表中随机选择商品，生成商品实例和购买按钮，并处理购买逻辑。
+商店系统负责处理商店节点的商品展示和购买。系统会随机从波牌注册表中选择商品，生成商品实例和购买按钮，玩家可以花费金币购买波牌。
 
-### 系统架构
-
-#### 核心组件
+### 核心组件
 
 1. **ShopManager** (`Assets/Scripts/GameFlow/ShopManager.cs`)
-   - MonoBehaviour，管理商店商品的展示和购买
-   - 随机从波牌注册表中选择商品
-   - 生成商品实例和购买按钮
-   - 提供接口供其他组件获取商品ID
+   - MonoBehaviour，管理商店的商品展示和购买
+   - 随机选择商品，生成商品实例和购买按钮
 
-2. **PurchaseButton** (`Assets/Scripts/UI/PurchaseButton.cs`)
-   - 购买按钮组件（与奖励系统共用）
-   - 支持使用默认价格或自定义价格
-   - 自动处理金币扣除和物品添加
+2. **ShopNodeFlow** (`Assets/Scripts/GameFlow/ShopNodeFlow.cs`)
+   - 继承自 `NodeEventFlowBase`，处理商店节点的事件流程
+   - 在流程开始时初始化商店
+
+3. **PurchaseButton** (`Assets/Scripts/UI/PurchaseButton.cs`)
+   - 购买按钮组件，处理购买逻辑（已在奖励系统中使用）
 
 ### 配置说明
 
 #### 1. 配置 ShopManager
 
-1. 在场景中创建一个GameObject，命名为 "ShopManager"
+1. 在商店流程Prefab中创建一个GameObject，命名为 "ShopManager"
 2. 添加 `ShopManager` 组件
 3. 在 Inspector 中配置：
 
@@ -2630,22 +2630,69 @@ int price = purchaseButton.Price;
    - `Shop Item Count`: 商店商品数量（随机选择的波牌数量），默认 3
 
    **系统引用**（如果为空，会自动查找）:
-   - `Card Prefab Registry`: 卡牌Prefab注册表（用于根据波牌ID获取Prefab，会从CardSystem自动获取）
+   - `Coin System`: 金币系统
+   - `Card System`: 卡牌系统
+   - `Card Prefab Registry`: 卡牌Prefab注册表（用于根据波牌ID获取Prefab）
    - `UI Manager`: UI管理器（用于控制商店面板显示）
 
    **UI设置**:
-   - `Shop Container`: 商店容器（用于放置商品和按钮的Transform）
+   - `Shop Container`: 商店容器（用于放置商品和按钮的Transform，如果为空，会自动查找名为'ShopContainer'的子对象）
    - `Purchase Button Prefab`: 购买按钮Prefab（用于生成购买按钮）
 
-#### 2. 配置 UIManager
+#### 2. 配置 ShopNodeFlow
+
+1. 创建商店流程Prefab，添加 `ShopNodeFlow` 组件
+2. 在 Prefab 中创建一个子对象，命名为 "ShopContainer"（作为商店容器）
+3. 在 Inspector 中配置：
+   - `Shop Manager`: 将配置好的 `ShopManager` 拖拽到此字段（如果为空，会自动查找）
+   - `Shop Container`: 将 "ShopContainer" 子对象拖拽到此字段（如果为空，会自动查找）
+
+#### 3. 配置 UIManager
 
 1. 在场景中找到 `UIManager` 组件
 2. 在 Inspector 中设置：
-   - `Shop Panel Container`: 商店面板UI容器（商店节点时显示）
+   - `Shop Panel Container`: 商店面板UI容器（商店节点时显示，玩家离开商店后隐藏）
 
-#### 3. 创建购买按钮Prefab
+#### 4. 配置商店确认按钮
 
-与奖励系统共用同一个购买按钮Prefab，参考奖励系统的配置说明。
+1. 在商店面板UI容器中创建一个UI Button GameObject，命名为 "ConfirmShopButton"
+2. 在按钮的 `OnClick` 事件中配置：
+   - 点击 `+` 号添加一个事件监听器
+   - **推荐方式**：将场景中带有 `ShopManager` 组件的GameObject拖拽到对象字段（通常是商店流程Prefab的子对象）
+   - 在下拉菜单中选择：`ShopManager` -> `FinishShopAndFlow()`
+   - **备选方式**：如果找不到 ShopManager，可以将场景中带有 `ShopNodeFlow` 组件的GameObject拖拽到对象字段，然后选择：`ShopNodeFlow` -> `FinishShopAndFlow()`
+   
+   **注意**: 
+   - 这个按钮让玩家自己控制结束时机，进入商店后会显示商店面板，玩家购买完商品后点击此按钮才会进入事件结束状态
+   - `FinishShopAndFlow()` 是一个 public void 无参数方法，完全兼容Unity Button组件的OnClick事件
+   - 推荐使用 `ShopManager.FinishShopAndFlow()`，因为它会自动查找 `ShopNodeFlow`，更加可靠
+
+### 工作流程
+
+1. **进入商店**: 当玩家进入商店节点时，`ShopNodeFlow.StartFlow()` 被调用
+2. **初始化商店**: 系统随机从 `CardPrefabRegistry` 中选择指定数量的波牌ID
+3. **生成商品**: 为每个选中的波牌生成实例和购买按钮（按钮作为卡牌的子对象）
+4. **显示商店面板**: 自动调用 `UIManager.ShowShopPanel()` 显示商店面板
+5. **玩家购买**: 玩家点击购买按钮购买商品（使用物品数据中的默认价格）
+6. **确认离开**: 玩家点击"确认"按钮，调用 `ShopNodeFlow.FinishShopAndFlow()`
+7. **结束流程**: 流程结束，返回地图界面
+
+### API 文档
+
+#### ShopManager 主要方法
+
+- `InitializeShop()`: 初始化商店（随机选择商品并生成）
+- `ClearShop()`: 清理所有商店商品并隐藏面板
+- `GetShopItemIds()`: 获取当前商店的所有商品ID列表
+- `GetShopItemId(int index)`: 获取指定索引的商品ID
+- `GetCardIdFromInstance(GameObject cardInstance)`: 从商品实例获取波牌ID
+- `SetShopContainer(Transform container)`: 设置商店容器（供ShopNodeFlow调用）
+- `FinishShopAndFlow()`: 完成商店并结束流程（供按钮调用，推荐使用此方法）
+
+#### ShopNodeFlow 主要方法
+
+- `StartFlow()`: 开始执行商店流程（自动初始化商店）
+- `FinishShopAndFlow()`: 完成商店并结束流程（供按钮调用）
 
 ### 使用方法
 
@@ -2655,57 +2702,35 @@ int price = purchaseButton.Price;
 // 获取商店管理器
 ShopManager shopManager = FindObjectOfType<ShopManager>();
 
-// 刷新商店（随机选择新的商品）
-shopManager.RefreshShop();
+// 初始化商店
+shopManager.InitializeShop();
 
-// 显示商店面板
-shopManager.ShowShop();
+// 获取所有商品ID
+List<string> itemIds = shopManager.GetShopItemIds();
 
-// 隐藏商店面板
-shopManager.HideShop();
+// 获取指定索引的商品ID
+string itemId = shopManager.GetShopItemId(0);
 
-// 获取当前商店的商品ID列表
-IReadOnlyList<string> itemIds = shopManager.CurrentShopItemIds;
-foreach (string itemId in itemIds)
-{
-    Debug.Log($"商店商品ID: {itemId}");
-}
-
-// 根据索引获取商品ID
-string itemId = shopManager.GetShopItemId(0); // 获取第一个商品的ID
-
-// 获取商品数量
-int count = shopManager.GetShopItemCount();
-
-// 从商品实例获取ID
+// 从商品实例获取波牌ID
 string cardId = shopManager.GetCardIdFromInstance(cardInstance);
 
-// 清理商店商品
+// 清理商店
 shopManager.ClearShop();
 ```
 
-### 工作流程
-
-1. **刷新商店**: 调用 `RefreshShop()` 随机选择新的商品
-2. **生成商品**: 系统从 `CardPrefabRegistry` 中随机选择指定数量的波牌ID
-3. **生成实例**: 为每个商品生成波牌实例和购买按钮（按钮作为卡牌的子对象）
-4. **显示商店**: 调用 `ShowShop()` 显示商店面板
-5. **玩家购买**: 玩家点击购买按钮，系统扣除金币并添加卡牌到牌堆
-6. **购买成功**: 购买成功后，商品实例和按钮自动销毁
-
 ### 注意事项
 
-1. **商品数量**: 必须设置 `Shop Item Count`，否则无法生成商品
+1. **商店容器**: 必须在商店流程Prefab中创建一个名为 "ShopContainer" 的子对象，或者手动设置 `Shop Container` 字段
 2. **购买按钮Prefab**: 必须设置 `Purchase Button Prefab`，否则无法生成购买按钮
-3. **卡牌Prefab注册表**: 系统会从 `CardSystem` 自动获取，确保 `CardSystem` 的 `cardRegistry` 字段已正确设置
-4. **商店容器**: 必须设置 `Shop Container`，否则无法生成商品实例
-5. **价格**: 商店商品使用默认价格（从波牌数据获取，`customPrice = -1`），不是0
-6. **按钮位置**: 购买按钮作为卡牌的子对象，会自动跟随卡牌位置
-7. **商品ID接口**: 通过 `CurrentShopItemIds` 属性可以获取当前所有商品的ID列表
+3. **卡牌Prefab注册表**: 必须设置 `Card Prefab Registry`，否则无法生成商品（系统会从CardSystem获取）
+4. **商品价格**: 购买按钮会使用物品数据中的默认价格（从 `WaveCardDataRegistry` 或 `CardPrefabRegistry` 获取）
+5. **按钮位置**: 购买按钮会自动作为卡牌的子对象，绑定在卡牌下方
+6. **商店确认按钮**: 必须在商店面板中配置一个按钮，调用 `ShopNodeFlow.FinishShopAndFlow()` 方法，让玩家自己控制结束时机
+7. **流程控制**: 进入商店后不会立即结束流程，而是等待玩家点击确认按钮后才进入事件结束状态
 
 ### 扩展建议
 
-1. **商品刷新**: 可以添加定时刷新或手动刷新功能
+1. **商品刷新**: 可以添加商品刷新功能，让玩家花费金币刷新商品列表
 2. **商品折扣**: 可以添加商品折扣功能
-3. **商品限购**: 可以添加商品限购功能
-4. **商品分类**: 可以添加商品分类功能
+3. **特殊商品**: 可以添加特殊商品类型（如限时商品、稀有商品等）
+4. **购买动画**: 可以添加购买成功的动画效果

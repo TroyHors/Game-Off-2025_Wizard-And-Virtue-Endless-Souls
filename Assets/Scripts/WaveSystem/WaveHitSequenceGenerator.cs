@@ -98,7 +98,7 @@ namespace WaveSystem
                     Debug.LogWarning($"[WaveHitSequenceGenerator] TargetManager状态 - Player: {targetManager.Player?.name ?? "null"}, Enemy: {targetManager.Enemy?.name ?? "null"}");
                     continue;
                 }
-                
+
                 // 调试信息：确认目标是否正确
                 if (peak.AttackDirection == false) // 攻向玩家
                 {

@@ -34,6 +34,9 @@ namespace UI
         [Tooltip("小队管理器（购买成员时需要，如果为空，会自动查找）")]
         [SerializeField] private SquadManager squadManager;
 
+        [Tooltip("波牌数据注册表（用于获取波牌价格，如果为空，会尝试从卡牌Prefab的WaveCardComponent获取）")]
+        [SerializeField] private WaveSystem.WaveCardDataRegistry waveCardDataRegistry;
+
         [Header("UI组件")]
         [Tooltip("按钮组件（如果为空，会自动获取）")]
         [SerializeField] private Button button;
@@ -198,8 +201,34 @@ namespace UI
             switch (itemType)
             {
                 case ItemType.WaveCard:
-                    // 从波牌注册表获取价格
-                    WaveSystem.WaveCardDataRegistry cardRegistry = FindObjectOfType<WaveSystem.WaveCardDataRegistry>();
+                    // 方法1: 尝试从卡牌Prefab的WaveCardComponent获取价格
+                    if (cardSystem != null)
+                    {
+                        CardSystem.CardPrefabRegistry cardPrefabRegistry = cardSystem.GetCardRegistry();
+                        if (cardPrefabRegistry != null)
+                        {
+                            GameObject cardPrefab = cardPrefabRegistry.GetCardPrefab(itemId);
+                            if (cardPrefab != null)
+                            {
+                                WaveSystem.WaveCardComponent cardComponent = cardPrefab.GetComponent<WaveSystem.WaveCardComponent>();
+                                if (cardComponent != null)
+                                {
+                                    int cardPrice = cardComponent.CardPrice;
+                                    Debug.Log($"[PurchaseButton] GetDefaultPrice: 从WaveCardComponent获取到价格 {cardPrice}");
+                                    return cardPrice;
+                                }
+                            }
+                        }
+                    }
+
+                    // 方法2: 尝试从WaveCardDataRegistry获取价格
+                    WaveSystem.WaveCardDataRegistry cardRegistry = waveCardDataRegistry;
+                    if (cardRegistry == null)
+                    {
+                        // 尝试从场景中查找（虽然ScriptableObject通常不能这样查找，但有些情况下可能有MonoBehaviour持有引用）
+                        // 这里我们跳过，因为ScriptableObject不能通过FindObjectOfType查找
+                    }
+
                     if (cardRegistry != null)
                     {
                         var cardData = cardRegistry.GetWaveCardData(itemId);
@@ -211,12 +240,12 @@ namespace UI
                         }
                         else
                         {
-                            Debug.LogWarning($"[PurchaseButton] GetDefaultPrice: 未找到波牌ID '{itemId}' 的数据");
+                            Debug.LogWarning($"[PurchaseButton] GetDefaultPrice: WaveCardDataRegistry中未找到波牌ID '{itemId}' 的数据");
                         }
                     }
                     else
                     {
-                        Debug.LogWarning("[PurchaseButton] GetDefaultPrice: WaveCardDataRegistry未找到");
+                        Debug.LogWarning("[PurchaseButton] GetDefaultPrice: WaveCardDataRegistry未设置，且无法从WaveCardComponent获取价格");
                     }
                     break;
 

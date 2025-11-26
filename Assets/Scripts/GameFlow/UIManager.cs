@@ -18,7 +18,7 @@ namespace GameFlow
         [Tooltip("奖励面板UI容器（战斗结束时显示，玩家选择奖励后隐藏）")]
         [SerializeField] private GameObject rewardPanelContainer;
 
-        [Tooltip("商店面板UI容器（商店节点时显示）")]
+        [Tooltip("商店面板UI容器（商店节点时显示，玩家离开商店后隐藏）")]
         [SerializeField] private GameObject shopPanelContainer;
 
         /// <summary>
