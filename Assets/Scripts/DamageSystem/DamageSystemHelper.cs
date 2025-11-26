@@ -62,7 +62,7 @@ namespace DamageSystem
 
             // 步骤1：发出玩家波
             Wave playerWave = handWaveGridManager.EmitHandWaveWithResult();
-            
+
             // 步骤2：获取敌人波
             Wave enemyWave = enemyWaveManager.CurrentEnemyWave;
 
@@ -100,7 +100,7 @@ namespace DamageSystem
                             {
                                 string peakDirectionStr = peak.AttackDirection ? "攻向敌人" : "攻向玩家";
                                 Debug.Log($"[DamageSystemHelper]   位置 {position}: 强度={peak.Value}, 方向={peakDirectionStr}");
-                            }
+                }
                         }
                     }
                     else

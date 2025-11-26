@@ -2279,4 +2279,318 @@ statusManager.OnStatusUpdated.AddListener((statusList) =>
 - 添加状态效果动画和特效
 - 实现状态效果组合系统（如"燃烧+冰冻=蒸汽"）
 - 添加状态效果免疫系统
+
+---
+
+## 波牌注册表系统 (Wave Card Registry System)
+
+### 概述
+
+波牌注册表系统用于管理所有不同的波牌类型，类似于成员数据注册表。系统包含波牌数据（WaveCardData）和波牌注册表（WaveCardDataRegistry），支持通过ID快速查找波牌配置。
+
+### 系统架构
+
+#### 核心组件
+
+1. **WaveCardData** (`Assets/Scripts/WaveSystem/WaveCardData.cs`)
+   - ScriptableObject，定义单个波牌类型的配置信息
+   - 包含：波牌ID、名称、波数据、价格、Prefab
+
+2. **WaveCardDataRegistry** (`Assets/Scripts/WaveSystem/WaveCardDataRegistry.cs`)
+   - ScriptableObject，管理所有波牌数据
+   - 提供通过ID或索引查找波牌数据的方法
+
+3. **WaveCardComponent** (`Assets/Scripts/WaveSystem/WaveCardComponent.cs`)
+   - MonoBehaviour，挂载在波牌Prefab上
+   - 包含波数据和价格参数
+
+### 配置说明
+
+#### 1. 创建波牌数据
+
+1. 在 Unity 中右键 → `Create → Wave System → Wave Card Data`
+2. 设置波牌配置：
+   - **Card Id**: 波牌唯一ID（如 "wave_card_001"）
+   - **Card Name**: 波牌名称（用于UI显示）
+   - **Wave Data**: 波数据（定义波牌的波峰信息）
+   - **Card Price**: 波牌价格（购买所需的金币）
+   - **Card Prefab**: 波牌Prefab（可选，如果使用Prefab系统）
+
+#### 2. 创建波牌注册表
+
+1. 在 Unity 中右键 → `Create → Wave System → Wave Card Data Registry`
+2. 将所有波牌数据添加到注册表中：
+   - 在 Inspector 中展开 `Card Entries`
+   - 点击 `+` 添加条目
+   - 将创建的 `WaveCardData` 拖拽到 `Wave Card Data` 字段
+
+#### 3. 配置波牌组件
+
+1. 在波牌Prefab上添加 `WaveCardComponent` 组件
+2. 设置组件参数：
+   - **Wave Data**: 波数据（定义波牌的波峰信息）
+   - **Card Price**: 波牌价格（购买所需的金币）
+
+### 使用方法
+
+#### 代码示例
+
+```csharp
+// 获取波牌注册表
+WaveCardDataRegistry registry = ...; // 获取注册表引用
+
+// 通过ID获取波牌数据
+WaveCardData cardData = registry.GetWaveCardData("wave_card_001");
+
+// 通过索引获取波牌数据
+WaveCardData cardData = registry.GetWaveCardDataByIndex(0);
+
+// 获取所有波牌数据
+List<WaveCardData> allCards = registry.GetAllWaveCardData();
+
+// 检查波牌是否存在
+bool exists = registry.HasWaveCardData("wave_card_001");
+
+// 从波牌数据创建波
+Wave wave = Wave.FromData(cardData.WaveData);
+```
+
+### API 文档
+
+#### WaveCardDataRegistry 主要方法
+
+- `GetWaveCardData(string cardId)`: 根据波牌ID获取波牌数据
+- `GetWaveCardDataByIndex(int index)`: 根据索引获取波牌数据
+- `GetAllWaveCardData()`: 获取所有波牌数据
+- `HasWaveCardData(string cardId)`: 检查波牌ID是否存在
+- `CardCount`: 获取波牌数据数量
+
+#### WaveCardData 主要属性
+
+- `CardId`: 波牌ID（唯一标识符）
+- `CardName`: 波牌名称
+- `WaveData`: 波数据
+- `CardPrice`: 波牌价格
+- `CardPrefab`: 波牌Prefab（可选）
+
+#### WaveCardComponent 主要属性
+
+- `Wave`: 波牌的波数据（只读）
+- `CardPrice`: 波牌价格（只读）
+
+### 注意事项
+
+1. **波牌ID唯一性**: 每个波牌必须有唯一的ID，注册表中不能有重复ID
+2. **价格设置**: 波牌价格可以在 `WaveCardData` 和 `WaveCardComponent` 中设置，`WaveCardComponent` 的价格会覆盖 `WaveCardData` 的价格
+3. **Prefab可选**: 波牌Prefab是可选的，但如果设置了，建议包含 `WaveCardComponent` 组件
+4. **数据验证**: `WaveCardData.Validate()` 方法可以验证数据有效性
+
+---
+
+## 奖励系统 (Reward System)
+
+### 概述
+
+奖励系统用于在战斗结束后根据节点类型发放不同的奖励。系统支持战斗、精英、Boss三种节点类型，每种节点类型有不同的奖励配置。
+
+### 系统架构
+
+#### 核心组件
+
+1. **RewardManager** (`Assets/Scripts/GameFlow/RewardManager.cs`)
+   - MonoBehaviour，管理战斗结束后的奖励发放
+   - 根据节点类型自动发放对应奖励
+
+2. **PurchaseButton** (`Assets/Scripts/UI/PurchaseButton.cs`)
+   - MonoBehaviour，购买按钮组件
+   - 支持购买波牌和成员，自动处理金币扣除和物品添加
+
+### 配置说明
+
+#### 1. 配置 RewardManager
+
+1. 在场景中创建一个GameObject，命名为 "RewardManager"
+2. 添加 `RewardManager` 组件
+3. 在 Inspector 中配置：
+
+   **金币奖励设置**:
+   - `Combat Coin Range`: 战斗节点金币奖励范围（最小值，最大值），默认 (10, 20)
+   - `Elite Coin Range`: 精英节点金币奖励范围（最小值，最大值），默认 (20, 30)
+   - `Boss Coin Range`: Boss节点金币奖励范围（最小值，最大值），默认 (50, 100)
+
+   **精英节点卡牌奖励设置**:
+   - `Elite Card Reward Count`: 精英节点奖励的波牌数量，默认 3
+
+   **系统引用**（如果为空，会自动查找）:
+   - `Coin System`: 金币系统
+   - `Card System`: 卡牌系统
+   - `Card Prefab Registry`: 卡牌Prefab注册表（用于根据波牌ID获取Prefab）
+   - `UI Manager`: UI管理器（用于控制奖励面板显示，如果为空，会自动查找）
+   - `Combat Node Flow`: 战斗流程（用于结束流程，如果为空，会自动查找）
+
+   **UI设置**:
+   - `Reward Container`: 奖励容器（用于放置奖励物品和按钮的Transform）
+   - `Purchase Button Prefab`: 购买按钮Prefab（用于生成购买按钮）
+   
+   **注意**: 
+   - 波牌Prefab不需要手动设置，系统会从 `Card Prefab Registry` 中根据随机抽取的波牌ID自动获取并生成
+   - 奖励面板的显示和隐藏由 `UIManager` 控制，战斗结束时会自动显示，所有奖励选择完成后会自动隐藏
+
+#### 2. 配置 CombatNodeFlow
+
+1. 在战斗流程Prefab上找到 `CombatNodeFlow` 组件
+2. 在 Inspector 中设置：
+   - `Reward Manager`: 将配置好的 `RewardManager` 拖拽到此字段
+   - 如果为空，系统会自动查找场景中的 `RewardManager`
+
+#### 3. 配置奖励确认按钮
+
+1. 在奖励面板UI容器中创建一个UI Button GameObject，命名为 "ConfirmRewardButton"
+2. 在按钮的 `OnClick` 事件中配置：
+   - 点击 `+` 号添加一个事件监听器
+   - 将场景中带有 `RewardManager` 组件的GameObject拖拽到对象字段
+   - 在下拉菜单中选择：`RewardManager` -> `FinishRewardAndFlow()`
+   
+   **注意**: 
+   - 这个按钮让玩家自己控制结束时机，战斗结束后会显示奖励面板，玩家选择完奖励后点击此按钮才会进入事件结束状态
+   - `FinishRewardAndFlow()` 是一个 public void 无参数方法，完全兼容Unity Button组件的OnClick事件
+   - 如果找不到方法，请确保 `RewardManager` 组件已正确添加到GameObject上
+
+#### 4. 创建购买按钮Prefab
+
+1. 创建一个UI Button GameObject作为购买按钮Prefab
+2. 添加 `PurchaseButton` 组件
+3. 配置按钮组件：
+   - **UI组件**:
+     - `Button`: 按钮组件（如果为空，会自动获取）
+   - **事件**:
+     - `On Purchase Success`: 购买成功事件（UnityEvent<string>，传递物品ID）
+   
+   **注意**: 
+   - 除了 `Button` 引用需要在Prefab中设置外，其他所有参数（物品ID、类型、价格等）都会在生成时通过 `Initialize()` 方法自动设置
+   - 按钮不需要显示价格文本
+
+4. 将按钮Prefab保存，并在 `RewardManager` 的 `Purchase Button Prefab` 字段中引用
+
+### 奖励规则
+
+#### 战斗节点奖励
+- **金币**: 从 `Combat Coin Range` 范围中随机一个值
+
+#### 精英节点奖励
+- **金币**: 从 `Elite Coin Range` 范围中随机一个值
+- **卡牌**: 从 `Card Prefab Registry` 中随机选择 `Elite Card Reward Count` 个波牌ID
+  - 系统会根据随机抽取的波牌ID，从注册表中自动获取对应的Prefab并生成实例
+  - 每个波牌会生成一个实例和对应的购买按钮
+  - 购买按钮价格为 0（因为是奖励）
+  - 点击购买按钮后，波牌会添加到牌堆，实例和按钮会被销毁
+
+#### Boss节点奖励
+- **金币**: 从 `Boss Coin Range` 范围中随机一个值
+
+### 使用方法
+
+#### 代码示例
+
+```csharp
+// 获取奖励管理器
+RewardManager rewardManager = FindObjectOfType<RewardManager>();
+
+// 发放奖励（根据节点类型）
+rewardManager.GiveReward("Combat", isBoss: false);  // 战斗节点
+rewardManager.GiveReward("Elite", isBoss: false);   // 精英节点
+rewardManager.GiveReward("Boss", isBoss: true);      // Boss节点
+
+// 清理奖励实例
+rewardManager.ClearRewards();
+
+// 从奖励实例获取波牌ID
+string cardId = rewardManager.GetCardIdFromInstance(cardInstance);
+```
+
+### PurchaseButton 使用方法
+
+#### 代码示例
+
+```csharp
+// 获取购买按钮组件
+PurchaseButton purchaseButton = buttonInstance.GetComponent<PurchaseButton>();
+
+// 初始化按钮（设置物品ID和类型）
+purchaseButton.Initialize("wave_card_001", PurchaseButton.ItemType.WaveCard, customPrice: 100);
+
+// 订阅购买成功事件
+purchaseButton.OnPurchaseSuccess.AddListener((string purchasedItemId) =>
+{
+    Debug.Log($"成功购买物品: {purchasedItemId}");
+    // 可以在这里销毁按钮或更新UI
+});
+
+// 获取物品ID
+string itemId = purchaseButton.ItemId;
+
+// 获取价格
+int price = purchaseButton.Price;
+```
+
+### API 文档
+
+#### RewardManager 主要方法
+
+- `GiveReward(string nodeType, bool isBoss)`: 发放奖励（根据节点类型）
+- `ClearRewards()`: 清理所有奖励实例
+- `GetCardIdFromInstance(GameObject cardInstance)`: 从奖励实例获取波牌ID
+
+#### PurchaseButton 主要方法
+
+- `Initialize(string id, ItemType type, int customPrice = -1)`: 初始化按钮
+- `ItemId`: 物品ID（可读写）
+- `Type`: 物品类型（可读写）
+- `Price`: 价格（只读）
+- `OnPurchaseSuccess`: 购买成功事件（UnityEvent<string>）
+
+#### PurchaseButton.ItemType 枚举
+
+- `WaveCard`: 波牌
+- `Member`: 成员
+
+### 自动集成
+
+系统已自动集成到战斗流程中:
+
+1. **战斗结束时**: `CombatNodeFlow.FinishCombat()` 会自动调用 `RewardManager.GiveReward()`
+2. **节点类型判断**: 系统会根据 `CombatNodeFlow.CurrentNodeType` 和 `IsBossNode` 自动判断奖励类型
+3. **奖励发放**: 奖励会在战斗结束后自动发放，无需手动调用
+
+### 工作流程
+
+1. **战斗结束**: 当所有敌人死亡时，`CombatNodeFlow.FinishCombat()` 被调用
+2. **发放奖励**: 系统根据节点类型自动发放奖励（金币和/或波牌）
+3. **显示奖励面板**: 自动调用 `UIManager.ShowRewardPanel()` 显示奖励面板
+4. **玩家选择奖励**: 玩家点击购买按钮选择奖励（精英节点可以选择波牌）
+5. **确认奖励**: 玩家点击"确认奖励"按钮，调用 `RewardManager.FinishRewardAndFlow()`
+6. **结束流程**: 流程结束，返回地图界面
+
+### 注意事项
+
+1. **奖励容器**: 必须设置 `Reward Container`，否则奖励物品和按钮无法正确生成
+2. **购买按钮Prefab**: 必须设置 `Purchase Button Prefab`，否则无法生成购买按钮
+3. **卡牌Prefab注册表**: 必须设置 `Card Prefab Registry`，否则精英节点的卡牌奖励无法生成（系统会根据随机抽取的波牌ID自动获取Prefab）
+4. **波牌Prefab**: 不需要手动设置，系统会从 `Card Prefab Registry` 中根据波牌ID自动获取
+5. **购买按钮参数**: 除了 `Button` 引用需要在Prefab中设置外，其他所有参数（物品ID、类型、价格等）都会在生成时自动设置
+6. **价格显示**: 按钮不需要显示价格文本
+7. **购买成功**: 购买成功后，奖励实例和按钮会自动销毁（通过订阅 `OnPurchaseSuccess` 事件）
+8. **金币检查**: 购买按钮会自动检查金币是否足够，不足时会显示警告并取消购买
+9. **物品添加**: 购买成功后，波牌会自动添加到牌堆，成员会自动添加到小队数据
+10. **奖励确认按钮**: 必须在奖励面板中配置一个按钮，调用 `RewardManager.FinishRewardAndFlow()` 方法，让玩家自己控制结束时机
+11. **流程控制**: 战斗结束后不会立即结束流程，而是等待玩家点击确认按钮后才进入事件结束状态
+
+### 扩展建议
+
+如果需要扩展功能,可以考虑:
+- 添加更多奖励类型（如经验值、道具等）
+- 实现奖励预览UI
+- 添加奖励动画和特效
+- 实现奖励选择系统（让玩家从多个奖励中选择）
+- 添加奖励历史记录
 - 添加角色装备系统

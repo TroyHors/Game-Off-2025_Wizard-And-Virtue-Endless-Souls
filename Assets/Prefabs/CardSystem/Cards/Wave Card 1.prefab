@@ -35,7 +35,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -417.5, y: -249.66666}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 100, y: 183.37}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4309475768501451890
@@ -95,4 +95,5 @@ MonoBehaviour:
       value: 1
     - position: 1
       value: -1
+  cardPrice: 2
   showWaveDetails: 1

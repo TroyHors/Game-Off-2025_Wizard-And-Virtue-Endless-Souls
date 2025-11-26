@@ -58,6 +58,10 @@ namespace GameFlow
         [Tooltip("小队管理器（用于生成和管理小队成员）")]
         [SerializeField] private SquadSystem.SquadManager squadManager;
 
+        [Header("奖励系统")]
+        [Tooltip("奖励管理器（用于发放战斗奖励）")]
+        [SerializeField] private RewardManager rewardManager;
+
         [Header("战斗状态")]
         [Tooltip("战斗是否已结束")]
         [SerializeField] private bool isCombatFinished = false;
@@ -77,6 +81,26 @@ namespace GameFlow
         /// 当前回合状态
         /// </summary>
         public CombatTurnState CurrentState => currentState;
+
+        /// <summary>
+        /// 当前节点类型（从节点数据获取）
+        /// </summary>
+        public string CurrentNodeType => currentNodeData != null ? currentNodeData.NodeType : string.Empty;
+
+        /// <summary>
+        /// 是否为战斗节点
+        /// </summary>
+        public bool IsCombatNode => CurrentNodeType == "Combat";
+
+        /// <summary>
+        /// 是否为精英节点
+        /// </summary>
+        public bool IsEliteNode => CurrentNodeType == "Elite";
+
+        /// <summary>
+        /// 是否为Boss节点
+        /// </summary>
+        public bool IsBossNode => currentNodeData != null && currentNodeData.IsBoss;
 
         /// <summary>
         /// 是否可以结束回合（只有在回合进行中状态才能结束）
@@ -175,6 +199,11 @@ namespace GameFlow
                 squadManager = FindObjectOfType<SquadSystem.SquadManager>();
             }
 
+            if (rewardManager == null)
+            {
+                rewardManager = FindObjectOfType<RewardManager>();
+            }
+
             // 生成玩家实体
             if (playerEntityManager != null)
             {
@@ -215,7 +244,7 @@ namespace GameFlow
             isCombatFinished = false;
             deadEnemyCount = 0;
             currentState = CombatTurnState.CombatStart;
-            Debug.Log($"[CombatNodeFlow] 开始战斗流程: Node[{currentNodeData.NodeId}]，找到 {enemies.Count} 个敌人");
+            Debug.Log($"[CombatNodeFlow] 开始战斗流程: Node[{currentNodeData.NodeId}] Type:{CurrentNodeType}，找到 {enemies.Count} 个敌人");
 
             // 战斗开始时的逻辑：初始化牌堆和手牌堆
             if (cardSystem != null)
@@ -504,6 +533,20 @@ namespace GameFlow
         }
 
         /// <summary>
+        /// 发放奖励（根据节点类型）
+        /// </summary>
+        private void GiveReward()
+        {
+            if (rewardManager == null)
+            {
+                Debug.LogWarning("[CombatNodeFlow] 奖励管理器未找到，跳过奖励发放");
+                return;
+            }
+
+            rewardManager.GiveReward(CurrentNodeType, IsBossNode);
+        }
+
+        /// <summary>
         /// 完成战斗
         /// 由战斗系统在战斗结束时调用（当所有敌人死亡时自动调用）
         /// </summary>
@@ -526,11 +569,8 @@ namespace GameFlow
             // 取消所有敌人的死亡事件订阅
             UnsubscribeAllEnemyDeathEvents();
 
-            // 同步玩家实体数据回玩家数据，然后销毁玩家实体
-            if (playerEntityManager != null)
-            {
-                playerEntityManager.DestroyPlayerEntity();
-            }
+            // 注意：不在这里销毁玩家实体，等待玩家确认奖励后再销毁（在 FinishRewardAndFlow 中处理）
+            // 这样可以确保所有伤害都处理完毕后再保存数据
 
             // 清除所有敌人实体
             if (enemySpawner != null)
@@ -558,6 +598,27 @@ namespace GameFlow
             // 清空敌人列表和状态标志
             enemies.Clear();
             deadEnemyCount = 0;
+
+            // 发放奖励（根据节点类型）
+            GiveReward();
+
+            // 注意：不立即结束流程，等待玩家通过 RewardManager.FinishRewardAndFlow() 确认奖励后结束
+            Debug.Log("[CombatNodeFlow] 战斗完成，等待玩家确认奖励后结束流程");
+        }
+
+        /// <summary>
+        /// 完成奖励并结束流程（由 RewardManager 调用）
+        /// 玩家通过按钮确认奖励后调用此方法
+        /// </summary>
+        public void FinishRewardAndFlow()
+        {
+            Debug.Log("[CombatNodeFlow] 玩家确认奖励，准备结束流程");
+
+            // 同步玩家实体数据回玩家数据，然后销毁玩家实体（在确认奖励后，确保所有伤害都已处理）
+            if (playerEntityManager != null)
+            {
+                playerEntityManager.DestroyPlayerEntity();
+            }
 
             // 完成流程
             FinishFlow();

@@ -12,6 +12,10 @@ namespace WaveSystem
         [Tooltip("波数据（使用WaveData格式）")]
         [SerializeField] private WaveData waveData = new WaveData(true);
 
+        [Header("经济")]
+        [Tooltip("波牌价格（购买/使用该波牌所需的金币）")]
+        [SerializeField] private int cardPrice = 0;
+
         [Header("显示设置")]
         [Tooltip("是否在Inspector中显示波数据详情")]
         [SerializeField] private bool showWaveDetails = true;
@@ -20,6 +24,11 @@ namespace WaveSystem
         /// 波牌的波数据（只读）
         /// </summary>
         public Wave Wave { get; private set; }
+
+        /// <summary>
+        /// 波牌价格（只读）
+        /// </summary>
+        public int CardPrice => cardPrice;
 
         private void Awake()
         {
