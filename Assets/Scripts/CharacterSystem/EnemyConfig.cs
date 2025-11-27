@@ -14,15 +14,23 @@ namespace CharacterSystem
         [Tooltip("敌人名称")]
         public string enemyName = "Enemy";
 
+        [Tooltip("敌人外观图片（Sprite）")]
+        public Sprite enemyFigure;
+
         [Tooltip("最大生命值")]
         public int maxHealth = 50;
 
         [Header("敌人波数据")]
-        [Tooltip("敌人波数据（用于 EnemyWaveManager）")]
+        [Tooltip("敌人波数据（用于 EnemyWaveManager，回合开始时会重新生成随机波）")]
         public WaveData waveData;
 
         [Tooltip("预设波索引（-1表示使用自定义waveData）")]
         public int presetWaveIndex = -1;
+
+        [Header("波生成配置（运行时使用，用于回合开始时生成随机波）")]
+        [Tooltip("波生成配置（如果设置，回合开始时会根据此配置生成随机波）")]
+        [System.NonSerialized]
+        public EnemyTypeGenerationConfig waveGenerationConfig;
     }
 
     /// <summary>

@@ -9,9 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 98b6535bc7fbf7b46bd48b66dc8d7d5f, type: 3}
-  m_Name: EnemyConfig
+  m_Script: {fileID: 11500000, guid: aaef72df90b1e6f419c8f30cfe0fc881, type: 3}
+  m_Name: Enemy Generation Config
   m_EditorClassIdentifier: 
-  enemyConfigs: []
-  enemyEntityPrefab: {fileID: 0}
-  enemyTag: Enemy
+  typeConfigs: []

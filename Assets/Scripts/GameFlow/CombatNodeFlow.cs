@@ -217,7 +217,7 @@ namespace GameFlow
             // 生成敌人实体
             if (enemySpawner != null)
             {
-                List<GameObject> spawnedEnemies = enemySpawner.SpawnEnemies();
+                List<GameObject> spawnedEnemies = enemySpawner.SpawnEnemies(null, CurrentNodeType);
                 Debug.Log($"[CombatNodeFlow] 通过 EnemySpawner 生成了 {spawnedEnemies.Count} 个敌人");
             }
             else
@@ -263,6 +263,7 @@ namespace GameFlow
             }
 
             // 初始化敌人波显示（EnemyWaveManager和HandWaveGridManager在一起）
+            // 注意：敌人波数据应该从生成的敌人实例的EnemyWaveManager获取，而不是使用预设波
             if (handWaveGridManager != null)
             {
                 EnemyWaveManager enemyWaveManager = handWaveGridManager.GetComponent<EnemyWaveManager>();
@@ -271,17 +272,9 @@ namespace GameFlow
                     // 初始化敌人波显示器（使用手牌波的参数）
                     enemyWaveManager.InitializeWaveVisualizer(handWaveGridManager);
                     
-                    // 加载预设波数据（如果有预设波，加载第一个；否则显示空波）
-                    if (enemyWaveManager.PresetWaveCount > 0)
-                    {
-                        // 加载第一个预设波（或可以根据战斗计数选择）
-                        enemyWaveManager.LoadPresetWave(0);
-                    }
-                    else
-                    {
-                        // 如果没有预设波，更新显示（显示空波）
-                        enemyWaveManager.UpdateWaveDisplay();
-                    }
+                    // 注意：敌人波数据应该从生成的敌人实例获取，这里只初始化显示
+                    // 实际的波数据会在敌人生成时设置，并在回合开始时更新
+                    enemyWaveManager.UpdateWaveDisplay();
                 }
             }
 
@@ -404,6 +397,9 @@ namespace GameFlow
                 currentState = CombatTurnState.TurnStart;
                 Debug.Log("[CombatNodeFlow] 进入回合开始状态");
                 
+                // 回合开始：为每个敌人生成随机波
+                GenerateRandomWavesForAllEnemies();
+                
                 // 回合开始：抽牌
                 if (cardSystem != null)
                 {
@@ -426,6 +422,45 @@ namespace GameFlow
             else
             {
                 Debug.LogWarning($"[CombatNodeFlow] 无法从 {currentState} 状态进入回合开始状态");
+            }
+        }
+
+        /// <summary>
+        /// 为所有敌人生成随机波（回合开始时调用）
+        /// </summary>
+        private void GenerateRandomWavesForAllEnemies()
+        {
+            if (enemySpawner == null || enemySpawner.EnemyConfig == null)
+            {
+                Debug.LogWarning("[CombatNodeFlow] EnemySpawner或EnemyConfig未设置，无法生成随机波");
+                return;
+            }
+
+            CharacterSystem.EnemyConfig enemyConfig = enemySpawner.EnemyConfig;
+            
+            // 调用独立的波生成器，为每个敌人实例生成随机波
+            int successCount = CharacterSystem.EnemyWaveGenerator.GenerateRandomWavesForAllEnemies(enemies, enemyConfig);
+            Debug.Log($"[CombatNodeFlow] 回合开始：为 {successCount} 个敌人生成了随机波");
+            
+            // 将第一个敌人的波数据同步到显示用的EnemyWaveManager（handWaveGridManager上的）
+            // 注意：如果有多个敌人，这里只显示第一个敌人的波
+            if (enemies.Count > 0 && handWaveGridManager != null)
+            {
+                GameObject firstEnemy = enemies[0].gameObject;
+                EnemyWaveManager enemyInstanceWaveManager = firstEnemy.GetComponent<EnemyWaveManager>();
+                EnemyWaveManager displayWaveManager = handWaveGridManager.GetComponent<EnemyWaveManager>();
+                
+                if (enemyInstanceWaveManager != null && displayWaveManager != null)
+                {
+                    // 将敌人实例的波数据复制到显示用的EnemyWaveManager
+                    Wave enemyWave = enemyInstanceWaveManager.CurrentEnemyWave;
+                    displayWaveManager.SetEnemyWave(enemyWave);
+                    Debug.Log($"[CombatNodeFlow] 已将第一个敌人的波数据同步到显示用的EnemyWaveManager，波峰数: {enemyWave.PeakCount}");
+                }
+                else
+                {
+                    Debug.LogWarning($"[CombatNodeFlow] 无法同步敌人波数据: enemyInstanceWaveManager={(enemyInstanceWaveManager != null ? "存在" : "null")}, displayWaveManager={(displayWaveManager != null ? "存在" : "null")}");
+                }
             }
         }
 
