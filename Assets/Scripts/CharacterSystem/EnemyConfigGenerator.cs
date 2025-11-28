@@ -29,16 +29,71 @@ namespace CharacterSystem
 
         /// <summary>
         /// 获取指定战斗类型的敌人配置
+        /// 支持中英文节点类型匹配（如"精英"和"Elite"）
         /// </summary>
         /// <param name="nodeType">战斗类型</param>
         /// <returns>敌人配置，如果不存在则返回null</returns>
         public EnemyConfig GetEnemyConfig(string nodeType)
         {
+            Debug.Log($"[EnemyConfigGenerator] GetEnemyConfig 被调用，nodeType='{nodeType}'");
+            Debug.Log($"[EnemyConfigGenerator] 当前已生成的配置类型: {string.Join(", ", generatedConfigs.Keys)}");
+            
+            // 直接匹配
             if (generatedConfigs.TryGetValue(nodeType, out EnemyConfig config))
             {
+                Debug.Log($"[EnemyConfigGenerator] 找到匹配的配置，包含 {config.ConfigCount} 个配置数据");
                 return config;
             }
+            
+            // 中英文匹配：如果直接匹配失败，尝试匹配对应的中英文
+            string alternateNodeType = GetAlternateNodeType(nodeType);
+            if (!string.IsNullOrEmpty(alternateNodeType) && generatedConfigs.TryGetValue(alternateNodeType, out config))
+            {
+                Debug.Log($"[EnemyConfigGenerator] 通过中英文匹配找到配置: '{nodeType}' -> '{alternateNodeType}'，包含 {config.ConfigCount} 个配置数据");
+                return config;
+            }
+            
+            Debug.LogWarning($"[EnemyConfigGenerator] 未找到战斗类型 '{nodeType}' 的配置！已生成的配置类型: {string.Join(", ", generatedConfigs.Keys)}");
             return null;
+        }
+
+        /// <summary>
+        /// 获取节点类型的中英文对应值
+        /// </summary>
+        /// <param name="nodeType">节点类型</param>
+        /// <returns>对应的中英文值，如果没有对应则返回null</returns>
+        private string GetAlternateNodeType(string nodeType)
+        {
+            if (string.IsNullOrEmpty(nodeType))
+            {
+                return null;
+            }
+
+            // 中英文映射表
+            switch (nodeType)
+            {
+                case "精英":
+                    return "Elite";
+                case "Elite":
+                    return "精英";
+                case "战斗":
+                    return "Combat";
+                case "Combat":
+                    return "战斗";
+                case "Boss":
+                    return "Boss"; // Boss通常只有英文
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// 获取所有已生成的节点类型列表（用于调试）
+        /// </summary>
+        /// <returns>节点类型列表</returns>
+        public List<string> GetAllGeneratedNodeTypes()
+        {
+            return new List<string>(generatedConfigs.Keys);
         }
 
         private void Awake()

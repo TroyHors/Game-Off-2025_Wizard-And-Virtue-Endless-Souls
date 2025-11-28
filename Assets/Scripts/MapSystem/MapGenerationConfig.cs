@@ -72,6 +72,10 @@ namespace MapSystem
         [Tooltip("默认节点图像(当节点类型未配置时使用)")]
         public Sprite defaultNodeSprite;
 
+        [Header("Boss节点事件流程")]
+        [Tooltip("Boss节点对应的事件流程Prefab（必须包含实现 INodeEventFlow 的组件）")]
+        public GameObject bossNodeFlowPrefab;
+
         /// <summary>
         /// 验证配置有效性
         /// </summary>

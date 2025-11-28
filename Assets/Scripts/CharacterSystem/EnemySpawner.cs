@@ -81,29 +81,66 @@ namespace CharacterSystem
             // 先清除现有敌人
             ClearAllEnemies();
 
-            // 如果没有设置enemyConfig，尝试从EnemyConfigGenerator获取
-            if (enemyConfig == null)
+            // 优先从EnemyConfigGenerator获取对应nodeType的配置
+            // 如果提供了nodeType，必须从Generator获取匹配的配置，不能使用Inspector中可能不匹配的配置
+            if (!string.IsNullOrEmpty(nodeType))
             {
                 if (enemyConfigGenerator == null)
                 {
                     enemyConfigGenerator = FindObjectOfType<EnemyConfigGenerator>();
                 }
 
-                if (enemyConfigGenerator != null && !string.IsNullOrEmpty(nodeType))
+                if (enemyConfigGenerator != null)
                 {
-                    enemyConfig = enemyConfigGenerator.GetEnemyConfig(nodeType);
-                    if (enemyConfig != null)
+                    Debug.Log($"[EnemySpawner] 尝试从EnemyConfigGenerator获取战斗类型 '{nodeType}' 的敌人配置");
+                    EnemyConfig targetConfig = enemyConfigGenerator.GetEnemyConfig(nodeType);
+                    if (targetConfig != null)
                     {
-                        Debug.Log($"[EnemySpawner] 从EnemyConfigGenerator获取到战斗类型 '{nodeType}' 的敌人配置");
+                        Debug.Log($"[EnemySpawner] 成功获取到战斗类型 '{nodeType}' 的敌人配置，包含 {targetConfig.ConfigCount} 个配置数据");
+                        enemyConfig = targetConfig; // 使用获取到的配置
+                    }
+                    else
+                    {
+                        // 获取已生成的配置类型用于错误信息
+                    var generatedTypes = new System.Collections.Generic.List<string>();
+                    if (enemyConfigGenerator != null)
+                    {
+                        // 通过反射或直接访问字典来获取类型列表（如果GetAllGeneratedNodeTypes不存在）
+                        try
+                        {
+                            var method = enemyConfigGenerator.GetType().GetMethod("GetAllGeneratedNodeTypes");
+                            if (method != null)
+                            {
+                                generatedTypes = (System.Collections.Generic.List<string>)method.Invoke(enemyConfigGenerator, null);
+                            }
+                        }
+                        catch { }
+                    }
+                    string typesStr = generatedTypes.Count > 0 ? string.Join(", ", generatedTypes) : "未知";
+                    Debug.LogError($"[EnemySpawner] 无法获取战斗类型 '{nodeType}' 的敌人配置！已生成的配置类型: {typesStr}。可能原因：1) EnemyGenerationConfig中未配置此类型 2) 节点类型字符串不匹配（如'精英'vs'Elite'）");
+                        return new List<GameObject>(); // 找不到匹配配置，不生成敌人
                     }
                 }
+                else
+                {
+                    Debug.LogError($"[EnemySpawner] EnemyConfigGenerator未找到，无法获取战斗类型 '{nodeType}' 的敌人配置");
+                    return new List<GameObject>();
+                }
             }
-
+            // 如果没有提供nodeType，尝试使用Inspector中设置的enemyConfig（向后兼容）
+            else if (enemyConfig == null)
+            {
+                Debug.LogWarning("[EnemySpawner] 未提供nodeType且Inspector中未设置enemyConfig，无法生成敌人");
+                return new List<GameObject>();
+            }
+            
             if (enemyConfig == null)
             {
                 Debug.LogError("[EnemySpawner] 敌人配置未设置，无法生成敌人");
                 return new List<GameObject>();
             }
+            
+            Debug.Log($"[EnemySpawner] 使用敌人配置: ConfigCount={enemyConfig.ConfigCount}");
 
             // 注意：enemyEntityPrefab可以为空，如果为空则动态创建敌人实体（白模）
             if (enemyConfig.EnemyEntityPrefab == null)
