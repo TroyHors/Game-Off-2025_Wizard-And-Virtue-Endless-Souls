@@ -241,6 +241,9 @@ namespace GameFlow
             // 订阅所有敌人的死亡事件（通过 HealthComponent.OnDeath）
             SubscribeAllEnemyDeathEvents();
 
+            // 注意：玩家死亡事件已在PlayerEntityManager中全局订阅，不需要在这里订阅
+            // 这样可以确保在任何时候玩家血量归零都会触发游戏结束，不受flow系统限制
+
             isCombatFinished = false;
             deadEnemyCount = 0;
             currentState = CombatTurnState.CombatStart;
@@ -344,6 +347,9 @@ namespace GameFlow
                 }
             }
         }
+
+        // 注意：玩家死亡事件订阅已移至PlayerEntityManager中全局管理
+        // 这样可以确保在任何时候玩家血量归零都会触发游戏结束，不受flow系统限制
 
         /// <summary>
         /// 敌人死亡回调（由HealthComponent.OnDeath触发）
@@ -604,6 +610,8 @@ namespace GameFlow
             // 取消所有敌人的死亡事件订阅
             UnsubscribeAllEnemyDeathEvents();
 
+            // 注意：玩家死亡事件订阅在PlayerEntityManager中全局管理，不需要在这里取消
+
             // 注意：不在这里销毁玩家实体，等待玩家确认奖励后再销毁（在 FinishRewardAndFlow 中处理）
             // 这样可以确保所有伤害都处理完毕后再保存数据
 
@@ -633,6 +641,27 @@ namespace GameFlow
             // 清空敌人列表和状态标志
             enemies.Clear();
             deadEnemyCount = 0;
+
+            // 如果战斗类型是Boss，敌人死亡导致节点结束时进入游戏结束状态
+            if (IsBossNode)
+            {
+                Debug.Log("[CombatNodeFlow] Boss节点战斗完成，进入游戏结束状态");
+                
+                // 获取GameFlowManager并触发游戏结束
+                GameFlowManager gameFlowManager = FindObjectOfType<GameFlowManager>();
+                if (gameFlowManager != null)
+                {
+                    gameFlowManager.HandleGameEnd();
+                }
+                else
+                {
+                    Debug.LogError("[CombatNodeFlow] 未找到GameFlowManager，无法触发游戏结束");
+                }
+                
+                // Boss节点直接结束流程，不等待奖励确认
+                FinishFlow();
+                return;
+            }
 
             // 发放奖励（根据节点类型）
             GiveReward();

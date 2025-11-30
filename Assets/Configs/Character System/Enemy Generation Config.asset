@@ -12,4 +12,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aaef72df90b1e6f419c8f30cfe0fc881, type: 3}
   m_Name: Enemy Generation Config
   m_EditorClassIdentifier: 
-  typeConfigs: []
+  typeConfigs:
+  - nodeType: "\u6218\u6597"
+    enemyFigures:
+    - {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+    healthRange: {x: 8, y: 10}
+    waveGenerationMethod: 0
+    totalPeakValueRange: {x: 10, y: 12}
+    maxSinglePeakValue: 2
+    peakPositionRange: {x: 0, y: 10}
+  - nodeType: "\u7CBE\u82F1"
+    enemyFigures:
+    - {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+    healthRange: {x: 17, y: 27}
+    waveGenerationMethod: 0
+    totalPeakValueRange: {x: 10, y: 14}
+    maxSinglePeakValue: 4
+    peakPositionRange: {x: 0, y: 10}
+  - nodeType: Boss
+    enemyFigures:
+    - {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+    healthRange: {x: 17, y: 27}
+    waveGenerationMethod: 0
+    totalPeakValueRange: {x: 10, y: 14}
+    maxSinglePeakValue: 4
+    peakPositionRange: {x: 0, y: 10}

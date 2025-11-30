@@ -144,6 +144,7 @@ namespace DamageSystem
                         Debug.Log($"[DamageSystem] 目标 {hit.target.name} 在受到 {hit.damage:F2} 点伤害后死亡（实际造成 {actualDamage:F2} 点生命值伤害）");
                     }
                     // 触发目标死亡事件
+                    Debug.Log($"[DamageSystem] 触发OnTargetDeath事件，目标: {hit.target.name}，监听器数量: {onTargetDeath.GetPersistentEventCount()}");
                     onTargetDeath?.Invoke(hit.target);
                 }
                 else if (debugLog)
@@ -248,6 +249,7 @@ namespace DamageSystem
                         Debug.Log($"[DamageSystem] 目标 {hit.target.name} 在受到 {hit.damage:F2} 点伤害后死亡（实际造成 {actualDamage:F2} 点生命值伤害）");
                     }
                     // 触发目标死亡事件
+                    Debug.Log($"[DamageSystem] 触发OnTargetDeath事件，目标: {hit.target.name}，监听器数量: {onTargetDeath.GetPersistentEventCount()}");
                     onTargetDeath?.Invoke(hit.target);
                 }
                 else if (debugLog)

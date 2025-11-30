@@ -1,5 +1,6 @@
 using UnityEngine;
 using DamageSystem;
+using GameFlow;
 
 namespace CharacterSystem
 {
@@ -9,6 +10,9 @@ namespace CharacterSystem
     /// </summary>
     public class PlayerEntityManager : MonoBehaviour
     {
+        [Header("系统引用")]
+        [Tooltip("伤害系统（用于订阅玩家死亡事件）")]
+        [SerializeField] private DamageSystem.DamageSystem damageSystem;
         [Header("玩家数据")]
         [Tooltip("玩家数据（持久化数据）")]
         [SerializeField] private PlayerData playerData;
@@ -95,6 +99,9 @@ namespace CharacterSystem
 
             Debug.Log($"[PlayerEntityManager] 玩家实体已生成，生命值：{healthComponent.CurrentHealth}/{healthComponent.MaxHealth}");
 
+            // 订阅玩家死亡事件（通过DamageSystem，全局监听，独立于flow系统）
+            SubscribePlayerDeathEvent();
+
             // 通知 TargetManager 刷新玩家引用
             RefreshTargetManager();
 
@@ -111,6 +118,9 @@ namespace CharacterSystem
             {
                 return;
             }
+
+            // 取消玩家死亡事件订阅
+            UnsubscribePlayerDeathEvent();
 
             // 同步实体数据回玩家数据
             if (playerData != null)
@@ -162,6 +172,91 @@ namespace CharacterSystem
             if (targetManager != null)
             {
                 targetManager.RefreshPlayer();
+            }
+        }
+
+        /// <summary>
+        /// 订阅玩家死亡事件（通过DamageSystem，全局监听，独立于flow系统）
+        /// 在任何时候玩家血量归零立刻打断任何进程进入游戏结束状态
+        /// </summary>
+        private void SubscribePlayerDeathEvent()
+        {
+            // 自动查找DamageSystem（如果未设置）
+            if (damageSystem == null)
+            {
+                damageSystem = FindObjectOfType<DamageSystem.DamageSystem>();
+            }
+
+            if (damageSystem == null)
+            {
+                Debug.LogError("[PlayerEntityManager] DamageSystem未找到，无法订阅玩家死亡事件！玩家死亡时将无法触发游戏结束");
+                return;
+            }
+
+            // 先取消之前的订阅（避免重复订阅）
+            damageSystem.OnTargetDeath.RemoveListener(OnTargetDeath);
+
+            // 订阅DamageSystem的目标死亡事件
+            damageSystem.OnTargetDeath.AddListener(OnTargetDeath);
+            Debug.Log($"[PlayerEntityManager] 成功订阅DamageSystem的玩家死亡事件（全局监听），DamageSystem: {damageSystem.name}");
+        }
+
+        /// <summary>
+        /// 取消玩家死亡事件订阅
+        /// </summary>
+        private void UnsubscribePlayerDeathEvent()
+        {
+            if (damageSystem == null)
+            {
+                return;
+            }
+
+            damageSystem.OnTargetDeath.RemoveListener(OnTargetDeath);
+            Debug.Log("[PlayerEntityManager] 取消DamageSystem的玩家死亡事件订阅");
+        }
+
+        /// <summary>
+        /// 目标死亡回调（由DamageSystem.OnTargetDeath触发）
+        /// 检查是否是玩家死亡，如果是则触发游戏结束
+        /// 独立于flow系统，在任何时候都会触发游戏结束
+        /// </summary>
+        private void OnTargetDeath(GameObject deadTarget)
+        {
+            if (deadTarget == null)
+            {
+                Debug.LogWarning("[PlayerEntityManager] OnTargetDeath收到空目标，忽略");
+                return;
+            }
+
+            // 检查死亡的目标是否是玩家实体（通过Tag或实例比较）
+            bool isPlayer = false;
+            if (deadTarget.CompareTag("Player") || deadTarget.CompareTag(playerTag))
+            {
+                isPlayer = true;
+            }
+            else if (currentPlayerEntity != null && deadTarget == currentPlayerEntity)
+            {
+                isPlayer = true;
+            }
+
+            if (!isPlayer)
+            {
+                // 不是玩家，忽略（但记录日志以便调试）
+                Debug.Log($"[PlayerEntityManager] OnTargetDeath收到非玩家目标: {deadTarget.name}，忽略");
+                return;
+            }
+
+            Debug.Log($"[PlayerEntityManager] 玩家死亡（通过DamageSystem），目标: {deadTarget.name}，立即进入游戏结束状态（全局监听）");
+
+            // 获取GameFlowManager并触发游戏结束
+            GameFlowManager gameFlowManager = FindObjectOfType<GameFlowManager>();
+            if (gameFlowManager != null)
+            {
+                gameFlowManager.HandleGameEnd();
+            }
+            else
+            {
+                Debug.LogError("[PlayerEntityManager] 未找到GameFlowManager，无法触发游戏结束");
             }
         }
     }

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 77ddde55e897121468e14e769be53538, type: 3}
   m_Name: MapGenerationConfig
   m_EditorClassIdentifier: 
-  height: 15
+  height: 10
   width: 10
   minNodesPerLayer: 2
   maxNodesPerLayer: 5
@@ -53,7 +53,7 @@ MonoBehaviour:
     maxCount: 0
     minLayerInterval: 0
     sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
-    nodeSize: {x: 20, y: 20}
+    nodeSize: {x: 40, y: 40}
     flowPrefab: {fileID: 754346546221149822, guid: c81b87d9820d8b446b68e832480412ca, type: 3}
   - nodeType: "\u5546\u5E97"
     globalWeight: 26.4
@@ -81,12 +81,12 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    minCount: 3
+    minCount: 4
     maxCount: 6
-    minLayerInterval: 2
+    minLayerInterval: 3
     sprite: {fileID: 10915, guid: 0000000000000000f000000000000000, type: 0}
-    nodeSize: {x: 20, y: 20}
-    flowPrefab: {fileID: 0}
+    nodeSize: {x: 40, y: 40}
+    flowPrefab: {fileID: 7261266903654023272, guid: 55fa7032b7c506644be342b509d32ad5, type: 3}
   - nodeType: "\u7CBE\u82F1"
     globalWeight: 26.4
     layerWeightCurve:
@@ -117,11 +117,76 @@ MonoBehaviour:
     maxCount: 6
     minLayerInterval: 2
     sprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
-    nodeSize: {x: 20, y: 20}
+    nodeSize: {x: 40, y: 40}
     flowPrefab: {fileID: 754346546221149822, guid: c81b87d9820d8b446b68e832480412ca, type: 3}
+  - nodeType: "\u9152\u9986"
+    globalWeight: 26.4
+    layerWeightCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0.015857697
+        value: 0.27220535
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.96520996
+        value: 0.6278343
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    minCount: 3
+    maxCount: 6
+    minLayerInterval: 3
+    sprite: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
+    nodeSize: {x: 40, y: 40}
+    flowPrefab: {fileID: 6467397136130254044, guid: f1a873e8d8f084a4cb44c0d16b8951f1, type: 3}
+  - nodeType: "\u9152\u9986"
+    globalWeight: 26.4
+    layerWeightCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0.015857697
+        value: 0.27220535
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.96520996
+        value: 0.6278343
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    minCount: 3
+    maxCount: 6
+    minLayerInterval: 3
+    sprite: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
+    nodeSize: {x: 40, y: 40}
+    flowPrefab: {fileID: 6467397136130254044, guid: f1a873e8d8f084a4cb44c0d16b8951f1, type: 3}
   enablePathValidation: 0
   minRestNodesPerPath: 2
   maxConsecutiveEliteNodes: 2
   bossNodeSprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
   bossNodeSize: {x: 30, y: 30}
   defaultNodeSprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  bossNodeFlowPrefab: {fileID: 754346546221149822, guid: c81b87d9820d8b446b68e832480412ca, type: 3}

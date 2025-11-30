@@ -129,7 +129,7 @@ namespace WaveSystem
                 gridSlots[position] = slot;
             }
 
-            Debug.Log($"[HandWaveGridManager] 格表初始化完成，共 {gridSlots.Count} 个格子（位置范围：{minGridPosition} 到 {maxGridPosition}）");
+            // Debug.Log($"[HandWaveGridManager] 格表初始化完成，共 {gridSlots.Count} 个格子（位置范围：{minGridPosition} 到 {maxGridPosition}）");
 
         }
 
@@ -143,14 +143,14 @@ namespace WaveSystem
         {
             if (cardDragHandler == null)
             {
-                Debug.LogWarning("[HandWaveGridManager] 尝试放置空的卡牌拖动处理器");
+                // Debug.LogWarning("[HandWaveGridManager] 尝试放置空的卡牌拖动处理器");
                 return handWaveManager.HandWave.Clone();
             }
 
             WaveCardComponent cardComponent = cardDragHandler.GetComponent<WaveCardComponent>();
             if (cardComponent == null)
             {
-                Debug.LogWarning("[HandWaveGridManager] 卡牌拖动处理器没有WaveCardComponent组件");
+                // Debug.LogWarning("[HandWaveGridManager] 卡牌拖动处理器没有WaveCardComponent组件");
                 return handWaveManager.HandWave.Clone();
             }
 
@@ -167,13 +167,13 @@ namespace WaveSystem
         {
             if (cardComponent == null)
             {
-                Debug.LogWarning("[HandWaveGridManager] 尝试放置空的波牌组件");
+                // Debug.LogWarning("[HandWaveGridManager] 尝试放置空的波牌组件");
                 return handWaveManager.HandWave.Clone();
             }
 
             if (!gridSlots.ContainsKey(gridPosition))
             {
-                Debug.LogWarning($"[HandWaveGridManager] 位置 {gridPosition} 不存在格子");
+                // Debug.LogWarning($"[HandWaveGridManager] 位置 {gridPosition} 不存在格子");
                 return handWaveManager.HandWave.Clone();
             }
 
@@ -217,14 +217,14 @@ namespace WaveSystem
         {
             if (!gridSlots.ContainsKey(gridPosition))
             {
-                Debug.LogWarning($"[HandWaveGridManager] 位置 {gridPosition} 不存在格子");
+                // Debug.LogWarning($"[HandWaveGridManager] 位置 {gridPosition} 不存在格子");
                 return handWaveManager.HandWave.Clone();
             }
 
             WaveGridSlot slot = gridSlots[gridPosition];
             if (!slot.IsOccupied)
             {
-                Debug.LogWarning($"[HandWaveGridManager] 位置 {gridPosition} 的格子未被占用");
+                // Debug.LogWarning($"[HandWaveGridManager] 位置 {gridPosition} 的格子未被占用");
                 return handWaveManager.HandWave.Clone();
             }
 
@@ -236,7 +236,7 @@ namespace WaveSystem
 
             if (cardComponent == null)
             {
-                Debug.LogWarning($"[HandWaveGridManager] 位置 {gridPosition} 的格子中的波牌组件为空");
+                // Debug.LogWarning($"[HandWaveGridManager] 位置 {gridPosition} 的格子中的波牌组件为空");
                 return handWaveManager.HandWave.Clone();
             }
 
@@ -278,8 +278,8 @@ namespace WaveSystem
             
             if (debugPrintWaveDetails)
             {
-                Debug.Log("[HandWaveGridManager] 发出手牌波");
-                PrintWaveDetails(emittedWave, "发出的波");
+                // Debug.Log("[HandWaveGridManager] 发出手牌波");
+                // PrintWaveDetails(emittedWave, "发出的波");
             }
 
             // 注意：不在这里更新波显示，因为发波后手牌波会被清空
@@ -368,17 +368,17 @@ namespace WaveSystem
                     if (success)
                     {
                         successCount++;
-                        Debug.Log($"[HandWaveGridManager] 将待使用的卡牌放入弃牌堆: {cardInstance.name}");
+                        // Debug.Log($"[HandWaveGridManager] 将待使用的卡牌放入弃牌堆: {cardInstance.name}");
                     }
                     else
                     {
-                        Debug.LogWarning($"[HandWaveGridManager] 无法将待使用的卡牌放入弃牌堆: {cardInstance.name}（可能不在手牌中）");
+                        // Debug.LogWarning($"[HandWaveGridManager] 无法将待使用的卡牌放入弃牌堆: {cardInstance.name}（可能不在手牌中）");
                     }
                 }
             }
             else
             {
-                Debug.LogWarning("[HandWaveGridManager] 卡牌系统未设置，无法将待使用的卡牌放入弃牌堆");
+                // Debug.LogWarning("[HandWaveGridManager] 卡牌系统未设置，无法将待使用的卡牌放入弃牌堆");
             }
 
             // 弃牌后，重置手牌波（确保手牌波被完全清空）
@@ -409,7 +409,7 @@ namespace WaveSystem
 
             if (debugPrintWaveDetails)
             {
-                Debug.Log("[HandWaveGridManager] 手牌波已重置");
+                // Debug.Log("[HandWaveGridManager] 手牌波已重置");
             }
         }
 
@@ -437,23 +437,23 @@ namespace WaveSystem
         /// </summary>
         private void PrintWaveDetails(Wave wave, string label)
         {
-            Debug.Log($"--- {label} ---");
-            Debug.Log($"  PeakCount: {wave.PeakCount}, IsEmpty: {wave.IsEmpty}");
-            Debug.Log($"  波的方向: {(wave.AttackDirection.HasValue ? (wave.AttackDirection.Value ? "→敌人" : "→玩家") : "未定义（空波）")}");
+            // Debug.Log($"--- {label} ---");
+            // Debug.Log($"  PeakCount: {wave.PeakCount}, IsEmpty: {wave.IsEmpty}");
+            // Debug.Log($"  波的方向: {(wave.AttackDirection.HasValue ? (wave.AttackDirection.Value ? "→敌人" : "→玩家") : "未定义（空波）")}");
 
-            if (wave.IsEmpty)
-            {
-                Debug.Log("  (空波)");
-            }
-            else
-            {
-                var sortedPeaks = wave.GetSortedPeaks();
-                foreach (var (position, peak) in sortedPeaks)
-                {
-                    string direction = peak.AttackDirection ? "→敌人" : "→玩家";
-                    Debug.Log($"  位置{position}: 强度={peak.Value}, 方向={direction}");
-                }
-            }
+            // if (wave.IsEmpty)
+            // {
+            //     Debug.Log("  (空波)");
+            // }
+            // else
+            // {
+            //     var sortedPeaks = wave.GetSortedPeaks();
+            //     foreach (var (position, peak) in sortedPeaks)
+            //     {
+            //         string direction = peak.AttackDirection ? "→敌人" : "→玩家";
+            //         Debug.Log($"  位置{position}: 强度={peak.Value}, 方向={direction}");
+            //     }
+            // }
         }
 
         /// <summary>
@@ -491,7 +491,7 @@ namespace WaveSystem
             if (waveVisualizer == null)
             {
                 waveVisualizer = waveContainer.gameObject.AddComponent<WaveVisualizer>();
-                Debug.Log("[HandWaveGridManager] 自动创建 WaveVisualizer 组件");
+                // Debug.Log("[HandWaveGridManager] 自动创建 WaveVisualizer 组件");
             }
 
             // 设置波显示器的容器
@@ -502,7 +502,7 @@ namespace WaveSystem
 
             // 设置手牌波显示方向为翻转（左右翻转）
             waveVisualizer.ReverseDirection = true;
-            Debug.Log("[HandWaveGridManager] 设置手牌波显示方向为翻转");
+            // Debug.Log("[HandWaveGridManager] 设置手牌波显示方向为翻转");
 
             // 注意：不在启动时自动显示波，等待用户操作后再显示
         }

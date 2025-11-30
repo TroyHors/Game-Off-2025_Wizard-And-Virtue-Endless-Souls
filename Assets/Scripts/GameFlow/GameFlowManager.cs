@@ -402,11 +402,25 @@ namespace GameFlow
 
         /// <summary>
         /// 处理游戏结束
+        /// 可以被外部调用（如CombatNodeFlow、PlayerEntityManager）
+        /// 当前的游戏结束状态直接通向结束游戏进程
         /// </summary>
-        private void HandleGameEnd()
+        public void HandleGameEnd()
         {
-            Debug.Log("[GameFlowManager] 游戏结束");
+            Debug.Log("[GameFlowManager] 游戏结束，准备退出游戏");
+            
+            // 触发游戏结束事件（供其他系统响应，如保存数据、显示结束UI等）
             onGameEnd?.Invoke();
+            
+            // 当前的游戏结束状态直接通向结束游戏进程
+            // 在Unity编辑器中，Application.Quit()不会真正退出，所以使用不同的处理方式
+            #if UNITY_EDITOR
+                Debug.Log("[GameFlowManager] 游戏结束（编辑器模式，不会真正退出）");
+                UnityEditor.EditorApplication.isPlaying = false;
+            #else
+                Debug.Log("[GameFlowManager] 游戏结束，退出游戏");
+                Application.Quit();
+            #endif
         }
 
         /// <summary>
