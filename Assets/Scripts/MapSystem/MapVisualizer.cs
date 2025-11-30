@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using GameFlow;
 
 namespace MapSystem
@@ -163,6 +164,9 @@ namespace MapSystem
 
             // 更新节点状态
             UpdateNodeStates();
+
+            // 设置滚动功能
+            SetupScrollableContainer();
 
             Debug.Log($"[MapVisualizer] 地图可视化生成完成,共{nodeVisuals.Count}个节点");
         }
@@ -624,6 +628,102 @@ namespace MapSystem
         public void RefreshVisualization()
         {
             UpdateNodeStates();
+        }
+
+        /// <summary>
+        /// 设置可滚动容器
+        /// 为地图容器添加滚动功能，支持上下拖动
+        /// </summary>
+        private void SetupScrollableContainer()
+        {
+            if (mapContainer == null)
+            {
+                return;
+            }
+
+            // 获取mapContainer的父对象
+            Transform parentTransform = mapContainer.parent;
+            if (parentTransform == null)
+            {
+                Debug.LogWarning("[MapVisualizer] mapContainer没有父对象，无法设置滚动");
+                return;
+            }
+
+            RectTransform parentRect = parentTransform.GetComponent<RectTransform>();
+            if (parentRect == null)
+            {
+                Debug.LogWarning("[MapVisualizer] mapContainer的父对象没有RectTransform组件，无法设置滚动");
+                return;
+            }
+
+            // 检查是否已有ScrollRect组件
+            ScrollRect scrollRect = parentRect.GetComponent<ScrollRect>();
+            if (scrollRect == null)
+            {
+                // 添加ScrollRect组件
+                scrollRect = parentRect.gameObject.AddComponent<ScrollRect>();
+            }
+
+            // 设置ScrollRect属性
+            scrollRect.content = mapContainer;
+            scrollRect.horizontal = false; // 只允许垂直滚动
+            scrollRect.vertical = true;
+            scrollRect.movementType = ScrollRect.MovementType.Elastic; // 弹性边界
+            scrollRect.elasticity = 0.1f; // 弹性系数
+            scrollRect.inertia = true; // 启用惯性
+            scrollRect.decelerationRate = 0.135f; // 减速率
+            scrollRect.scrollSensitivity = 20f; // 滚动灵敏度
+
+            // 确保mapContainer的尺寸正确设置
+            // 计算地图内容的总高度
+            float contentHeight = CalculateContentHeight();
+            if (contentHeight > 0)
+            {
+                // 设置mapContainer的最小高度为内容高度
+                Vector2 currentSize = mapContainer.sizeDelta;
+                mapContainer.sizeDelta = new Vector2(currentSize.x, Mathf.Max(currentSize.y, contentHeight));
+            }
+
+            // 设置mapContainer的anchor和pivot，确保滚动正确
+            mapContainer.anchorMin = new Vector2(0.5f, 1f); // 顶部锚点
+            mapContainer.anchorMax = new Vector2(0.5f, 1f);
+            mapContainer.pivot = new Vector2(0.5f, 1f); // 顶部中心为轴心
+
+            // 确保父容器有Mask组件来裁剪超出部分
+            Mask mask = parentRect.GetComponent<Mask>();
+            if (mask == null)
+            {
+                Image maskImage = parentRect.GetComponent<Image>();
+                if (maskImage == null)
+                {
+                    maskImage = parentRect.gameObject.AddComponent<Image>();
+                    maskImage.color = new Color(1, 1, 1, 0); // 透明，只用于Mask
+                }
+                mask = parentRect.gameObject.AddComponent<Mask>();
+                mask.showMaskGraphic = false;
+            }
+        }
+
+        /// <summary>
+        /// 计算地图内容的总高度
+        /// </summary>
+        private float CalculateContentHeight()
+        {
+            if (mapManager == null || mapManager.CurrentTopology == null)
+            {
+                return 0f;
+            }
+
+            MapTopology topology = mapManager.CurrentTopology;
+            
+            // 计算总高度：底部间距 + 层数 * 层间距 + 顶部间距
+            float totalHeight = bottomGap + (topology.Height - 1) * layerSpacing + bottomGap;
+            
+            // 添加节点大小的一半（顶部和底部各一半）
+            float nodeSize = GetNodeSize(null, GetConfig()).y;
+            totalHeight += nodeSize;
+
+            return totalHeight;
         }
     }
 }

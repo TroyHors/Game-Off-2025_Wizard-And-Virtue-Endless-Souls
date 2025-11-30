@@ -15,7 +15,11 @@ MonoBehaviour:
   typeConfigs:
   - nodeType: "\u6218\u6597"
     enemyFigures:
-    - {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+    - {fileID: 21300000, guid: 7835c07db40a85849b4863bd960499b9, type: 3}
+    - {fileID: 21300000, guid: 1695e82f00491fc44b28c42a5c84fcb6, type: 3}
+    - {fileID: 21300000, guid: ffc75d77b99e5dd4b9ea7f06ae4bdcad, type: 3}
+    - {fileID: 21300000, guid: 7835c07db40a85849b4863bd960499b9, type: 3}
+    - {fileID: 21300000, guid: 7835c07db40a85849b4863bd960499b9, type: 3}
     healthRange: {x: 8, y: 10}
     waveGenerationMethod: 0
     totalPeakValueRange: {x: 10, y: 12}
@@ -23,7 +27,8 @@ MonoBehaviour:
     peakPositionRange: {x: 0, y: 10}
   - nodeType: "\u7CBE\u82F1"
     enemyFigures:
-    - {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+    - {fileID: 21300000, guid: 41b31c8ddf3e38841ae7dff22d698274, type: 3}
+    - {fileID: 21300000, guid: 892f13de651bb614b9698da657abb687, type: 3}
     healthRange: {x: 17, y: 27}
     waveGenerationMethod: 0
     totalPeakValueRange: {x: 10, y: 14}
@@ -31,7 +36,7 @@ MonoBehaviour:
     peakPositionRange: {x: 0, y: 10}
   - nodeType: Boss
     enemyFigures:
-    - {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+    - {fileID: 21300000, guid: 5bddff8d71f21734b90353900547af18, type: 3}
     healthRange: {x: 17, y: 27}
     waveGenerationMethod: 0
     totalPeakValueRange: {x: 10, y: 14}
