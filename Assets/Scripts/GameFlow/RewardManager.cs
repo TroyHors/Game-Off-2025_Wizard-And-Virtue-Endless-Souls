@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
@@ -481,6 +482,15 @@ namespace GameFlow
             buttonInstance.name = $"PurchaseButton_{cardId}";
             buttonInstance.SetActive(true); // 确保按钮是激活的
 
+            // 设置按钮的anchor为顶部中心 (Min: 0.5,1  Max: 0.5,1)
+            RectTransform buttonRect = buttonInstance.GetComponent<RectTransform>();
+            if (buttonRect != null)
+            {
+                buttonRect.anchorMin = new Vector2(0.5f, 1f);
+                buttonRect.anchorMax = new Vector2(0.5f, 1f);
+                Debug.Log($"[RewardManager] 按钮anchor已设置为顶部中心: Min(0.5,1) Max(0.5,1)");
+            }
+
             Debug.Log($"[RewardManager] CreateCardReward: 按钮实例已创建 '{buttonInstance.name}', 激活: {buttonInstance.activeSelf}, 父对象: {(buttonInstance.transform.parent != null ? buttonInstance.transform.parent.name : "null")}");
 
             // 初始化购买按钮（价格为0，因为是奖励，所有参数自动设置）
@@ -488,6 +498,10 @@ namespace GameFlow
             if (purchaseButton != null)
             {
                 purchaseButton.Initialize(cardId, PurchaseButton.ItemType.WaveCard, customPrice: 0);
+                
+                // 在初始化后设置按钮位置：放置在卡牌下方，间距30
+                // 使用协程延迟一帧，确保RectTransform尺寸已正确计算
+                StartCoroutine(SetButtonPositionDelayed(buttonInstance, cardInstance, 30f));
                 // 订阅购买成功事件，购买后销毁实例和按钮
                 purchaseButton.OnPurchaseSuccess.AddListener((string purchasedCardId) =>
                 {
@@ -603,6 +617,56 @@ namespace GameFlow
             }
 
             return string.Empty;
+        }
+
+        /// <summary>
+        /// 延迟设置按钮位置（确保RectTransform尺寸已正确计算）
+        /// </summary>
+        private IEnumerator SetButtonPositionDelayed(GameObject buttonInstance, GameObject itemInstance, float gap)
+        {
+            // 等待一帧，确保RectTransform尺寸已正确计算
+            yield return null;
+            
+            PositionButtonBelowItem(buttonInstance, itemInstance, gap);
+        }
+
+        /// <summary>
+        /// 将按钮放置在物品下方
+        /// </summary>
+        /// <param name="buttonInstance">按钮实例</param>
+        /// <param name="itemInstance">物品实例</param>
+        /// <param name="gap">间距（像素，按钮顶部到物品底部的距离）</param>
+        private void PositionButtonBelowItem(GameObject buttonInstance, GameObject itemInstance, float gap)
+        {
+            RectTransform buttonRect = buttonInstance.GetComponent<RectTransform>();
+            RectTransform itemRect = itemInstance.GetComponent<RectTransform>();
+
+            if (buttonRect == null || itemRect == null)
+            {
+                Debug.LogWarning("[RewardManager] 无法设置按钮位置：缺少RectTransform组件");
+                return;
+            }
+
+            // 确保按钮的anchor已设置为顶部中心 (0.5,1)
+            buttonRect.anchorMin = new Vector2(0.5f, 1f);
+            buttonRect.anchorMax = new Vector2(0.5f, 1f);
+
+            // 获取物品的底部位置（相对于父对象顶部的距离）
+            // 当anchor为(0,1)时，anchoredPosition.y表示从顶部向下的距离
+            // 物品底部 = 物品顶部位置 + 物品高度
+            float itemTop = itemRect.anchoredPosition.y + itemRect.rect.yMax;
+            float itemHeight = itemRect.rect.height;
+            float itemBottom = itemTop - itemHeight; // 从父对象顶部向下的距离
+            
+            // 计算按钮的anchoredPosition.y
+            // 按钮anchor为(0,1)，所以anchoredPosition.y表示按钮顶部距离父对象顶部的距离
+            // 按钮顶部应该在物品底部下方gap像素处
+            float buttonY = itemBottom - gap;
+            
+            // 设置按钮位置（X轴居中，Y轴在物品下方30像素）
+            buttonRect.anchoredPosition = new Vector2(0f, buttonY);
+            
+            Debug.Log($"[RewardManager] 按钮位置已设置: 物品顶部={itemTop:F1}, 物品底部={itemBottom:F1}, 按钮Y={buttonY:F1}, 间距={gap}");
         }
     }
 }

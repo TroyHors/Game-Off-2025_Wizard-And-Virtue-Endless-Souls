@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using CurrencySystem;
 using System.Collections;
+using CardSystem;
 
 namespace GameFlow
 {
@@ -42,6 +43,13 @@ namespace GameFlow
 
         [Tooltip("小队管理器（如果为空，会自动查找）")]
         [SerializeField] private SquadSystem.SquadManager squadManager;
+
+        [Header("卡牌系统设置")]
+        [Tooltip("是否在游戏开始时自动初始化卡牌系统")]
+        [SerializeField] private bool initializeCardSystemOnGameStart = true;
+
+        [Tooltip("卡牌系统（如果为空，会自动查找）")]
+        [SerializeField] private CardSystem.CardSystem cardSystem;
 
         [Header("游戏流程事件")]
         [Tooltip("游戏开始时触发（地图生成后，第一次进入节点前，用于初始化牌堆等）")]
@@ -139,11 +147,17 @@ namespace GameFlow
                 mapManager.OnMapGenerated += HandleMapGenerated;
 
                 // 如果地图已经生成，立即处理（处理订阅时机问题）
+                // 注意：现在游戏从Start Scene开始，所以这里不应该自动触发
+                // 只有在Start Scene切换到Main Scene后，地图生成才会触发游戏开始
                 if (mapManager.CurrentTopology != null && !isGameStarted)
                 {
                     Debug.Log("[GameFlowManager] 检测到地图已生成，立即触发游戏开始事件");
                     HandleMapGenerated(mapManager.CurrentTopology);
                 }
+            }
+            else
+            {
+                Debug.LogWarning("[GameFlowManager] MapManager未找到，游戏可能无法正常开始");
             }
         }
 
@@ -177,7 +191,7 @@ namespace GameFlow
 
         /// <summary>
         /// 游戏开始事件处理器
-        /// 在 onGameStart 事件触发时执行重置操作
+        /// 在 onGameStart 事件触发时执行重置和初始化操作
         /// </summary>
         private void OnGameStartHandler()
         {
@@ -197,6 +211,12 @@ namespace GameFlow
             if (resetSquadDataOnGameStart)
             {
                 ResetSquadDataOnGameStart();
+            }
+
+            // 在游戏开始时初始化卡牌系统（如果启用）
+            if (initializeCardSystemOnGameStart)
+            {
+                InitializeCardSystemOnGameStart();
             }
         }
 
@@ -263,6 +283,28 @@ namespace GameFlow
             else
             {
                 Debug.LogWarning("[GameFlowManager] 未找到 SquadManager 或 SquadData，无法重置小队数据");
+            }
+        }
+
+        /// <summary>
+        /// 在游戏开始时初始化卡牌系统
+        /// </summary>
+        private void InitializeCardSystemOnGameStart()
+        {
+            // 自动查找 CardSystem（如果未设置）
+            if (cardSystem == null)
+            {
+                cardSystem = FindObjectOfType<CardSystem.CardSystem>();
+            }
+
+            if (cardSystem != null)
+            {
+                cardSystem.InitializeGame();
+                Debug.Log("[GameFlowManager] 游戏开始时初始化卡牌系统");
+            }
+            else
+            {
+                Debug.LogWarning("[GameFlowManager] 未找到 CardSystem，无法初始化卡牌系统");
             }
         }
 

@@ -25,6 +25,6 @@ MonoBehaviour:
     healValue: 0
     statusEffectName: 
     statusEffectType: 0
-    statusEffectValue: 50
+    statusEffectValue: 0.5
     statusEffectDuration: 3
     customAbilityClassName: 

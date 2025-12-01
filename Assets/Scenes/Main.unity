@@ -411,8 +411,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.087000005, y: 0.2168403}
   m_AnchorMax: {x: 0.901146, y: 0.7993897}
-  m_AnchoredPosition: {x: -1022.0001, y: -3.5000687}
-  m_SizeDelta: {x: -1956, y: 175}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &77171878
 MonoBehaviour:
@@ -432,7 +432,7 @@ MonoBehaviour:
     m_Top: 0
     m_Bottom: 0
   m_ChildAlignment: 0
-  m_Spacing: 0
+  m_Spacing: 34
   m_ChildForceExpandWidth: 1
   m_ChildForceExpandHeight: 1
   m_ChildControlWidth: 0
@@ -491,7 +491,7 @@ MonoBehaviour:
   coinSystem: {fileID: 852481711}
   cardSystem: {fileID: 1589936377}
   cardPrefabRegistry: {fileID: 11400000, guid: abf7524a5bc3bad48b889a4dace9a8f5, type: 2}
-  rewardContainer: {fileID: 1874556916}
+  rewardContainer: {fileID: 432362407}
   purchaseButtonPrefab: {fileID: 160565075696130756, guid: 6c4c4085d1ca35d498299886ac949408, type: 3}
   uiManager: {fileID: 1297872832}
   combatNodeFlow: {fileID: 0}
@@ -890,7 +890,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ae180860b5af8aa40b6eeaa5f2ecd091, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  shopItemCount: 3
+  shopItemCount: 4
   coinSystem: {fileID: 852481711}
   cardSystem: {fileID: 1589936377}
   cardPrefabRegistry: {fileID: 11400000, guid: abf7524a5bc3bad48b889a4dace9a8f5, type: 2}
@@ -2323,6 +2323,41 @@ Transform:
   - {fileID: 700938144}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &432362406
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 432362407}
+  m_Layer: 5
+  m_Name: Container
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &432362407
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 432362406}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1874556916}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.059239086, y: 0.07964927}
+  m_AnchorMax: {x: 0.62842673, y: 0.5642687}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &465195198
 GameObject:
   m_ObjectHideFlags: 0
@@ -4492,8 +4527,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.061000004, y: 0.2168403}
   m_AnchorMax: {x: 0.93646777, y: 0.9381174}
-  m_AnchoredPosition: {x: -1024.5, y: -32.5}
-  m_SizeDelta: {x: -1987, y: 117}
+  m_AnchoredPosition: {x: -42, y: -1}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1333360066
 MonoBehaviour:
@@ -5512,7 +5547,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1874556916
 RectTransform:
   m_ObjectHideFlags: 0
@@ -5528,9 +5563,10 @@ RectTransform:
   - {fileID: 854747639}
   - {fileID: 2014866719}
   - {fileID: 2092016176}
+  - {fileID: 432362407}
   m_Father: {fileID: 630215904}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.2, y: 0.35}
+  m_AnchorMin: {x: 0.2, y: 0.25}
   m_AnchorMax: {x: 0.8, y: 0.8}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
@@ -6053,6 +6089,8 @@ MonoBehaviour:
   playerEntityManager: {fileID: 528951214}
   resetSquadDataOnGameStart: 1
   squadManager: {fileID: 528951216}
+  initializeCardSystemOnGameStart: 1
+  cardSystem: {fileID: 0}
   onGameStart:
     m_PersistentCalls:
       m_Calls: []
