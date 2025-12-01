@@ -75,12 +75,13 @@ namespace CharacterSystem
                 DestroyPlayerEntity();
             }
 
-            // 确定生成位置
+            // 确定生成位置和父对象
             Vector3 spawnPosition = playerSpawnPoint != null ? playerSpawnPoint.position : Vector3.zero;
             Quaternion spawnRotation = playerSpawnPoint != null ? playerSpawnPoint.rotation : Quaternion.identity;
+            Transform parentTransform = playerSpawnPoint; // 作为spawn point的子对象
 
-            // 实例化玩家实体
-            currentPlayerEntity = Instantiate(playerEntityPrefab, spawnPosition, spawnRotation);
+            // 实例化玩家实体（作为spawn point的子对象）
+            currentPlayerEntity = Instantiate(playerEntityPrefab, spawnPosition, spawnRotation, parentTransform);
             currentPlayerEntity.name = "PlayerEntity";
             currentPlayerEntity.tag = playerTag;
 

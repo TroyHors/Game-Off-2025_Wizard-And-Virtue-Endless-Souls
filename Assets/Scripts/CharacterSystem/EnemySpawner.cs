@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI; // 添加UI命名空间，用于Image组件
 using DamageSystem;
 using WaveSystem;
 
@@ -215,16 +216,21 @@ namespace CharacterSystem
                     spawnPosition = transform.position + defaultOffset;
                 }
 
+                // 确定父对象（使用第一个spawn point作为父对象）
+                Transform parentTransform = (spawnPoints.Count > 0 && spawnPoints[0] != null) ? spawnPoints[0] : null;
+
                 // 创建敌人实体（如果Prefab存在则使用Prefab，否则动态创建）
                 GameObject enemyEntity;
                 if (enemyConfig.EnemyEntityPrefab != null)
                 {
-                    enemyEntity = Instantiate(enemyConfig.EnemyEntityPrefab, spawnPosition, spawnRotation);
+                    // 作为spawn point的子对象生成
+                    enemyEntity = Instantiate(enemyConfig.EnemyEntityPrefab, spawnPosition, spawnRotation, parentTransform);
                 }
                 else
                 {
-                    // 动态创建敌人实体（白模）
+                    // 动态创建敌人实体（白模），作为spawn point的子对象
                     enemyEntity = new GameObject(configData.enemyName);
+                    enemyEntity.transform.SetParent(parentTransform, false); // 使用false保持世界位置
                     enemyEntity.transform.position = spawnPosition;
                     enemyEntity.transform.rotation = spawnRotation;
                     
@@ -234,11 +240,11 @@ namespace CharacterSystem
                     // 添加EnemyWaveManager（必需，用于管理敌人波数据）
                     enemyEntity.AddComponent<EnemyWaveManager>();
                     
-                    // 如果配置中有外观图片，添加SpriteRenderer
+                    // 如果配置中有外观图片，添加Image组件
                     if (configData.enemyFigure != null)
                     {
-                        SpriteRenderer spriteRenderer = enemyEntity.AddComponent<SpriteRenderer>();
-                        spriteRenderer.sprite = configData.enemyFigure;
+                        Image image = enemyEntity.AddComponent<Image>();
+                        image.sprite = configData.enemyFigure;
                     }
                 }
                 
@@ -254,15 +260,15 @@ namespace CharacterSystem
                     continue;
                 }
                 
-                // 如果配置中有外观图片，设置SpriteRenderer
+                // 如果配置中有外观图片，设置Image组件
                 if (configData.enemyFigure != null)
                 {
-                    SpriteRenderer spriteRenderer = enemyEntity.GetComponent<SpriteRenderer>();
-                    if (spriteRenderer == null)
+                    Image image = enemyEntity.GetComponent<Image>();
+                    if (image == null)
                     {
-                        spriteRenderer = enemyEntity.AddComponent<SpriteRenderer>();
+                        image = enemyEntity.AddComponent<Image>();
                     }
-                    spriteRenderer.sprite = configData.enemyFigure;
+                    image.sprite = configData.enemyFigure;
                 }
 
                 // 设置生命值

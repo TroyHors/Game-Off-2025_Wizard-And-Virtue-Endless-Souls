@@ -341,11 +341,25 @@ namespace GameFlow
             }
 
             // 查找节点类型对应的流程Prefab
-            GameObject flowPrefab = GetFlowPrefabForNodeType(config, nodeData.NodeType);
-            if (flowPrefab == null)
+            // Boss节点使用特殊的bossNodeFlowPrefab
+            GameObject flowPrefab = null;
+            if (nodeData.IsBoss)
             {
-                Debug.LogError($"[GameFlowManager] 无法启动节点事件: 节点类型 '{nodeData.NodeType}' 没有配置流程Prefab");
-                return;
+                flowPrefab = config.bossNodeFlowPrefab;
+                if (flowPrefab == null)
+                {
+                    Debug.LogError($"[GameFlowManager] 无法启动节点事件: Boss节点没有配置流程Prefab (bossNodeFlowPrefab)");
+                    return;
+                }
+            }
+            else
+            {
+                flowPrefab = GetFlowPrefabForNodeType(config, nodeData.NodeType);
+                if (flowPrefab == null)
+                {
+                    Debug.LogError($"[GameFlowManager] 无法启动节点事件: 节点类型 '{nodeData.NodeType}' 没有配置流程Prefab");
+                    return;
+                }
             }
 
             // 实例化流程Prefab

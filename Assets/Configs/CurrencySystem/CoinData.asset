@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6707119ae7833954687dbe51f18a6b44, type: 3}
   m_Name: CoinData
   m_EditorClassIdentifier: 
-  currentCoins: 46
+  currentCoins: 36
