@@ -14,3 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   memberEntries:
   - memberData: {fileID: 11400000, guid: 00fbe15ed8d471b47bfa6355bfab7eac, type: 2}
+  - memberData: {fileID: 11400000, guid: eca45da44cb0cc745a577100dd105cc8, type: 2}
+  - memberData: {fileID: 11400000, guid: ab0cf243def86b241a3b9122ea4b5928, type: 2}

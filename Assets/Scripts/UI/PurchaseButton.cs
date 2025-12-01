@@ -37,6 +37,9 @@ namespace UI
         [Tooltip("波牌数据注册表（用于获取波牌价格，如果为空，会尝试从卡牌Prefab的WaveCardComponent获取）")]
         [SerializeField] private WaveSystem.WaveCardDataRegistry waveCardDataRegistry;
 
+        [Tooltip("成员数据注册表（用于获取成员价格，如果为空，会尝试从SquadManager获取）")]
+        [SerializeField] private MemberDataRegistry memberDataRegistry;
+
         [Header("UI组件")]
         [Tooltip("按钮组件（如果为空，会自动获取）")]
         [SerializeField] private Button button;
@@ -114,6 +117,22 @@ namespace UI
             if (squadManager == null)
             {
                 squadManager = FindObjectOfType<SquadManager>();
+            }
+
+            // 如果memberDataRegistry未设置，尝试从SquadManager获取
+            if (memberDataRegistry == null && squadManager != null)
+            {
+                // 通过反射获取SquadManager的memberDataRegistry字段
+                var memberDataRegistryField = typeof(SquadManager).GetField("memberDataRegistry", 
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (memberDataRegistryField != null)
+                {
+                    memberDataRegistry = memberDataRegistryField.GetValue(squadManager) as MemberDataRegistry;
+                    if (memberDataRegistry != null)
+                    {
+                        Debug.Log("[PurchaseButton] 从SquadManager获取到MemberDataRegistry");
+                    }
+                }
             }
 
             // 订阅按钮点击事件
@@ -251,31 +270,37 @@ namespace UI
 
                 case ItemType.Member:
                     // 从成员注册表获取价格
-                    if (squadManager != null && squadManager.SquadData != null)
+                    // 优先使用PurchaseButton中设置的memberDataRegistry
+                    // 如果未设置，尝试从SquadManager获取
+                    MemberDataRegistry registryToUse = memberDataRegistry;
+                    if (registryToUse == null && squadManager != null)
                     {
-                        var memberDataRegistry = FindObjectOfType<MemberDataRegistry>();
-                        if (memberDataRegistry != null)
+                        // 通过反射获取SquadManager的memberDataRegistry字段
+                        var memberDataRegistryField = typeof(SquadManager).GetField("memberDataRegistry", 
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        if (memberDataRegistryField != null)
                         {
-                            var memberData = memberDataRegistry.GetMemberData(itemId);
-                            if (memberData != null)
-                            {
-                                int hireCost = memberData.HireCost;
-                                Debug.Log($"[PurchaseButton] GetDefaultPrice: 从MemberDataRegistry获取到价格 {hireCost}");
-                                return hireCost;
-                            }
-                            else
-                            {
-                                Debug.LogWarning($"[PurchaseButton] GetDefaultPrice: 未找到成员ID '{itemId}' 的数据");
-                            }
+                            registryToUse = memberDataRegistryField.GetValue(squadManager) as MemberDataRegistry;
+                        }
+                    }
+
+                    if (registryToUse != null)
+                    {
+                        var memberData = registryToUse.GetMemberData(itemId);
+                        if (memberData != null)
+                        {
+                            int hireCost = memberData.HireCost;
+                            Debug.Log($"[PurchaseButton] GetDefaultPrice: 从MemberDataRegistry获取到价格 {hireCost}");
+                            return hireCost;
                         }
                         else
                         {
-                            Debug.LogWarning("[PurchaseButton] GetDefaultPrice: MemberDataRegistry未找到");
+                            Debug.LogWarning($"[PurchaseButton] GetDefaultPrice: 未找到成员ID '{itemId}' 的数据");
                         }
                     }
                     else
                     {
-                        Debug.LogWarning("[PurchaseButton] GetDefaultPrice: SquadManager或SquadData未找到");
+                        Debug.LogWarning("[PurchaseButton] GetDefaultPrice: MemberDataRegistry未设置，且无法从SquadManager获取");
                     }
                     break;
             }

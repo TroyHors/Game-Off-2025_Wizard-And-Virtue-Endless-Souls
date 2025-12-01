@@ -1,5 +1,6 @@
 using MapSystem;
 using UnityEngine;
+using UI;
 
 namespace GameFlow
 {
@@ -16,6 +17,9 @@ namespace GameFlow
         [Header("UI设置")]
         [Tooltip("酒馆容器（如果为空，会自动查找）")]
         [SerializeField] private Transform tavernContainer;
+
+        [Tooltip("UI管理器（用于控制战斗/非战斗UI显示，如果为空，会自动查找）")]
+        [SerializeField] private UIManager uiManager;
 
         /// <summary>
         /// 当前节点类型（从节点数据获取）
@@ -76,6 +80,17 @@ namespace GameFlow
             {
                 Debug.LogError("[TavernNodeFlow] 酒馆管理器未找到，无法初始化酒馆");
                 return;
+            }
+
+            if (uiManager == null)
+            {
+                uiManager = FindObjectOfType<UIManager>();
+            }
+
+            // 显示非战斗UI（隐藏战斗UI）
+            if (uiManager != null)
+            {
+                uiManager.ShowNonCombatUI();
             }
 
             // 如果找到了酒馆容器，设置到TavernManager

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using GameFlow;
 
 namespace MapSystem
@@ -40,6 +41,22 @@ namespace MapSystem
 
         [Tooltip("已访问连接线颜色")]
         [SerializeField] private Color visitedLineColor = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+
+        [Header("节点状态颜色（调试用）")]
+        [Tooltip("正常状态颜色")]
+        [SerializeField] public Color nodeNormalColor = Color.white;
+
+        [Tooltip("已访问状态颜色")]
+        [SerializeField] public Color nodeVisitedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+
+        [Tooltip("当前节点颜色")]
+        [SerializeField] public Color nodeCurrentColor = new Color(1f, 1f, 0f, 1f);
+
+        [Tooltip("可访问节点颜色")]
+        [SerializeField] public Color nodeAvailableColor = new Color(0.5f, 1f, 0.5f, 1f);
+
+        [Tooltip("不可访问节点颜色")]
+        [SerializeField] public Color nodeUnavailableColor = new Color(0.3f, 0.3f, 0.3f, 1f);
 
         [Header("自动布局")]
         [Tooltip("底部间距(从容器底部开始的偏移)")]
@@ -164,6 +181,9 @@ namespace MapSystem
             // 更新节点状态
             UpdateNodeStates();
 
+            // 设置滚动功能
+            SetupScrollableContainer();
+
             Debug.Log($"[MapVisualizer] 地图可视化生成完成,共{nodeVisuals.Count}个节点");
         }
 
@@ -206,6 +226,8 @@ namespace MapSystem
                 MapNodeVisual nodeVisual = nodeObj.AddComponent<MapNodeVisual>();
                 // Initialize会设置图像和大小,但我们已经设置了,所以这里只是绑定节点数据
                 nodeVisual.Initialize(node, nodeSprite, nodeSize);
+                // 设置节点颜色（使用MapVisualizer中配置的颜色，方便调试）
+                nodeVisual.SetColors(nodeNormalColor, nodeVisitedColor, nodeCurrentColor, nodeAvailableColor, nodeUnavailableColor);
                 nodeVisual.OnNodeClicked += HandleNodeClicked;
 
                 // 存储引用
@@ -624,6 +646,58 @@ namespace MapSystem
         public void RefreshVisualization()
         {
             UpdateNodeStates();
+        }
+
+        /// <summary>
+        /// 设置可滚动容器
+        /// 为地图容器添加滚动功能，支持上下拖动
+        /// </summary>
+        private void SetupScrollableContainer()
+        {
+            if (mapContainer == null)
+            {
+                return;
+            }
+
+            // 获取mapContainer的父对象
+            Transform parentTransform = mapContainer.parent;
+            if (parentTransform == null)
+            {
+                Debug.LogWarning("[MapVisualizer] mapContainer没有父对象，无法设置滚动");
+                return;
+            }
+
+            RectTransform parentRect = parentTransform.GetComponent<RectTransform>();
+            if (parentRect == null)
+            {
+                Debug.LogWarning("[MapVisualizer] mapContainer的父对象没有RectTransform组件，无法设置滚动");
+                return;
+            }
+
+            // 检查是否已有ScrollRect组件
+            ScrollRect scrollRect = parentRect.GetComponent<ScrollRect>();
+            if (scrollRect == null)
+            {
+                // 添加ScrollRect组件
+                scrollRect = parentRect.gameObject.AddComponent<ScrollRect>();
+            }
+
+            // 设置ScrollRect属性
+            scrollRect.content = mapContainer;
+            scrollRect.horizontal = false; // 只允许垂直滚动
+            scrollRect.vertical = true;
+            scrollRect.movementType = ScrollRect.MovementType.Elastic; // 弹性边界
+            scrollRect.elasticity = 0.1f; // 弹性系数
+            scrollRect.inertia = true; // 启用惯性
+            scrollRect.decelerationRate = 0.135f; // 减速率
+            scrollRect.scrollSensitivity = 20f; // 滚动灵敏度
+
+            // 注意：不要修改mapContainer的尺寸、anchor和pivot，避免影响现有布局和位置
+            // ScrollRect会自动根据content（mapContainer）的实际内容计算滚动范围
+
+            // 注意：Mask组件可能会裁剪其他UI，如果父容器包含其他UI元素，不要自动添加Mask
+            // 如果需要Mask功能，应该在Unity编辑器中手动添加
+            // 这里不自动添加Mask，避免影响其他UI显示
         }
     }
 }

@@ -2,6 +2,8 @@ using MapSystem;
 using UnityEngine;
 using UnityEngine.Events;
 using CurrencySystem;
+using System.Collections;
+using CardSystem;
 
 namespace GameFlow
 {
@@ -41,6 +43,13 @@ namespace GameFlow
 
         [Tooltip("小队管理器（如果为空，会自动查找）")]
         [SerializeField] private SquadSystem.SquadManager squadManager;
+
+        [Header("卡牌系统设置")]
+        [Tooltip("是否在游戏开始时自动初始化卡牌系统")]
+        [SerializeField] private bool initializeCardSystemOnGameStart = true;
+
+        [Tooltip("卡牌系统（如果为空，会自动查找）")]
+        [SerializeField] private CardSystem.CardSystem cardSystem;
 
         [Header("游戏流程事件")]
         [Tooltip("游戏开始时触发（地图生成后，第一次进入节点前，用于初始化牌堆等）")]
@@ -138,11 +147,17 @@ namespace GameFlow
                 mapManager.OnMapGenerated += HandleMapGenerated;
 
                 // 如果地图已经生成，立即处理（处理订阅时机问题）
+                // 注意：现在游戏从Start Scene开始，所以这里不应该自动触发
+                // 只有在Start Scene切换到Main Scene后，地图生成才会触发游戏开始
                 if (mapManager.CurrentTopology != null && !isGameStarted)
                 {
                     Debug.Log("[GameFlowManager] 检测到地图已生成，立即触发游戏开始事件");
                     HandleMapGenerated(mapManager.CurrentTopology);
                 }
+            }
+            else
+            {
+                Debug.LogWarning("[GameFlowManager] MapManager未找到，游戏可能无法正常开始");
             }
         }
 
@@ -176,7 +191,7 @@ namespace GameFlow
 
         /// <summary>
         /// 游戏开始事件处理器
-        /// 在 onGameStart 事件触发时执行重置操作
+        /// 在 onGameStart 事件触发时执行重置和初始化操作
         /// </summary>
         private void OnGameStartHandler()
         {
@@ -196,6 +211,12 @@ namespace GameFlow
             if (resetSquadDataOnGameStart)
             {
                 ResetSquadDataOnGameStart();
+            }
+
+            // 在游戏开始时初始化卡牌系统（如果启用）
+            if (initializeCardSystemOnGameStart)
+            {
+                InitializeCardSystemOnGameStart();
             }
         }
 
@@ -266,6 +287,28 @@ namespace GameFlow
         }
 
         /// <summary>
+        /// 在游戏开始时初始化卡牌系统
+        /// </summary>
+        private void InitializeCardSystemOnGameStart()
+        {
+            // 自动查找 CardSystem（如果未设置）
+            if (cardSystem == null)
+            {
+                cardSystem = FindObjectOfType<CardSystem.CardSystem>();
+            }
+
+            if (cardSystem != null)
+            {
+                cardSystem.InitializeGame();
+                Debug.Log("[GameFlowManager] 游戏开始时初始化卡牌系统");
+            }
+            else
+            {
+                Debug.LogWarning("[GameFlowManager] 未找到 CardSystem，无法初始化卡牌系统");
+            }
+        }
+
+        /// <summary>
         /// 启动节点事件流程
         /// 这是地图系统调用统一入口
         /// </summary>
@@ -298,11 +341,25 @@ namespace GameFlow
             }
 
             // 查找节点类型对应的流程Prefab
-            GameObject flowPrefab = GetFlowPrefabForNodeType(config, nodeData.NodeType);
-            if (flowPrefab == null)
+            // Boss节点使用特殊的bossNodeFlowPrefab
+            GameObject flowPrefab = null;
+            if (nodeData.IsBoss)
             {
-                Debug.LogError($"[GameFlowManager] 无法启动节点事件: 节点类型 '{nodeData.NodeType}' 没有配置流程Prefab");
-                return;
+                flowPrefab = config.bossNodeFlowPrefab;
+                if (flowPrefab == null)
+                {
+                    Debug.LogError($"[GameFlowManager] 无法启动节点事件: Boss节点没有配置流程Prefab (bossNodeFlowPrefab)");
+                    return;
+                }
+            }
+            else
+            {
+                flowPrefab = GetFlowPrefabForNodeType(config, nodeData.NodeType);
+                if (flowPrefab == null)
+                {
+                    Debug.LogError($"[GameFlowManager] 无法启动节点事件: 节点类型 '{nodeData.NodeType}' 没有配置流程Prefab");
+                    return;
+                }
             }
 
             // 实例化流程Prefab
@@ -390,6 +447,8 @@ namespace GameFlow
             if (uiManager != null)
             {
                 uiManager.ShowMapUI();
+                // 显示非战斗UI（隐藏战斗UI）
+                uiManager.ShowNonCombatUI();
             }
 
             // 检查是否到达Boss节点
@@ -402,11 +461,25 @@ namespace GameFlow
 
         /// <summary>
         /// 处理游戏结束
+        /// 可以被外部调用（如CombatNodeFlow、PlayerEntityManager）
+        /// 当前的游戏结束状态直接通向结束游戏进程
         /// </summary>
-        private void HandleGameEnd()
+        public void HandleGameEnd()
         {
-            Debug.Log("[GameFlowManager] 游戏结束");
+            Debug.Log("[GameFlowManager] 游戏结束，准备退出游戏");
+            
+            // 触发游戏结束事件（供其他系统响应，如保存数据、显示结束UI等）
             onGameEnd?.Invoke();
+            
+            // 当前的游戏结束状态直接通向结束游戏进程
+            // 在Unity编辑器中，Application.Quit()不会真正退出，所以使用不同的处理方式
+            #if UNITY_EDITOR
+                Debug.Log("[GameFlowManager] 游戏结束（编辑器模式，不会真正退出）");
+                UnityEditor.EditorApplication.isPlaying = false;
+            #else
+                Debug.Log("[GameFlowManager] 游戏结束，退出游戏");
+                Application.Quit();
+            #endif
         }
 
         /// <summary>

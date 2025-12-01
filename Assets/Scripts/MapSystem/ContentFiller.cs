@@ -122,6 +122,17 @@ namespace MapSystem
                 }
             }
 
+            // 为Boss节点设置类型为"Boss"
+            if (topology.BossNodeId != -1)
+            {
+                MapNode bossNode = topology.GetNode(topology.BossNodeId);
+                if (bossNode != null)
+                {
+                    bossNode.NodeType = "Boss";
+                    Debug.Log($"[ContentFiller] Boss节点类型已设置为: Boss");
+                }
+            }
+
             Debug.Log($"[ContentFiller] 节点类型分配完成");
         }
 

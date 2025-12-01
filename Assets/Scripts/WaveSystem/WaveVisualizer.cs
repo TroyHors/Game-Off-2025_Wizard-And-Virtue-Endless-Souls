@@ -27,6 +27,9 @@ namespace WaveSystem
         [Tooltip("波峰宽度（每个波峰的宽度，如果为0则根据容器宽度自动计算）")]
         [SerializeField] private float peakWidth = 0f;
 
+        [Tooltip("波宽度缩放因子（用于缩小波显示宽度，确保在容器内，0.9表示使用90%的容器宽度）")]
+        [SerializeField] private float widthScale = 0.9f;
+
         [Tooltip("波显示线条宽度")]
         [SerializeField] private float lineWidth = 2f;
 
@@ -196,8 +199,8 @@ namespace WaveSystem
                 
                 if (positionCount > 0 && containerWidth > 0)
                 {
-                    // 计算每个位置的宽度，确保所有位置能够连续显示
-                    calculatedPeakWidth = containerWidth / positionCount;
+                    // 计算每个位置的宽度，使用缩放因子确保在容器内
+                    calculatedPeakWidth = (containerWidth * widthScale) / positionCount;
                 }
                 else
                 {
@@ -209,7 +212,7 @@ namespace WaveSystem
                 // 使用手动设置的宽度，但确保不超过容器宽度
                 float containerWidth = waveContainer.rect.width;
                 int positionCount = maxPosition - minPosition + 1;
-                float maxAllowedWidth = positionCount > 0 ? containerWidth / positionCount : peakWidth;
+                float maxAllowedWidth = positionCount > 0 ? (containerWidth * widthScale) / positionCount : peakWidth;
                 
                 // 使用较小的值，确保不会超出容器
                 calculatedPeakWidth = Mathf.Min(peakWidth, maxAllowedWidth);
@@ -482,9 +485,22 @@ namespace WaveSystem
             }
             
             int positionCount = maxPosition - minPosition + 1;
-            float totalWidth = (positionCount - 1) * calculatedPeakWidth; // 总宽度（最后一个位置不需要额外宽度）
+            // 计算总宽度（使用缩放后的宽度，确保在容器内）
+            float totalWidth = (positionCount - 1) * calculatedPeakWidth;
             // 从容器中心开始，向左偏移一半总宽度，然后加上相对位置
-            return (relativePosition * calculatedPeakWidth) - (totalWidth / 2f);
+            // 确保不会超出容器边界
+            float x = (relativePosition * calculatedPeakWidth) - (totalWidth / 2f);
+            
+            // 限制在容器范围内（考虑缩放因子）
+            if (waveContainer != null)
+            {
+                float containerWidth = waveContainer.rect.width;
+                float maxX = (containerWidth * widthScale) / 2f;
+                float minX = -(containerWidth * widthScale) / 2f;
+                x = Mathf.Clamp(x, minX, maxX);
+            }
+            
+            return x;
         }
 
         /// <summary>

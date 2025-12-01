@@ -12,5 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c04caaab815a8554e861c5507294d8cf, type: 3}
   m_Name: Squad Data
   m_EditorClassIdentifier: 
-  memberIds:
-  - 01
+  memberIds: []

@@ -48,13 +48,13 @@ namespace WaveSystem
         {
             if (card == null || card.Wave == null)
             {
-                Debug.LogWarning("[HandWaveManager] 尝试摆放空的波牌");
+                // Debug.LogWarning("[HandWaveManager] 尝试摆放空的波牌");
                 return new List<Wave>();
             }
 
             if (card.Wave.IsEmpty)
             {
-                Debug.LogWarning("[HandWaveManager] 尝试摆放空波的波牌");
+                // Debug.LogWarning("[HandWaveManager] 尝试摆放空波的波牌");
                 return new List<Wave>();
             }
 
@@ -93,13 +93,13 @@ namespace WaveSystem
         {
             if (card == null || card.Wave == null)
             {
-                Debug.LogWarning("[HandWaveManager] 尝试撤回空的波牌");
+                // Debug.LogWarning("[HandWaveManager] 尝试撤回空的波牌");
                 return new List<Wave>();
             }
 
             if (card.Wave.IsEmpty)
             {
-                Debug.LogWarning("[HandWaveManager] 尝试撤回空波的波牌");
+                // Debug.LogWarning("[HandWaveManager] 尝试撤回空波的波牌");
                 return new List<Wave>();
             }
 
@@ -140,7 +140,7 @@ namespace WaveSystem
         {
             if (handWave.IsEmpty)
             {
-                Debug.LogWarning("[HandWaveManager] 尝试发出空的手牌波");
+                // Debug.LogWarning("[HandWaveManager] 尝试发出空的手牌波");
                 return new Wave();
             }
 
@@ -187,7 +187,7 @@ namespace WaveSystem
                 // 如果启用移除负位置，跳过位置小于0的波峰
                 if (removeNegativePositions && newPosition < 0)
                 {
-                    Debug.Log($"[HandWaveManager] 移除位置小于0的波峰：原始位置={kvp.Key}，偏移后位置={newPosition}（已移除）");
+                    // Debug.Log($"[HandWaveManager] 移除位置小于0的波峰：原始位置={kvp.Key}，偏移后位置={newPosition}（已移除）");
                     continue;
                 }
 
@@ -256,7 +256,7 @@ namespace WaveSystem
             foreach (var position in positionsToRemove)
             {
                 handWave.RemovePeak(position);
-                Debug.Log($"[HandWaveManager] 移除了位置小于0的波峰：位置={position}");
+                // Debug.Log($"[HandWaveManager] 移除了位置小于0的波峰：位置={position}");
             }
         }
     }

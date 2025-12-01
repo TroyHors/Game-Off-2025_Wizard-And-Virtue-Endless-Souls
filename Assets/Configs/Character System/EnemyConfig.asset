@@ -12,38 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 98b6535bc7fbf7b46bd48b66dc8d7d5f, type: 3}
   m_Name: EnemyConfig
   m_EditorClassIdentifier: 
-  enemyConfigs:
-  - enemyName: 1
-    maxHealth: 1
-    waveData:
-      AttackDirection: 0
-      serializedPeakData:
-      - position: 0
-        value: 1
-    presetWaveIndex: 0
-  - enemyName: 1
-    maxHealth: 2
-    waveData:
-      AttackDirection: 0
-      serializedPeakData:
-      - position: 0
-        value: 1
-    presetWaveIndex: 0
-  - enemyName: 1
-    maxHealth: 1
-    waveData:
-      AttackDirection: 0
-      serializedPeakData:
-      - position: 0
-        value: 1
-    presetWaveIndex: 0
-  - enemyName: 1
-    maxHealth: 1
-    waveData:
-      AttackDirection: 0
-      serializedPeakData:
-      - position: 0
-        value: 1
-    presetWaveIndex: 0
-  enemyEntityPrefab: {fileID: 4704673709744043747, guid: 146580e56cd576641bb73d8f024c4c9e, type: 3}
+  enemyConfigs: []
+  enemyEntityPrefab: {fileID: 0}
   enemyTag: Enemy

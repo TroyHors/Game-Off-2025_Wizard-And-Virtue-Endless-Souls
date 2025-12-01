@@ -95,6 +95,7 @@ namespace SquadSystem
 
             List<GameObject> spawnedMembers = new List<GameObject>();
             int totalCost = 0;
+            List<string> membersToRemove = new List<string>(); // 记录需要删除的成员ID
 
             // 遍历小队中的成员ID，生成成员实例
             foreach (string memberId in squadData.MemberIds)
@@ -102,7 +103,8 @@ namespace SquadSystem
                 MemberData memberData = memberDataRegistry.GetMemberData(memberId);
                 if (memberData == null)
                 {
-                    Debug.LogWarning($"[SquadManager] 未找到成员ID '{memberId}' 对应的成员数据，跳过");
+                    Debug.LogWarning($"[SquadManager] 未找到成员ID '{memberId}' 对应的成员数据，跳过并删除");
+                    membersToRemove.Add(memberId);
                     continue;
                 }
 
@@ -112,7 +114,8 @@ namespace SquadSystem
                 {
                     if (!coinSystem.HasEnoughCoins(hireCost))
                     {
-                        Debug.LogWarning($"[SquadManager] 金币不足，无法雇佣成员 '{memberData.MemberName}' (需要 {hireCost} 金币)");
+                        Debug.LogWarning($"[SquadManager] 金币不足，无法雇佣成员 '{memberData.MemberName}' (需要 {hireCost} 金币)，将从小队中删除");
+                        membersToRemove.Add(memberId);
                         continue;
                     }
                 }
@@ -124,6 +127,13 @@ namespace SquadSystem
                     spawnedMembers.Add(memberInstance);
                     totalCost += hireCost;
                 }
+            }
+
+            // 删除支付失败的成员
+            foreach (string memberId in membersToRemove)
+            {
+                squadData.RemoveMember(memberId);
+                Debug.Log($"[SquadManager] 已从小队数据中删除成员: {memberId}（支付失败）");
             }
 
             // 扣除总雇佣金

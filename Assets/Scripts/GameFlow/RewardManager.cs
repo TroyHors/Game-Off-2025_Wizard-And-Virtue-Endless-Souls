@@ -1,5 +1,7 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 using CurrencySystem;
 using CardSystem;
 using WaveSystem;
@@ -50,10 +52,21 @@ namespace GameFlow
         [Tooltip("战斗流程（用于结束流程，如果为空，会自动查找）")]
         [SerializeField] private CombatNodeFlow combatNodeFlow;
 
+        [Tooltip("金币奖励数量文本（TextMeshProUGUI组件，用于显示金币奖励数量，可选）")]
+        [SerializeField] private TextMeshProUGUI coinRewardText;
+
+        [Tooltip("卡牌奖励UI容器（GameObject，用于显示/隐藏卡牌奖励区域，可选）")]
+        [SerializeField] private GameObject cardRewardUIContainer;
+
         /// <summary>
         /// 当前奖励的物品实例列表（用于清理）
         /// </summary>
         private List<GameObject> currentRewardInstances = new List<GameObject>();
+
+        /// <summary>
+        /// 当前奖励的金币数量
+        /// </summary>
+        private int currentCoinReward = 0;
 
         private void Awake()
         {
@@ -88,6 +101,27 @@ namespace GameFlow
             {
                 rewardContainer = transform;
             }
+
+            // 如果没有设置金币奖励文本，尝试自动查找
+            if (coinRewardText == null)
+            {
+                coinRewardText = GetComponentInChildren<TextMeshProUGUI>();
+            }
+
+            // 如果没有设置卡牌奖励UI容器，尝试自动查找（查找子对象中名称包含"Card"或"card"的GameObject）
+            if (cardRewardUIContainer == null)
+            {
+                Transform[] children = GetComponentsInChildren<Transform>(true);
+                foreach (Transform child in children)
+                {
+                    if (child != transform && (child.name.Contains("Card") || child.name.Contains("card")))
+                    {
+                        cardRewardUIContainer = child.gameObject;
+                        Debug.Log($"[RewardManager] 自动找到卡牌奖励UI容器: {child.name}");
+                        break;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -118,6 +152,24 @@ namespace GameFlow
 
             // 清理之前的奖励实例（不隐藏面板，因为我们要显示新的奖励）
             ClearRewardInstancesOnly();
+
+            // 重置金币奖励数量显示
+            currentCoinReward = 0;
+            UpdateCoinRewardDisplay();
+
+            // 隐藏卡牌奖励UI（默认隐藏，只有在有卡牌奖励时才显示）
+            HideCardRewardUI();
+
+            // 显示非战斗UI（隐藏战斗UI）
+            if (uiManager != null)
+            {
+                uiManager.ShowNonCombatUI();
+                Debug.Log("[RewardManager] 已切换到非战斗UI");
+            }
+            else
+            {
+                Debug.LogWarning("[RewardManager] UI管理器未找到，无法切换UI");
+            }
 
             // 显示奖励面板
             if (uiManager != null)
@@ -195,7 +247,9 @@ namespace GameFlow
         private void GiveCombatReward()
         {
             int coins = Random.Range(combatCoinRange.x, combatCoinRange.y + 1);
+            currentCoinReward = coins;
             GiveCoins(coins);
+            UpdateCoinRewardDisplay();
             Debug.Log($"[RewardManager] 战斗节点奖励：{coins} 金币");
         }
 
@@ -206,10 +260,15 @@ namespace GameFlow
         {
             // 金币奖励
             int coins = Random.Range(eliteCoinRange.x, eliteCoinRange.y + 1);
+            currentCoinReward = coins;
             GiveCoins(coins);
+            UpdateCoinRewardDisplay();
             Debug.Log($"[RewardManager] 精英节点奖励：{coins} 金币");
 
             // 卡牌奖励
+            // 显示卡牌奖励UI
+            ShowCardRewardUI();
+            
             Debug.Log($"[RewardManager] 准备发放卡牌奖励，数量: {eliteCardRewardCount}");
             Debug.Log($"[RewardManager] 当前状态检查 - cardPrefabRegistry: {(cardPrefabRegistry != null ? "已找到" : "NULL")}, purchaseButtonPrefab: {(purchaseButtonPrefab != null ? "已设置" : "NULL")}, rewardContainer: {(rewardContainer != null ? rewardContainer.name : "NULL")}");
             GiveCardRewards(eliteCardRewardCount);
@@ -222,8 +281,45 @@ namespace GameFlow
         private void GiveBossReward()
         {
             int coins = Random.Range(bossCoinRange.x, bossCoinRange.y + 1);
+            currentCoinReward = coins;
             GiveCoins(coins);
+            UpdateCoinRewardDisplay();
             Debug.Log($"[RewardManager] Boss节点奖励：{coins} 金币");
+        }
+
+        /// <summary>
+        /// 更新金币奖励数量显示
+        /// </summary>
+        private void UpdateCoinRewardDisplay()
+        {
+            if (coinRewardText != null)
+            {
+                coinRewardText.text = currentCoinReward.ToString();
+            }
+        }
+
+        /// <summary>
+        /// 显示卡牌奖励UI
+        /// </summary>
+        private void ShowCardRewardUI()
+        {
+            if (cardRewardUIContainer != null)
+            {
+                cardRewardUIContainer.SetActive(true);
+                Debug.Log($"[RewardManager] 显示卡牌奖励UI: {cardRewardUIContainer.name}");
+            }
+        }
+
+        /// <summary>
+        /// 隐藏卡牌奖励UI
+        /// </summary>
+        private void HideCardRewardUI()
+        {
+            if (cardRewardUIContainer != null)
+            {
+                cardRewardUIContainer.SetActive(false);
+                Debug.Log($"[RewardManager] 隐藏卡牌奖励UI: {cardRewardUIContainer.name}");
+            }
         }
 
         /// <summary>
@@ -386,6 +482,15 @@ namespace GameFlow
             buttonInstance.name = $"PurchaseButton_{cardId}";
             buttonInstance.SetActive(true); // 确保按钮是激活的
 
+            // 设置按钮的anchor为顶部中心 (Min: 0.5,1  Max: 0.5,1)
+            RectTransform buttonRect = buttonInstance.GetComponent<RectTransform>();
+            if (buttonRect != null)
+            {
+                buttonRect.anchorMin = new Vector2(0.5f, 1f);
+                buttonRect.anchorMax = new Vector2(0.5f, 1f);
+                Debug.Log($"[RewardManager] 按钮anchor已设置为顶部中心: Min(0.5,1) Max(0.5,1)");
+            }
+
             Debug.Log($"[RewardManager] CreateCardReward: 按钮实例已创建 '{buttonInstance.name}', 激活: {buttonInstance.activeSelf}, 父对象: {(buttonInstance.transform.parent != null ? buttonInstance.transform.parent.name : "null")}");
 
             // 初始化购买按钮（价格为0，因为是奖励，所有参数自动设置）
@@ -393,6 +498,10 @@ namespace GameFlow
             if (purchaseButton != null)
             {
                 purchaseButton.Initialize(cardId, PurchaseButton.ItemType.WaveCard, customPrice: 0);
+                
+                // 在初始化后设置按钮位置：放置在卡牌下方，间距30
+                // 使用协程延迟一帧，确保RectTransform尺寸已正确计算
+                StartCoroutine(SetButtonPositionDelayed(buttonInstance, cardInstance, 30f));
                 // 订阅购买成功事件，购买后销毁实例和按钮
                 purchaseButton.OnPurchaseSuccess.AddListener((string purchasedCardId) =>
                 {
@@ -508,6 +617,56 @@ namespace GameFlow
             }
 
             return string.Empty;
+        }
+
+        /// <summary>
+        /// 延迟设置按钮位置（确保RectTransform尺寸已正确计算）
+        /// </summary>
+        private IEnumerator SetButtonPositionDelayed(GameObject buttonInstance, GameObject itemInstance, float gap)
+        {
+            // 等待一帧，确保RectTransform尺寸已正确计算
+            yield return null;
+            
+            PositionButtonBelowItem(buttonInstance, itemInstance, gap);
+        }
+
+        /// <summary>
+        /// 将按钮放置在物品下方
+        /// </summary>
+        /// <param name="buttonInstance">按钮实例</param>
+        /// <param name="itemInstance">物品实例</param>
+        /// <param name="gap">间距（像素，按钮顶部到物品底部的距离）</param>
+        private void PositionButtonBelowItem(GameObject buttonInstance, GameObject itemInstance, float gap)
+        {
+            RectTransform buttonRect = buttonInstance.GetComponent<RectTransform>();
+            RectTransform itemRect = itemInstance.GetComponent<RectTransform>();
+
+            if (buttonRect == null || itemRect == null)
+            {
+                Debug.LogWarning("[RewardManager] 无法设置按钮位置：缺少RectTransform组件");
+                return;
+            }
+
+            // 确保按钮的anchor已设置为顶部中心 (0.5,1)
+            buttonRect.anchorMin = new Vector2(0.5f, 1f);
+            buttonRect.anchorMax = new Vector2(0.5f, 1f);
+
+            // 获取物品的底部位置（相对于父对象顶部的距离）
+            // 当anchor为(0,1)时，anchoredPosition.y表示从顶部向下的距离
+            // 物品底部 = 物品顶部位置 + 物品高度
+            float itemTop = itemRect.anchoredPosition.y + itemRect.rect.yMax;
+            float itemHeight = itemRect.rect.height;
+            float itemBottom = itemTop - itemHeight; // 从父对象顶部向下的距离
+            
+            // 计算按钮的anchoredPosition.y
+            // 按钮anchor为(0,1)，所以anchoredPosition.y表示按钮顶部距离父对象顶部的距离
+            // 按钮顶部应该在物品底部下方gap像素处
+            float buttonY = itemBottom - gap;
+            
+            // 设置按钮位置（X轴居中，Y轴在物品下方30像素）
+            buttonRect.anchoredPosition = new Vector2(0f, buttonY);
+            
+            Debug.Log($"[RewardManager] 按钮位置已设置: 物品顶部={itemTop:F1}, 物品底部={itemBottom:F1}, 按钮Y={buttonY:F1}, 间距={gap}");
         }
     }
 }

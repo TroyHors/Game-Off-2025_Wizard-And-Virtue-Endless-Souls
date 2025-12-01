@@ -46,6 +46,8 @@ namespace WaveSystem
         /// <param name="wave">要设置的波</param>
         public void SetEnemyWave(Wave wave)
         {
+            Debug.Log($"[EnemyWaveManager] SetEnemyWave 被调用，wave={(wave != null ? $"存在，波峰数={wave.PeakCount}" : "null")}");
+            
             if (wave == null)
             {
                 Debug.LogWarning("[EnemyWaveManager] 尝试设置空的敌人波");
@@ -57,7 +59,30 @@ namespace WaveSystem
 
             currentEnemyWave = wave.Clone();
             currentPresetIndex = -1; // 使用自定义波，不再使用预设
+            Debug.Log($"[EnemyWaveManager] 波已设置: 波峰数={currentEnemyWave.PeakCount}, 是否为空={currentEnemyWave.IsEmpty}");
             UpdateWaveDisplay();
+        }
+
+        /// <summary>
+        /// 设置当前敌人的波数据（从WaveData）
+        /// </summary>
+        /// <param name="waveData">要设置的波数据</param>
+        public void SetEnemyWaveData(WaveData waveData)
+        {
+            Debug.Log($"[EnemyWaveManager] SetEnemyWaveData 被调用，waveData={(waveData != null ? $"存在，波峰数={waveData.PeakCount}" : "null")}");
+            
+            if (waveData == null)
+            {
+                Debug.LogWarning("[EnemyWaveManager] 尝试设置空的敌人波数据");
+                currentEnemyWave = new Wave();
+                currentPresetIndex = -1;
+                UpdateWaveDisplay();
+                return;
+            }
+
+            Wave wave = Wave.FromData(waveData);
+            Debug.Log($"[EnemyWaveManager] 从WaveData创建Wave: 波峰数={wave.PeakCount}, 是否为空={wave.IsEmpty}");
+            SetEnemyWave(wave);
         }
 
         /// <summary>
@@ -188,9 +213,12 @@ namespace WaveSystem
         /// </summary>
         public void UpdateWaveDisplay()
         {
+            Debug.Log($"[EnemyWaveManager] UpdateWaveDisplay 被调用，waveVisualizer={(waveVisualizer != null ? "存在" : "null")}, 当前波峰数={currentEnemyWave.PeakCount}");
+            
             if (waveVisualizer != null)
             {
                 waveVisualizer.DisplayWave(currentEnemyWave);
+                Debug.Log($"[EnemyWaveManager] 已调用 waveVisualizer.DisplayWave，波峰数={currentEnemyWave.PeakCount}");
             }
             else
             {
