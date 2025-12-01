@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 using CurrencySystem;
 using CardSystem;
 using WaveSystem;
@@ -50,10 +51,21 @@ namespace GameFlow
         [Tooltip("战斗流程（用于结束流程，如果为空，会自动查找）")]
         [SerializeField] private CombatNodeFlow combatNodeFlow;
 
+        [Tooltip("金币奖励数量文本（TextMeshProUGUI组件，用于显示金币奖励数量，可选）")]
+        [SerializeField] private TextMeshProUGUI coinRewardText;
+
+        [Tooltip("卡牌奖励UI容器（GameObject，用于显示/隐藏卡牌奖励区域，可选）")]
+        [SerializeField] private GameObject cardRewardUIContainer;
+
         /// <summary>
         /// 当前奖励的物品实例列表（用于清理）
         /// </summary>
         private List<GameObject> currentRewardInstances = new List<GameObject>();
+
+        /// <summary>
+        /// 当前奖励的金币数量
+        /// </summary>
+        private int currentCoinReward = 0;
 
         private void Awake()
         {
@@ -88,6 +100,27 @@ namespace GameFlow
             {
                 rewardContainer = transform;
             }
+
+            // 如果没有设置金币奖励文本，尝试自动查找
+            if (coinRewardText == null)
+            {
+                coinRewardText = GetComponentInChildren<TextMeshProUGUI>();
+            }
+
+            // 如果没有设置卡牌奖励UI容器，尝试自动查找（查找子对象中名称包含"Card"或"card"的GameObject）
+            if (cardRewardUIContainer == null)
+            {
+                Transform[] children = GetComponentsInChildren<Transform>(true);
+                foreach (Transform child in children)
+                {
+                    if (child != transform && (child.name.Contains("Card") || child.name.Contains("card")))
+                    {
+                        cardRewardUIContainer = child.gameObject;
+                        Debug.Log($"[RewardManager] 自动找到卡牌奖励UI容器: {child.name}");
+                        break;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -118,6 +151,24 @@ namespace GameFlow
 
             // 清理之前的奖励实例（不隐藏面板，因为我们要显示新的奖励）
             ClearRewardInstancesOnly();
+
+            // 重置金币奖励数量显示
+            currentCoinReward = 0;
+            UpdateCoinRewardDisplay();
+
+            // 隐藏卡牌奖励UI（默认隐藏，只有在有卡牌奖励时才显示）
+            HideCardRewardUI();
+
+            // 显示非战斗UI（隐藏战斗UI）
+            if (uiManager != null)
+            {
+                uiManager.ShowNonCombatUI();
+                Debug.Log("[RewardManager] 已切换到非战斗UI");
+            }
+            else
+            {
+                Debug.LogWarning("[RewardManager] UI管理器未找到，无法切换UI");
+            }
 
             // 显示奖励面板
             if (uiManager != null)
@@ -195,7 +246,9 @@ namespace GameFlow
         private void GiveCombatReward()
         {
             int coins = Random.Range(combatCoinRange.x, combatCoinRange.y + 1);
+            currentCoinReward = coins;
             GiveCoins(coins);
+            UpdateCoinRewardDisplay();
             Debug.Log($"[RewardManager] 战斗节点奖励：{coins} 金币");
         }
 
@@ -206,10 +259,15 @@ namespace GameFlow
         {
             // 金币奖励
             int coins = Random.Range(eliteCoinRange.x, eliteCoinRange.y + 1);
+            currentCoinReward = coins;
             GiveCoins(coins);
+            UpdateCoinRewardDisplay();
             Debug.Log($"[RewardManager] 精英节点奖励：{coins} 金币");
 
             // 卡牌奖励
+            // 显示卡牌奖励UI
+            ShowCardRewardUI();
+            
             Debug.Log($"[RewardManager] 准备发放卡牌奖励，数量: {eliteCardRewardCount}");
             Debug.Log($"[RewardManager] 当前状态检查 - cardPrefabRegistry: {(cardPrefabRegistry != null ? "已找到" : "NULL")}, purchaseButtonPrefab: {(purchaseButtonPrefab != null ? "已设置" : "NULL")}, rewardContainer: {(rewardContainer != null ? rewardContainer.name : "NULL")}");
             GiveCardRewards(eliteCardRewardCount);
@@ -222,8 +280,45 @@ namespace GameFlow
         private void GiveBossReward()
         {
             int coins = Random.Range(bossCoinRange.x, bossCoinRange.y + 1);
+            currentCoinReward = coins;
             GiveCoins(coins);
+            UpdateCoinRewardDisplay();
             Debug.Log($"[RewardManager] Boss节点奖励：{coins} 金币");
+        }
+
+        /// <summary>
+        /// 更新金币奖励数量显示
+        /// </summary>
+        private void UpdateCoinRewardDisplay()
+        {
+            if (coinRewardText != null)
+            {
+                coinRewardText.text = currentCoinReward.ToString();
+            }
+        }
+
+        /// <summary>
+        /// 显示卡牌奖励UI
+        /// </summary>
+        private void ShowCardRewardUI()
+        {
+            if (cardRewardUIContainer != null)
+            {
+                cardRewardUIContainer.SetActive(true);
+                Debug.Log($"[RewardManager] 显示卡牌奖励UI: {cardRewardUIContainer.name}");
+            }
+        }
+
+        /// <summary>
+        /// 隐藏卡牌奖励UI
+        /// </summary>
+        private void HideCardRewardUI()
+        {
+            if (cardRewardUIContainer != null)
+            {
+                cardRewardUIContainer.SetActive(false);
+                Debug.Log($"[RewardManager] 隐藏卡牌奖励UI: {cardRewardUIContainer.name}");
+            }
         }
 
         /// <summary>

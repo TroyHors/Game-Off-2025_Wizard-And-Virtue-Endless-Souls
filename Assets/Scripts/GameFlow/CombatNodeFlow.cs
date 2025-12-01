@@ -52,6 +52,10 @@ namespace GameFlow
         [Tooltip("玩家实体管理器（用于生成和销毁玩家实体）")]
         [SerializeField] private CharacterSystem.PlayerEntityManager playerEntityManager;
 
+        [Header("UI管理")]
+        [Tooltip("UI管理器（用于控制战斗/非战斗UI显示，如果为空，会自动查找）")]
+        [SerializeField] private UIManager uiManager;
+
         [Tooltip("敌人生成器（用于生成和销毁敌人实体）")]
         [SerializeField] private CharacterSystem.EnemySpawner enemySpawner;
 
@@ -202,6 +206,17 @@ namespace GameFlow
             if (rewardManager == null)
             {
                 rewardManager = FindObjectOfType<RewardManager>();
+            }
+
+            if (uiManager == null)
+            {
+                uiManager = FindObjectOfType<UIManager>();
+            }
+
+            // 显示战斗UI（隐藏非战斗UI）
+            if (uiManager != null)
+            {
+                uiManager.ShowCombatUI();
             }
 
             // 生成玩家实体

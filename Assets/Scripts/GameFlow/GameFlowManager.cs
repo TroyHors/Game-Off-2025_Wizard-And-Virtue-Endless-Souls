@@ -391,6 +391,8 @@ namespace GameFlow
             if (uiManager != null)
             {
                 uiManager.ShowMapUI();
+                // 显示非战斗UI（隐藏战斗UI）
+                uiManager.ShowNonCombatUI();
             }
 
             // 检查是否到达Boss节点

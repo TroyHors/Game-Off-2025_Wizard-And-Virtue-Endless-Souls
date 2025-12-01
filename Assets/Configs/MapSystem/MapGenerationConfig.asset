@@ -84,7 +84,7 @@ MonoBehaviour:
     minCount: 4
     maxCount: 6
     minLayerInterval: 3
-    sprite: {fileID: 10915, guid: 0000000000000000f000000000000000, type: 0}
+    sprite: {fileID: 21300000, guid: 99fdfa276588f8645baf71b30209954c, type: 3}
     nodeSize: {x: 40, y: 40}
     flowPrefab: {fileID: 7261266903654023272, guid: 55fa7032b7c506644be342b509d32ad5, type: 3}
   - nodeType: "\u7CBE\u82F1"
@@ -149,7 +149,7 @@ MonoBehaviour:
     maxCount: 6
     minLayerInterval: 3
     sprite: {fileID: 21300000, guid: c66473c1f5c1e9d43973c5ae8ebd6a10, type: 3}
-    nodeSize: {x: 40, y: 40}
+    nodeSize: {x: 50, y: 50}
     flowPrefab: {fileID: 6467397136130254044, guid: f1a873e8d8f084a4cb44c0d16b8951f1, type: 3}
   enablePathValidation: 0
   minRestNodesPerPath: 2

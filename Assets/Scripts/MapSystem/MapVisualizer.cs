@@ -42,6 +42,22 @@ namespace MapSystem
         [Tooltip("已访问连接线颜色")]
         [SerializeField] private Color visitedLineColor = new Color(0.3f, 0.3f, 0.3f, 0.5f);
 
+        [Header("节点状态颜色（调试用）")]
+        [Tooltip("正常状态颜色")]
+        [SerializeField] public Color nodeNormalColor = Color.white;
+
+        [Tooltip("已访问状态颜色")]
+        [SerializeField] public Color nodeVisitedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+
+        [Tooltip("当前节点颜色")]
+        [SerializeField] public Color nodeCurrentColor = new Color(1f, 1f, 0f, 1f);
+
+        [Tooltip("可访问节点颜色")]
+        [SerializeField] public Color nodeAvailableColor = new Color(0.5f, 1f, 0.5f, 1f);
+
+        [Tooltip("不可访问节点颜色")]
+        [SerializeField] public Color nodeUnavailableColor = new Color(0.3f, 0.3f, 0.3f, 1f);
+
         [Header("自动布局")]
         [Tooltip("底部间距(从容器底部开始的偏移)")]
         [SerializeField] private float bottomGap = 50f;
@@ -210,6 +226,8 @@ namespace MapSystem
                 MapNodeVisual nodeVisual = nodeObj.AddComponent<MapNodeVisual>();
                 // Initialize会设置图像和大小,但我们已经设置了,所以这里只是绑定节点数据
                 nodeVisual.Initialize(node, nodeSprite, nodeSize);
+                // 设置节点颜色（使用MapVisualizer中配置的颜色，方便调试）
+                nodeVisual.SetColors(nodeNormalColor, nodeVisitedColor, nodeCurrentColor, nodeAvailableColor, nodeUnavailableColor);
                 nodeVisual.OnNodeClicked += HandleNodeClicked;
 
                 // 存储引用
@@ -674,56 +692,12 @@ namespace MapSystem
             scrollRect.decelerationRate = 0.135f; // 减速率
             scrollRect.scrollSensitivity = 20f; // 滚动灵敏度
 
-            // 确保mapContainer的尺寸正确设置
-            // 计算地图内容的总高度
-            float contentHeight = CalculateContentHeight();
-            if (contentHeight > 0)
-            {
-                // 设置mapContainer的最小高度为内容高度
-                Vector2 currentSize = mapContainer.sizeDelta;
-                mapContainer.sizeDelta = new Vector2(currentSize.x, Mathf.Max(currentSize.y, contentHeight));
-            }
+            // 注意：不要修改mapContainer的尺寸、anchor和pivot，避免影响现有布局和位置
+            // ScrollRect会自动根据content（mapContainer）的实际内容计算滚动范围
 
-            // 设置mapContainer的anchor和pivot，确保滚动正确
-            mapContainer.anchorMin = new Vector2(0.5f, 1f); // 顶部锚点
-            mapContainer.anchorMax = new Vector2(0.5f, 1f);
-            mapContainer.pivot = new Vector2(0.5f, 1f); // 顶部中心为轴心
-
-            // 确保父容器有Mask组件来裁剪超出部分
-            Mask mask = parentRect.GetComponent<Mask>();
-            if (mask == null)
-            {
-                Image maskImage = parentRect.GetComponent<Image>();
-                if (maskImage == null)
-                {
-                    maskImage = parentRect.gameObject.AddComponent<Image>();
-                    maskImage.color = new Color(1, 1, 1, 0); // 透明，只用于Mask
-                }
-                mask = parentRect.gameObject.AddComponent<Mask>();
-                mask.showMaskGraphic = false;
-            }
-        }
-
-        /// <summary>
-        /// 计算地图内容的总高度
-        /// </summary>
-        private float CalculateContentHeight()
-        {
-            if (mapManager == null || mapManager.CurrentTopology == null)
-            {
-                return 0f;
-            }
-
-            MapTopology topology = mapManager.CurrentTopology;
-            
-            // 计算总高度：底部间距 + 层数 * 层间距 + 顶部间距
-            float totalHeight = bottomGap + (topology.Height - 1) * layerSpacing + bottomGap;
-            
-            // 添加节点大小的一半（顶部和底部各一半）
-            float nodeSize = GetNodeSize(null, GetConfig()).y;
-            totalHeight += nodeSize;
-
-            return totalHeight;
+            // 注意：Mask组件可能会裁剪其他UI，如果父容器包含其他UI元素，不要自动添加Mask
+            // 如果需要Mask功能，应该在Unity编辑器中手动添加
+            // 这里不自动添加Mask，避免影响其他UI显示
         }
     }
 }

@@ -115,6 +115,20 @@ namespace MapSystem
         }
 
         /// <summary>
+        /// 设置节点颜色（供外部调试使用）
+        /// </summary>
+        public void SetColors(Color normal, Color visited, Color current, Color available, Color unavailable)
+        {
+            normalColor = normal;
+            visitedColor = visited;
+            currentColor = current;
+            availableColor = available;
+            unavailableColor = unavailable;
+            // 重新应用当前状态的颜色
+            SetState(currentState);
+        }
+
+        /// <summary>
         /// 设置节点状态
         /// </summary>
         public void SetState(NodeState state)
